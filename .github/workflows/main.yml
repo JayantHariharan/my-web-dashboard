@@ -33,11 +33,11 @@ jobs:
 
       - name: 🔍 Check required files exist
         run: |
-          echo "── Checking project files ──"
-          test -f index.html    || (echo "❌ index.html missing!"   && exit 1)
-          test -f css/style.css || (echo "❌ css/style.css missing!" && exit 1)
-          test -f js/main.js    || (echo "❌ js/main.js missing!"   && exit 1)
-          echo "✅ All required files are present"
+          echo "── Checking project files in src/ ──"
+          test -f src/index.html    || (echo "❌ src/index.html missing!"   && exit 1)
+          test -f src/css/style.css || (echo "❌ src/css/style.css missing!" && exit 1)
+          test -f src/js/main.js    || (echo "❌ src/js/main.js missing!"    && exit 1)
+          echo "✅ All required source files are present"
 
       - name: 🧹 Cleanup workspace
         if: always()
@@ -67,30 +67,14 @@ jobs:
           server:     ${{ secrets.FTP_SERVER }}
           username:   ${{ secrets.FTP_USERNAME }}
           password:   ${{ secrets.FTP_PASSWORD }}
-          local-dir:  ./
+          local-dir:  ./src/       # Deploy ONLY the source folder
           server-dir: /htdocs/
           protocol:   ftp
           port:       21
+          # Only exclude git/github folders if they exist inside src/
           exclude: |
             **/.git/**
             **/.github/**
-            **/node_modules/**
-            .gitignore
-            README.md
-            .DS_Store
-            Thumbs.db
-
-      - name: 🔍 Verify site is reachable
-        if: success()
-        run: |
-          echo "Verifying live site responds..."
-          STATUS=$(curl -o /dev/null -s -w "%{http_code}" https://playnexus.unaux.com)
-          echo "HTTP status: $STATUS"
-          if [[ "$STATUS" == "200" || "$STATUS" == "301" || "$STATUS" == "302" ]]; then
-            echo "✅ Site is live at https://playnexus.unaux.com"
-          else
-            echo "⚠️ Site returned $STATUS — may need a moment to propagate"
-          fi
 
       - name: 🧹 Cleanup workspace
         if: always()
