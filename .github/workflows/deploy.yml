@@ -1,29 +1,87 @@
-name: 🚀 Deploy to PlayNexus
+name: 🚀 PlayNexus CI/CD
 
+# ─────────────────────────────────────────────────────────────
+#  Trigger rules:
+#  • feature/* branches  → no workflow (work freely, no CI cost)
+#  • PR  feature → develop  → runs 'validate' job (CI check)
+#  • PR  develop → main     → runs 'validate' job (CI check)
+#  • push/merge  to main    → runs 'deploy'   job (production)
+#  • workflow_dispatch      → manual deploy from GitHub UI
+# ─────────────────────────────────────────────────────────────
 on:
   push:
-    branches: [ main ]       # Production deploy — only on main
-  workflow_dispatch:         # Allow manual trigger from GitHub UI
+    branches: [ main ]              # Only merges to main trigger deploy
 
+  pull_request:
+    branches: [ develop, main ]     # Validate PRs targeting develop or main
+
+  workflow_dispatch:                # Allow manual production deploy
+
+# ─────────────────────────────────────────────────────────────
+#  Concurrency — cancel stale runs so only the latest commit
+#  per branch / PR is ever running at a time.
+#  group key:  workflow name + branch ref (unique per branch/PR)
+# ─────────────────────────────────────────────────────────────
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ─────────────────────────────────────────────────────────────
+#  JOB 1 — Validate  (PRs only, never on direct push to main)
+#  Runs when a PR is opened / updated targeting develop or main.
+#  Confirms all required files are present — lightweight check.
+# ─────────────────────────────────────────────────────────────
 jobs:
-  deploy:
-    name: FTP Deploy to ProFreeHost
+  validate:
+    name: ✅ Validate Files
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
 
     steps:
-      - name: ⬇️ Checkout repository
+      - name: ⬇️ Checkout code
         uses: actions/checkout@v4
 
-      - name: 📂 FTP Deploy
+      - name: 🔍 Check required files exist
+        run: |
+          echo "── Checking project files ──"
+          test -f index.html     || (echo "❌ index.html is missing!"    && exit 1)
+          test -f css/style.css  || (echo "❌ css/style.css is missing!" && exit 1)
+          test -f js/main.js     || (echo "❌ js/main.js is missing!"    && exit 1)
+          echo "✅ index.html     found"
+          echo "✅ css/style.css  found"
+          echo "✅ js/main.js     found"
+          echo "── All checks passed ──"
+
+# ─────────────────────────────────────────────────────────────
+#  JOB 2 — Deploy  (push to main OR manual trigger only)
+#  Fires after a PR is merged into main.
+#  Uses FTP to upload site files to ProFreeHost /htdocs/.
+# ─────────────────────────────────────────────────────────────
+  deploy:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
+    # Surfaces the live URL in the GitHub Actions UI
+    environment:
+      name: production
+      url: https://playnexus.unaux.com
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 📂 FTP Deploy to ProFreeHost
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server:    ${{ secrets.FTP_SERVER }}
-          username:  ${{ secrets.FTP_USERNAME }}
-          password:  ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./           # Upload from repo root
-          server-dir: /htdocs/    # ProFreeHost web root (WordPress deleted)
-          protocol: ftp
-          port: 21
+          server:     ${{ secrets.FTP_SERVER }}
+          username:   ${{ secrets.FTP_USERNAME }}
+          password:   ${{ secrets.FTP_PASSWORD }}
+          local-dir:  ./           # Upload from repo root
+          server-dir: /htdocs/     # ProFreeHost public web root
+          protocol:   ftp
+          port:       21
+          # Files/folders that should NOT be uploaded to the server
           exclude: |
             **/.git/**
             **/.github/**
