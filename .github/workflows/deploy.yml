@@ -1,29 +1,48 @@
-name: 🚀 Deploy to PlayNexus
+name: 🚀 Deploy — Production
 
+# ─────────────────────────────────────────────────────────────────
+#  Runs ONLY when commits land on main (i.e. a PR is merged).
+#  This is the ONLY workflow that uses FTP credentials.
+#  Pushing to feature/* or develop will NEVER trigger this.
+# ─────────────────────────────────────────────────────────────────
 on:
   push:
-    branches: [ main ]       # Production deploy — only on main
-  workflow_dispatch:         # Allow manual trigger from GitHub UI
+    branches: [ main ]      # Fires on merge to main only
+
+  workflow_dispatch:         # Allow manual re-deploy from GitHub UI
+
+# Cancel any in-progress deploy if another push to main comes in
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
 
 jobs:
   deploy:
-    name: FTP Deploy to ProFreeHost
+    name: 🚀 FTP Deploy to ProFreeHost
     runs-on: ubuntu-latest
 
-    steps:
-      - name: ⬇️ Checkout repository
-        uses: actions/checkout@v4
+    # Shows the live URL in the GitHub Actions UI
+    environment:
+      name: production
+      url: https://playnexus.unaux.com
 
-      - name: 📂 FTP Deploy
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: true          # Wipe workspace before checkout — fresh every run
+
+      - name: 📂 Deploy via FTP to /htdocs/
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server:    ${{ secrets.FTP_SERVER }}
-          username:  ${{ secrets.FTP_USERNAME }}
-          password:  ${{ secrets.FTP_PASSWORD }}
-          local-dir: ./           # Upload from repo root
-          server-dir: /htdocs/    # ProFreeHost web root (WordPress deleted)
-          protocol: ftp
-          port: 21
+          server:     ${{ secrets.FTP_SERVER }}
+          username:   ${{ secrets.FTP_USERNAME }}
+          password:   ${{ secrets.FTP_PASSWORD }}
+          local-dir:  ./
+          server-dir: /htdocs/
+          protocol:   ftp
+          port:       21
+          # Never upload dev/infra files to the live server
           exclude: |
             **/.git/**
             **/.github/**
@@ -32,3 +51,22 @@ jobs:
             README.md
             .DS_Store
             Thumbs.db
+
+      - name: 🔍 Verify site is reachable
+        if: success()          # Only runs if FTP deploy succeeded
+        run: |
+          echo "Verifying live site responds..."
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" https://playnexus.unaux.com)
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" = "200" ] || [ "$STATUS" = "301" ] || [ "$STATUS" = "302" ]; then
+            echo "✅ Site is live at https://playnexus.unaux.com"
+          else
+            echo "⚠️ Site returned $STATUS — may need a moment to propagate"
+          fi
+
+      - name: 🧹 Cleanup workspace
+        if: always()           # Runs even if deploy fails
+        run: |
+          echo "Cleaning up runner workspace..."
+          rm -rf ${{ github.workspace }}/* || true
+          echo "✅ Workspace cleaned"
