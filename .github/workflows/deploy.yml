@@ -1,68 +1,27 @@
-name: 🚀 PlayNexus CI/CD
+name: 🚀 Deploy — Production
 
-# ─────────────────────────────────────────────────────────────
-#  Trigger rules:
-#  • feature/* branches  → no workflow (work freely, no CI cost)
-#  • PR  feature → develop  → runs 'validate' job (CI check)
-#  • PR  develop → main     → runs 'validate' job (CI check)
-#  • push/merge  to main    → runs 'deploy'   job (production)
-#  • workflow_dispatch      → manual deploy from GitHub UI
-# ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────────
+#  Runs ONLY when commits land on main (i.e. a PR is merged).
+#  This is the ONLY workflow that uses FTP credentials.
+#  Pushing to feature/* or develop will NEVER trigger this.
+# ─────────────────────────────────────────────────────────────────
 on:
   push:
-    branches: [ main ]              # Only merges to main trigger deploy
+    branches: [ main ]      # Fires on merge to main only
 
-  pull_request:
-    branches: [ develop, main ]     # Validate PRs targeting develop or main
+  workflow_dispatch:         # Allow manual re-deploy from GitHub UI
 
-  workflow_dispatch:                # Allow manual production deploy
-
-# ─────────────────────────────────────────────────────────────
-#  Concurrency — cancel stale runs so only the latest commit
-#  per branch / PR is ever running at a time.
-#  group key:  workflow name + branch ref (unique per branch/PR)
-# ─────────────────────────────────────────────────────────────
+# Cancel any in-progress deploy if another push to main comes in
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: deploy-production
   cancel-in-progress: true
 
-# ─────────────────────────────────────────────────────────────
-#  JOB 1 — Validate  (PRs only, never on direct push to main)
-#  Runs when a PR is opened / updated targeting develop or main.
-#  Confirms all required files are present — lightweight check.
-# ─────────────────────────────────────────────────────────────
 jobs:
-  validate:
-    name: ✅ Validate Files
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-
-    steps:
-      - name: ⬇️ Checkout code
-        uses: actions/checkout@v4
-
-      - name: 🔍 Check required files exist
-        run: |
-          echo "── Checking project files ──"
-          test -f index.html     || (echo "❌ index.html is missing!"    && exit 1)
-          test -f css/style.css  || (echo "❌ css/style.css is missing!" && exit 1)
-          test -f js/main.js     || (echo "❌ js/main.js is missing!"    && exit 1)
-          echo "✅ index.html     found"
-          echo "✅ css/style.css  found"
-          echo "✅ js/main.js     found"
-          echo "── All checks passed ──"
-
-# ─────────────────────────────────────────────────────────────
-#  JOB 2 — Deploy  (push to main OR manual trigger only)
-#  Fires after a PR is merged into main.
-#  Uses FTP to upload site files to ProFreeHost /htdocs/.
-# ─────────────────────────────────────────────────────────────
   deploy:
-    name: 🚀 Deploy to Production
+    name: 🚀 FTP Deploy to ProFreeHost
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
 
-    # Surfaces the live URL in the GitHub Actions UI
+    # Shows the live URL in the GitHub Actions UI
     environment:
       name: production
       url: https://playnexus.unaux.com
@@ -70,18 +29,20 @@ jobs:
     steps:
       - name: ⬇️ Checkout code
         uses: actions/checkout@v4
+        with:
+          clean: true          # Wipe workspace before checkout — fresh every run
 
-      - name: 📂 FTP Deploy to ProFreeHost
+      - name: 📂 Deploy via FTP to /htdocs/
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server:     ${{ secrets.FTP_SERVER }}
           username:   ${{ secrets.FTP_USERNAME }}
           password:   ${{ secrets.FTP_PASSWORD }}
-          local-dir:  ./           # Upload from repo root
-          server-dir: /htdocs/     # ProFreeHost public web root
+          local-dir:  ./
+          server-dir: /htdocs/
           protocol:   ftp
           port:       21
-          # Files/folders that should NOT be uploaded to the server
+          # Never upload dev/infra files to the live server
           exclude: |
             **/.git/**
             **/.github/**
@@ -90,3 +51,22 @@ jobs:
             README.md
             .DS_Store
             Thumbs.db
+
+      - name: 🔍 Verify site is reachable
+        if: success()          # Only runs if FTP deploy succeeded
+        run: |
+          echo "Verifying live site responds..."
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" https://playnexus.unaux.com)
+          echo "HTTP status: $STATUS"
+          if [ "$STATUS" = "200" ] || [ "$STATUS" = "301" ] || [ "$STATUS" = "302" ]; then
+            echo "✅ Site is live at https://playnexus.unaux.com"
+          else
+            echo "⚠️ Site returned $STATUS — may need a moment to propagate"
+          fi
+
+      - name: 🧹 Cleanup workspace
+        if: always()           # Runs even if deploy fails
+        run: |
+          echo "Cleaning up runner workspace..."
+          rm -rf ${{ github.workspace }}/* || true
+          echo "✅ Workspace cleaned"
