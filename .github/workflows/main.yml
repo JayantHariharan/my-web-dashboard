@@ -51,9 +51,13 @@ jobs:
     needs: validate          # MUST pass validation first
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    
+    # Environment link in GitHub UI
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
     environment:
       name: production
-      url: https://playnexus.unaux.com
+      url: ${{ env.SITE_URL }}
 
     steps:
       - name: ⬇️ Checkout code
@@ -61,21 +65,69 @@ jobs:
         with:
           clean: true
 
-      - name: 📂 FTP Deploy to /htdocs/
+      - name: 🛡️ Mask Sensitive Data
+        run: |
+          echo "::add-mask::${{ secrets.SITE_URL }}"
+          echo "::add-mask::${{ secrets.FTP_USERNAME }}"
+          echo "::add-mask::${{ secrets.FTP_SERVER }}"
+
+      - name: 📂 FTP Deploy to Server
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server:     ${{ secrets.FTP_SERVER }}
           username:   ${{ secrets.FTP_USERNAME }}
           password:   ${{ secrets.FTP_PASSWORD }}
           local-dir:  ./src/       # Deploy ONLY the source folder
-          server-dir: /htdocs/
+          server-dir: ${{ vars.FTP_SERVER_DIR || '/htdocs/' }}
           protocol:   ftp
           port:       21
-          # Only exclude git/github folders if they exist inside src/
           exclude: |
             **/.git/**
             **/.github/**
 
       - name: 🧹 Cleanup workspace
         if: always()
+        run: rm -rf ${{ github.workspace }}/* || true
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 3: Visual Smoke Test (Verification)
+  # ─────────────────────────────────────────────────────────────
+  smoke-test:
+    name: 🔍 Visual Smoke Test
+    needs: deploy            # Runs only after successful deploy
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+  #  Installing Playwright takes a moment, but it's the only 
+  #  reliable way to bypass bot-firewalls in production.
+      - name: 🎭 Install Playwright
+        run: |
+          npm install playwright
+          npx playwright install chromium --with-deps
+
+      - name: 📸 Run Smoke Test
+        run: node tests/smoke.test.js
+
+      - name: 📦 Upload Live Screenshot
+        if: always()         # Always upload if test started
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-site-screenshot
+          path: screenshot.png
+          retention-days: 3  # Auto-delete after 3 days
+
+      - name: 🧹 Cleanup workspace
+        if: always()         # Always run to ensure runner is clean
         run: rm -rf ${{ github.workspace }}/* || true
