@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trending World | PlayNexus</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/crystal-portal.css">
+    <style>
+        .news-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body class="dark-theme" style="overflow-y: auto; padding-top: 120px;">
+
+    <!-- 🚀 CRYSTAL HUD (App Header) -->
+    <header style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 20px 5%; display: flex; justify-content: space-between; align-items: center; background: rgba(7, 11, 20, 0.9); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <div style="display: flex; align-items: center; gap: 30px;">
+            <!-- Logo -->
+            <div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="location.href='../index.html'">
+                <img src="../assets/logo.png" style="width: 35px; height: auto;" alt="Nexus Logo">
+                <div style="font-family: 'Outfit'; font-weight: 900; font-size: 1.4rem; letter-spacing: 2px;">PLAY<span style="color: var(--nexus-purple);">NEXUS</span></div>
+            </div>
+            
+            <!-- App Identifier Pill -->
+            <div style="font-weight: 800; font-size: 0.8rem; background: linear-gradient(90deg, rgba(6, 182, 212, 0.2), rgba(37, 99, 235, 0.1)); padding: 6px 16px; border-radius: 40px; border: 1px solid rgba(6, 182, 212, 0.3); letter-spacing: 1px; color: #fff;">
+                📰 TRENDING WORLD
+            </div>
+        </div>
+        
+        <!-- Back to Hub Button -->
+        <div style="display: flex; align-items: center; gap: 10px; cursor: pointer; background: rgba(255,255,255,0.05); padding: 10px 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'" onclick="location.href='../index.html'">
+            <span style="font-size: 1.2rem;">←</span>
+            <span style="font-family: 'Outfit'; font-weight: 700; font-size: 0.8rem; letter-spacing: 1px; color: #ddd;">BACK TO HUB</span>
+        </div>
+    </header>
+
+    <main style="max-width: 1400px; margin: 0 auto; text-align: left;">
+        <h1 class="row-title" style="padding: 0 40px;">Global Insights</h1>
+        <p style="padding: 0 40px; color: #777;">Real-time feed across all content hubs</p>
+
+        <section class="news-grid" id="news-feed">
+            <!-- News Cards will be dynamically injected here -->
+            <div class="crystal-card">
+                <span class="badge" style="background: var(--nexus-cyan); padding: 5px 10px; border-radius: 4px; font-size: 0.7rem; position: absolute; top: 15px; left: 15px;">TECH</span>
+                <div class="info">
+                    <h3>Explore the Nexus</h3>
+                    <p>Fetching the latest global trends and advancements.</p>
+                </div>
+            </div>
+            <div class="crystal-card">
+                <span class="badge" style="background: var(--nexus-purple); padding: 5px 10px; border-radius: 4px; font-size: 0.7rem; position: absolute; top: 15px; left: 15px;">WORLD</span>
+                <div class="info">
+                    <h3>Portal Integration</h3>
+                    <p>New content nodes added to the PlayNexus ecosystem.</p>
+                </div>
+            </div>
+        </section>
+        
+    </main>
+
+</body>
+</html>

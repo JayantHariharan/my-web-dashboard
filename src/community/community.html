@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Community Nexus | PlayNexus</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/crystal-portal.css">
+    <style>
+        .community-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--crystal-border);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .community-card:hover { background: rgba(255,255,255,0.06); border-color: var(--nexus-purple); transform: translateY(-10px); }
+    </style>
+</head>
+<body class="dark-theme" style="overflow-y: auto; padding-top: 100px;">
+
+    <!-- 🚀 CRYSTAL HUD (App Header) -->
+    <header style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 20px 5%; display: flex; justify-content: space-between; align-items: center; background: rgba(7, 11, 20, 0.9); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <div style="display: flex; align-items: center; gap: 30px;">
+            <!-- Logo -->
+            <div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="location.href='../index.html'">
+                <img src="../assets/logo.png" style="width: 35px; height: auto;" alt="Nexus Logo">
+                <div style="font-family: 'Outfit'; font-weight: 900; font-size: 1.4rem; letter-spacing: 2px;">PLAY<span style="color: var(--nexus-purple);">NEXUS</span></div>
+            </div>
+            
+            <!-- App Identifier Pill -->
+            <div style="font-weight: 800; font-size: 0.8rem; background: linear-gradient(90deg, rgba(245, 158, 11, 0.2), rgba(220, 38, 38, 0.1)); padding: 6px 16px; border-radius: 40px; border: 1px solid rgba(245, 158, 11, 0.3); letter-spacing: 1px; color: #fff;">
+                🤝 COMMUNITY NEXUS
+            </div>
+        </div>
+        
+        <!-- Back to Hub Button -->
+        <div style="display: flex; align-items: center; gap: 10px; cursor: pointer; background: rgba(255,255,255,0.05); padding: 10px 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'" onclick="location.href='../index.html'">
+            <span style="font-size: 1.2rem;">←</span>
+            <span style="font-family: 'Outfit'; font-weight: 700; font-size: 0.8rem; letter-spacing: 1px; color: #ddd;">BACK TO HUB</span>
+        </div>
+    </header>
+
+    <main style="max-width: 1200px; margin: 0 auto; padding: 60px 20px;">
+        <h1 class="row-title" style="text-align: center;">Join the Exploration</h1>
+        <p style="text-align: center; color: #777; margin-bottom: 60px;">Bridge the gap between development and exploration</p>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px;">
+            <!-- GitHub Bridge -->
+            <div class="community-card" onclick="window.open('https://github.com/your-username/your-repo/issues', '_blank')">
+                <div style="font-size: 3rem; margin-bottom: 20px;">🏗️</div>
+                <h3>Report a Bug</h3>
+                <p>Direct bridge to the developer console.</p>
+            </div>
+
+            <!-- Feature Requests -->
+            <div class="community-card" onclick="window.open('https://github.com/your-username/your-repo/discussions', '_blank')">
+                <div style="font-size: 3rem; margin-bottom: 20px;">💡</div>
+                <h3>Request a Feature</h3>
+                <p>Propose new nodes for the Nexus.</p>
+            </div>
+
+            <!-- Discord Community -->
+            <div class="community-card">
+                <div style="font-size: 3rem; margin-bottom: 20px;">🛰️</div>
+                <h3>Nexus Discord</h3>
+                <p>Connect with other Explorers.</p>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>
