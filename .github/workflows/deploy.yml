@@ -1,6 +1,10 @@
 name: 🚀 Deploy — Production
 run-name: "Deploy: ${{ github.event.head_commit.message }}"
 
+# Fix for Node.js 20 deprecation warning
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 # ─────────────────────────────────────────────────────────────────
 #  Runs ONLY when commits land on main (i.e. a PR is merged).
 #  This is the ONLY workflow that uses FTP credentials.

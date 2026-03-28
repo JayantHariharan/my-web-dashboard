@@ -1,14 +1,20 @@
 name: ✅ CI — Validate
-run-name: "CI Check: ${{ github.event.pull_request.title }} (#${{ github.event.pull_request.number }})"
+run-name: "CI: ${{ github.event.head_commit.message || github.event.pull_request.title }}"
 
 # ─────────────────────────────────────────────────────────────────
-#  Runs ONLY on Pull Requests targeting develop or main.
-#  Will NEVER trigger on direct pushes to feature/*, develop, main.
-#  Does NOT use any secrets or FTP credentials — purely a file check.
+#  Triggers:
+#  • PR targeting develop or main
+#  • Push to develop or any feature/** branch
 # ─────────────────────────────────────────────────────────────────
 on:
+  push:
+    branches: [ develop, 'feature/**' ]
   pull_request:
-    branches: [ develop, main ]   # PRs to these branches only
+    branches: [ develop, main ]
+
+# Fix for Node.js 20 deprecation warning
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 # Cancel stale runs on the same PR when new commits are pushed
 concurrency:
