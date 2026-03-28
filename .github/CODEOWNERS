@@ -1,0 +1,9 @@
+# PlayNexus CODEOWNERS
+# -----------------------------------------------------------------
+# This file ensures that Jayant Hariharan is automatically 
+# requested for review on every Pull Request.
+# -----------------------------------------------------------------
+
+# The asterisk (*) means all files in the repository.
+# You will be the required reviewer for everything!
+* @JayantHariharan
