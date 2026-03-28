@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900">
+    <defs>
+        <!-- Background Gradient -->
+        <radialGradient id="lockedBg" cx="50%" cy="50%" r="80%" fx="50%" fy="50%">
+            <stop offset="0%" stop-color="#121212" />
+            <stop offset="100%" stop-color="#050505" />
+        </radialGradient>
+        
+        <filter id="yellowGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="15" result="blur" />
+            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+        </filter>
+        <!-- Striped Pattern -->
+        <pattern id="diagonalStripes" width="40" height="40" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+            <rect width="20" height="40" fill="rgba(255,255,255,0.03)" />
+        </pattern>
+    </defs>
+
+    <!-- Background -->
+    <rect width="1600" height="900" fill="url(#lockedBg)" />
+    <rect width="1600" height="900" fill="url(#diagonalStripes)" />
+
+    <!-- Padlock / Vault Icon -->
+    <g transform="translate(680, 250)" filter="url(#yellowGlow)">
+        <!-- Lock body -->
+        <rect x="45" y="110" width="150" height="120" rx="30" fill="#f1c40f" opacity="0.8" />
+        <!-- Lock shackle -->
+        <path d="M 70 110 V 70 A 50 50 0 0 1 170 70 V 110" fill="none" stroke="#f1c40f" stroke-width="25" opacity="0.8" />
+        <!-- Keyhole -->
+        <circle cx="120" cy="155" r="15" fill="#121212" />
+        <path d="M 110 155 L 105 195 L 135 195 L 130 155 Z" fill="#121212" />
+    </g>
+    
+    <!-- Text -->
+    <text x="800" y="580" font-family="'Outfit', sans-serif" font-weight="800" font-size="64" fill="rgba(255,255,255,0.4)" text-anchor="middle" letter-spacing="8">IN DEVELOPMENT</text>
+    <text x="800" y="630" font-family="'Outfit', sans-serif" font-weight="600" font-size="24" fill="rgba(241,196,15,0.6)" text-anchor="middle" letter-spacing="4">SYSTEM CLASSIFIED</text>
+</svg>

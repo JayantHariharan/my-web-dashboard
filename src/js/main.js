@@ -1,123 +1,124 @@
-/* ─── main.js — PlayNexus interactions ─── */
+/**
+ * PlayNexus Crystal Portal - Main Logic & Physics
+ * 
+ * Features:
+ * 1. Matter.js Physics (Google Antigravity)
+ * 2. Navigation & Hub Interactions
+ */
 
-/* ══ Navbar scroll effect ══ */
-const navbar = document.getElementById('navbar');
-window.addEventListener('scroll', () => {
-  navbar.classList.toggle('scrolled', window.scrollY > 40);
-}, { passive: true });
+const PlayNexus = {
+    engine: null,
+    render: null,
+    runner: null,
+    bodies: [],
+    isGravityOn: true,
 
-/* ══ Hamburger mobile menu ══ */
-const hamburger = document.getElementById('hamburger-btn');
-const navLinks  = document.querySelector('.nav-links');
+    init() {
+        console.log("💎 PlayNexus Crystal Hub Initialized");
+        this.setupPhysics();
+        this.bindEvents();
+    },
 
-hamburger.addEventListener('click', () => {
-  const isOpen = navLinks.classList.toggle('mobile-open');
-  hamburger.classList.toggle('open', isOpen);
-  hamburger.setAttribute('aria-expanded', isOpen);
-});
+    setupPhysics() {
+        const { Engine, Render, Runner, Bodies, Composite } = Matter;
+        
+        this.engine = Engine.create();
+        this.engine.gravity.y = 1; // Start with normal gravity
 
-// Close mobile menu when a link is clicked
-navLinks.querySelectorAll('a').forEach(link => {
-  link.addEventListener('click', () => {
-    navLinks.classList.remove('mobile-open');
-    hamburger.classList.remove('open');
-    hamburger.setAttribute('aria-expanded', false);
-  });
-});
+        // Create a hidden renderer just for the world bounds
+        this.render = Render.create({
+            element: document.body,
+            engine: this.engine,
+            options: {
+                width: window.innerWidth,
+                height: window.innerHeight,
+                wireframes: false,
+                background: 'transparent'
+            }
+        });
+        
+        // FIX: Prevent the physics canvas from blocking UI clicks
+        if (this.render && this.render.canvas) {
+            this.render.canvas.style.pointerEvents = 'none';
+            this.render.canvas.style.position = 'fixed';
+            this.render.canvas.style.zIndex = '-1';
+        }
 
-/* ══ Scroll-reveal (IntersectionObserver) ══ */
-const reveals = document.querySelectorAll(
-  '.feature-card, .showcase-card, .about-text, .about-visual, .cta-card, .pipeline-step'
-);
-reveals.forEach(el => el.classList.add('reveal'));
+        // Add invisible walls
+        const wallOptions = { isStatic: true, render: { visible: false } };
+        const ground = Bodies.rectangle(window.innerWidth/2, window.innerHeight + 50, window.innerWidth, 100, wallOptions);
+        const leftWall = Bodies.rectangle(-50, window.innerHeight/2, 100, window.innerHeight, wallOptions);
+        const rightWall = Bodies.rectangle(window.innerWidth + 50, window.innerHeight/2, 100, window.innerHeight, wallOptions);
+        const ceiling = Bodies.rectangle(window.innerWidth/2, -50, window.innerWidth, 100, wallOptions);
 
-const revealObserver = new IntersectionObserver((entries) => {
-  entries.forEach((entry, i) => {
-    if (entry.isIntersecting) {
-      // stagger children in the same parent
-      const siblings = [...entry.target.parentElement.querySelectorAll('.reveal')];
-      const idx = siblings.indexOf(entry.target);
-      entry.target.style.transitionDelay = `${idx * 80}ms`;
-      entry.target.classList.add('visible');
-      revealObserver.unobserve(entry.target);
+        Composite.add(this.engine.world, [ground, leftWall, rightWall, ceiling]);
+
+        this.runner = Runner.create();
+        Runner.run(this.runner, this.engine);
+    },
+
+    /**
+     * Toggles the "Google Antigravity" effect
+     */
+    toggleGravity() {
+        this.isGravityOn = !this.isGravityOn;
+        this.engine.gravity.y = this.isGravityOn ? 1 : 0;
+        
+        if (!this.isGravityOn) {
+            // Give everything a little kick when gravity turns off
+            this.bodies.forEach(body => {
+                Matter.Body.applyForce(body, body.position, {
+                    x: (Math.random() - 0.5) * 0.1,
+                    y: (Math.random() - 0.5) * 0.1
+                });
+            });
+        }
+        
+        console.log(`🛸 Gravity: ${this.isGravityOn ? 'ON' : 'OFF'}`);
+        return this.isGravityOn;
+    },
+
+    /**
+     * Syncs a DOM element with a physics body
+     */
+    addPhysicsToElement(el) {
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const { Bodies, Composite } = Matter;
+
+        const body = Bodies.rectangle(
+            rect.left + rect.width / 2,
+            rect.top + rect.height / 2,
+            rect.width,
+            rect.height,
+            { restitution: 0.6, friction: 0.1 }
+        );
+
+        this.bodies.push(body);
+        Composite.add(this.engine.world, body);
+
+        // Sync loop
+        const sync = () => {
+            if (!this.isGravityOn || body.speed > 0.1) {
+                el.style.transform = `translate(${body.position.x - rect.left - rect.width/2}px, ${body.position.y - rect.top - rect.height/2}px) rotate(${body.angle}rad)`;
+            }
+            requestAnimationFrame(sync);
+        };
+        sync();
+    },
+
+    bindEvents() {
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            // Update walls logic here if needed
+        });
     }
-  });
-}, { threshold: 0.12 });
+};
 
-reveals.forEach(el => revealObserver.observe(el));
+// Global hook for the session manager
+window.startGravity = () => {
+    const cards = document.querySelectorAll('.crystal-card');
+    cards.forEach(card => PlayNexus.addPhysicsToElement(card));
+};
 
-/* ══ Animated counters in hero ══ */
-function animateCounter(el) {
-  const target   = +el.dataset.target;
-  const duration = 1800; // ms
-  const step     = 16;   // ~60fps
-  const increment = target / (duration / step);
-  let current = 0;
-
-  const timer = setInterval(() => {
-    current += increment;
-    if (current >= target) {
-      current = target;
-      clearInterval(timer);
-    }
-    el.textContent = Math.floor(current);
-  }, step);
-}
-
-const statNums = document.querySelectorAll('.stat-num');
-const statsObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      animateCounter(entry.target);
-      statsObserver.unobserve(entry.target);
-    }
-  });
-}, { threshold: 0.5 });
-
-statNums.forEach(el => statsObserver.observe(el));
-
-/* ══ Active nav link on scroll ══ */
-const sections = document.querySelectorAll('section[id]');
-const navLinkEls = document.querySelectorAll('.nav-link:not(.nav-cta)');
-
-const sectionObserver = new IntersectionObserver((entries) => {
-  entries.forEach(entry => {
-    if (entry.isIntersecting) {
-      navLinkEls.forEach(link => {
-        const active = link.getAttribute('href') === `#${entry.target.id}`;
-        link.style.color = active ? 'var(--text-primary)' : '';
-        link.style.background = active ? 'var(--bg-card)' : '';
-      });
-    }
-  });
-}, { rootMargin: '-40% 0px -55% 0px' });
-
-sections.forEach(s => sectionObserver.observe(s));
-
-/* ══ Feature card tilt on mouse move ══ */
-document.querySelectorAll('.feature-card').forEach(card => {
-  card.addEventListener('mousemove', (e) => {
-    const rect = card.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width  - 0.5;
-    const y = (e.clientY - rect.top)  / rect.height - 0.5;
-    card.style.transform = `translateY(-4px) rotateX(${-y * 6}deg) rotateY(${x * 6}deg)`;
-  });
-  card.addEventListener('mouseleave', () => {
-    card.style.transform = '';
-  });
-});
-
-/* ══ Typing cursor effect on hero title ══ */
-// subtle gradient shift on mouse move across hero
-const hero = document.getElementById('hero');
-hero.addEventListener('mousemove', (e) => {
-  const x = (e.clientX / window.innerWidth)  * 100;
-  const y = (e.clientY / window.innerHeight) * 100;
-  hero.querySelector('.orb-1').style.transform =
-    `translate(${x * 0.08}px, ${y * 0.08}px)`;
-  hero.querySelector('.orb-2').style.transform =
-    `translate(${-x * 0.05}px, ${-y * 0.05}px)`;
-}, { passive: true });
-
-console.log('%c🚀 PlayNexus', 'font-size:20px;color:#818cf8;font-weight:bold;');
-console.log('%cBuilt with ❤️  · Deployed via GitHub Actions', 'color:#94a3b8;');
+PlayNexus.init();
