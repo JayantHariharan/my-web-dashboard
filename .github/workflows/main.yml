@@ -1,0 +1,97 @@
+name: 🚀 PlayNexus CI/CD
+
+# ─────────────────────────────────────────────────────────────────
+#  Trigger on every push to develop, main, or feature branches.
+#  (Only one run triggered per push — no double-triggering)
+# ─────────────────────────────────────────────────────────────────
+on:
+  push:
+    branches: [ main, develop, 'feature/**' ]
+  workflow_dispatch:         # Allow manual run from GitHub UI
+
+# Fix for Node.js 20 deprecation warning
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+# Cancel stale runs on the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # JOB 1: Always Validate (runs on every branch)
+  # ─────────────────────────────────────────────────────────────
+  validate:
+    name: ✅ Validate Files
+    runs-on: ubuntu-latest
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: 🔍 Check required files exist
+        run: |
+          echo "── Checking project files ──"
+          test -f index.html    || (echo "❌ index.html missing!"   && exit 1)
+          test -f css/style.css || (echo "❌ css/style.css missing!" && exit 1)
+          test -f js/main.js    || (echo "❌ js/main.js missing!"   && exit 1)
+          echo "✅ All required files are present"
+
+      - name: 🧹 Cleanup workspace
+        if: always()
+        run: rm -rf ${{ github.workspace }}/* || true
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 2: Deploy to Production (ONLY on main branch)
+  # ─────────────────────────────────────────────────────────────
+  deploy:
+    name: 🚀 Production Deploy
+    needs: validate          # MUST pass validation first
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://playnexus.unaux.com
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: 📂 FTP Deploy to /htdocs/
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server:     ${{ secrets.FTP_SERVER }}
+          username:   ${{ secrets.FTP_USERNAME }}
+          password:   ${{ secrets.FTP_PASSWORD }}
+          local-dir:  ./
+          server-dir: /htdocs/
+          protocol:   ftp
+          port:       21
+          exclude: |
+            **/.git/**
+            **/.github/**
+            **/node_modules/**
+            .gitignore
+            README.md
+            .DS_Store
+            Thumbs.db
+
+      - name: 🔍 Verify site is reachable
+        if: success()
+        run: |
+          echo "Verifying live site responds..."
+          STATUS=$(curl -o /dev/null -s -w "%{http_code}" https://playnexus.unaux.com)
+          echo "HTTP status: $STATUS"
+          if [[ "$STATUS" == "200" || "$STATUS" == "301" || "$STATUS" == "302" ]]; then
+            echo "✅ Site is live at https://playnexus.unaux.com"
+          else
+            echo "⚠️ Site returned $STATUS — may need a moment to propagate"
+          fi
+
+      - name: 🧹 Cleanup workspace
+        if: always()
+        run: rm -rf ${{ github.workspace }}/* || true
