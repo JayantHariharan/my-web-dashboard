@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Vault | PlayNexus</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/crystal-portal.css">
+    <style>
+        .portfolio-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            padding: 40px;
+        }
+        .prof-header {
+            padding: 60px 40px;
+            background: linear-gradient(135deg, rgba(187, 134, 252, 0.1), rgba(3, 218, 198, 0.1));
+            border-bottom: 1px solid var(--crystal-border);
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="dark-theme" style="overflow-y: auto; padding-top: 100px;">
+
+    <!-- 🚀 CRYSTAL HUD (App Header) -->
+    <header style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 20px 5%; display: flex; justify-content: space-between; align-items: center; background: rgba(7, 11, 20, 0.9); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <div style="display: flex; align-items: center; gap: 30px;">
+            <!-- Logo -->
+            <div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="location.href='../index.html'">
+                <img src="../assets/logo.png" style="width: 35px; height: auto;" alt="Nexus Logo">
+                <div style="font-family: 'Outfit'; font-weight: 900; font-size: 1.4rem; letter-spacing: 2px;">PLAY<span style="color: var(--nexus-purple);">NEXUS</span></div>
+            </div>
+            
+            <!-- App Identifier Pill -->
+            <div style="font-weight: 800; font-size: 0.8rem; background: linear-gradient(90deg, rgba(236, 72, 153, 0.2), rgba(168, 85, 247, 0.1)); padding: 6px 16px; border-radius: 40px; border: 1px solid rgba(236, 72, 153, 0.3); letter-spacing: 1px; color: #fff;">
+                👤 THE VAULT
+            </div>
+        </div>
+        
+        <!-- Back to Hub Button -->
+        <div style="display: flex; align-items: center; gap: 10px; cursor: pointer; background: rgba(255,255,255,0.05); padding: 10px 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s;" onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'" onclick="location.href='../index.html'">
+            <span style="font-size: 1.2rem;">←</span>
+            <span style="font-family: 'Outfit'; font-weight: 700; font-size: 0.8rem; letter-spacing: 1px; color: #ddd;">BACK TO HUB</span>
+        </div>
+    </header>
+
+    <main style="max-width: 1200px; margin: 0 auto;">
+        <section class="prof-header">
+            <h1 style="font-size: 3rem; margin-bottom: 10px;">Jayant Hariharan</h1>
+            <p style="color: var(--nexus-cyan); font-weight: bold; letter-spacing: 2px;">Architect of the PlayNexus Ecosystem</p>
+        </section>
+
+        <h2 class="row-title" style="margin-top: 50px; padding: 0 40px;">Professional Skills</h2>
+        <div class="portfolio-grid">
+            <div class="crystal-card">
+                <div class="info">
+                    <h3>Frontend Engineering</h3>
+                    <p>Building high-end Cinematic Gateways and Interactive Hubs.</p>
+                </div>
+            </div>
+            <div class="crystal-card">
+                <div class="info">
+                    <h3>Back-end Architecture</h3>
+                    <p>Developing secure, industrial-grade session and auth systems.</p>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="row-title" style="margin-top: 50px; padding: 0 40px;">Project Showcase</h2>
+        <div class="portfolio-grid">
+            <div class="crystal-card tall">
+                <div class="info">
+                    <h3>PlayNexus Portal</h3>
+                    <p>A universal ecosystem for Games, News, and Community.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+</body>
+</html>

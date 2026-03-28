@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic-Tac-Toe Crystal | PlayNexus</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/crystal-portal.css">
+    <style>
+        .game-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            width: 350px;
+            margin: 50px auto;
+        }
+        .cell {
+            aspect-ratio: 1;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--crystal-border);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .cell:hover { background: rgba(255,255,255,0.1); border-color: var(--nexus-cyan); }
+    </style>
+</head>
+<body class="dark-theme" style="overflow: auto; padding-top: 100px;">
+
+    <!-- 🚀 CRYSTAL HUD -->
+    <header style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 25px 5%; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); border-bottom: 1px solid var(--crystal-border);">
+        <div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="location.href='games.html'">
+            <div style="font-size: 1.5rem; color: #fff;">←</div>
+            <div style="font-family: 'Outfit'; font-weight: 800; font-size: 1.2rem; letter-spacing: 2px;">Back to Library</div>
+        </div>
+        <div style="font-weight: bold; background: rgba(0,0,0,0.5); padding: 5px 25px; border-radius: 40px; border: 1px solid var(--nexus-purple); font-family: 'Outfit'; letter-spacing: 2px;">
+            Tic-Tac-Toe Crystal
+        </div>
+    </header>
+
+    <main class="hub-row" style="text-align: center; max-width: 1200px; margin: 0 auto;">
+        <h1 class="row-title">Tic-Tac-Toe Crystal</h1>
+        <p style="color: #aaa; margin-bottom: 40px;">Challenge the Nexus Agent AI</p>
+
+        <div class="game-grid">
+            <div class="cell" id="c0"></div>
+            <div class="cell" id="c1"></div>
+            <div class="cell" id="c2"></div>
+            <div class="cell" id="c3"></div>
+            <div class="cell" id="c4"></div>
+            <div class="cell" id="c5"></div>
+            <div class="cell" id="c6"></div>
+            <div class="cell" id="c7"></div>
+            <div class="cell" id="c8"></div>
+        </div>
+
+        <div id="game-status" style="font-size: 1.2rem; margin-top: 30px; font-weight: bold; color: var(--nexus-purple);">
+            Select a cell to begin
+        </div>
+
+        <button class="nexus-btn-luxe" style="width: auto; margin-top: 40px; padding: 15px 40px; border-radius: 12px; font-size: 0.9rem;" onclick="location.reload()">Reset Arena</button>
+    </main>
+
+</body>
+</html>

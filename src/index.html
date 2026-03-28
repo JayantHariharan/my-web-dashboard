@@ -1,276 +1,200 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="PlayNexus — your hub for games, tools, and interactive web experiences. Built for the modern web." />
-  <title>PlayNexus — Games, Tools &amp; More</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlayNexus | Central Hub</title>
+    
+    <!-- Fonts & Identity -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@300;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/crystal-portal.css">
 </head>
-<body>
+<body class="dark-theme">
 
-  <!-- ═══ NAV ═══ -->
-  <nav id="navbar" class="navbar" aria-label="Main navigation">
-    <div class="nav-container">
-      <a href="#" class="nav-logo" aria-label="PlayNexus home">
-        <span class="logo-icon">⬡</span>
-        <span class="logo-text">Play<span class="accent">Nexus</span></span>
-      </a>
-      <ul class="nav-links" role="list">
-        <li><a href="#features" class="nav-link">Features</a></li>
-        <li><a href="#showcase" class="nav-link">Showcase</a></li>
-        <li><a href="#about" class="nav-link">About</a></li>
-        <li><a href="#contact" class="nav-link nav-cta" id="nav-cta-btn">Get Started</a></li>
-      </ul>
-      <button class="hamburger" id="hamburger-btn" aria-label="Toggle menu" aria-expanded="false">
-        <span></span><span></span><span></span>
-      </button>
-    </div>
-  </nav>
+    <!-- 🎨 CANVAS LIQUID ENGINE (Managed by cinematic-startup.js) -->
+    <canvas id="cinematic-bg"></canvas>
+    
+    <!-- 🔐 LUMINOUS AUTH PORTAL (Centered Hero Phase) -->
+    <section id="crystal-auth-portal" class="hidden">
+        <div class="hero-login-container">
+            <div class="crystal-auth-card">
+                <!-- 🪐 BRAND ANCHOR -->
+                <div style="text-align: center; margin-bottom: 28px;">
+                    <h1 class="nexus-gradient-text" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.6rem; letter-spacing: 12px;">PLAYNEXUS</h1>
+                    <p style="color: rgba(255,255,255,0.25); font-size: 0.65rem; letter-spacing: 4px; margin-top: 8px; font-family: 'Outfit';">CONSOLE PORTAL</p>
+                </div>
 
-  <!-- ═══ HERO ═══ -->
-  <section id="hero" class="hero">
-    <div class="hero-bg">
-      <div class="orb orb-1"></div>
-      <div class="orb orb-2"></div>
-      <div class="orb orb-3"></div>
-      <div class="grid-overlay"></div>
-    </div>
-    <div class="hero-content">
-      <div class="hero-badge" id="hero-badge">🚀 Now Live</div>
-      <h1 class="hero-title">
-        Your <span class="gradient-text">Universe</span> of<br />
-        Web Experiences
-      </h1>
-      <p class="hero-subtitle">
-        Games, tools, widgets &amp; interactive experiments — all in one place.<br />
-        Built fast. Deployed with every push.
-      </p>
-      <div class="hero-actions">
-        <a href="#showcase" class="btn btn-primary" id="hero-explore-btn">
-          <span>Explore Now</span>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </a>
-        <a href="https://github.com/JayantHariharan/my-web-dashboard" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" id="hero-github-btn">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.21.09 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23A11.5 11.5 0 0 1 12 6.8c1.02.01 2.04.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58C20.57 21.8 24 17.3 24 12 24 5.37 18.63 0 12 0z"/></svg>
-          <span>View on GitHub</span>
-        </a>
-      </div>
-      <div class="hero-stats">
-        <div class="stat">
-          <span class="stat-num" data-target="12">0</span>
-          <span class="stat-label">Mini-Apps</span>
+                <!-- 🚪 SECURITY GATE -->
+                <div id="auth-form-container">
+                    <div class="auth-field" style="margin-bottom: 14px;">
+                        <input type="text" id="auth-username" class="floating-input" placeholder="Username">
+                    </div>
+                    
+                    <button id="login-btn" class="nexus-btn-luxe" onclick="unlockPortal()">Enter the Nexus</button>
+                </div>
+                
+                <p id="access-granted-msg" style="margin-top: 35px; color: var(--nexus-cyan); font-size: 0.7rem; text-align: center; letter-spacing: 4px; opacity: 0; transition: all 0.8s ease;">
+                    // SECURE ACCESS GRANTED
+                </p>
+            </div>
         </div>
-        <div class="stat-divider"></div>
-        <div class="stat">
-          <span class="stat-num" data-target="100">0</span><span class="stat-suffix">%</span>
-          <span class="stat-label">Free &amp; Open Source</span>
-        </div>
-        <div class="stat-divider"></div>
-        <div class="stat">
-          <span class="stat-num" data-target="0">0</span><span class="stat-suffix">ms</span>
-          <span class="stat-label">Server Response</span>
-        </div>
-      </div>
-    </div>
-    <div class="scroll-indicator" aria-hidden="true">
-      <div class="scroll-mouse"><div class="scroll-dot"></div></div>
-      <span>Scroll to explore</span>
-    </div>
-  </section>
+    </section>
 
-  <!-- ═══ FEATURES ═══ -->
-  <section id="features" class="features">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-tag">Why PlayNexus</span>
-        <h2 class="section-title">Built Different</h2>
-        <p class="section-subtitle">Every project ships fast, looks great, and works everywhere.</p>
-      </div>
-      <div class="features-grid">
+    <!-- 🏗️ MASTER HUB (Revealed after successful login - Dark Compatible) -->
+    <main id="master-hub-container" class="hidden hub-dark-theme" style="opacity: 0; transition: opacity 2s;">
+        
+        <!-- 🚀 HUB NAV (Right-Aligned Profile with AI Avatar) -->
+        <header id="universal-hud" style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 30px 5%; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(40px); border-bottom: 1px solid var(--crystal-border);">
+            <div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="location.href='index.html'">
+                <img src="assets/logo.png" style="width: 40px; height: auto;" alt="Nexus Logo">
+                <div class="nexus-gradient-text" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.5rem; letter-spacing: 2px;">PLAYNEXUS</div>
+            </div>
+            
+            <div id="profile-manager" style="display: flex; align-items: center; gap: 20px;">
+                <div style="text-align: right;">
+                    <div style="font-weight: 800; color: #fff; font-size: 1rem;" id="display-username">Explorer</div>
+                    <div style="font-size: 0.7rem; color: var(--nexus-cyan); letter-spacing: 2px; cursor: pointer;" onclick="sessionStorage.clear(); location.reload()">SIGN OUT <span style="font-size: 0.9rem;">⏻</span></div>
+                </div>
+                <div style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--nexus-cyan); overflow: hidden; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;">
+                    <img id="user-avatar" src="" alt="User" style="width: 100%; height: 100%; object-fit: cover;">
+                </div>
+            </div>
+        </header>
 
-        <article class="feature-card" id="feature-games">
-          <div class="feature-icon">🎮</div>
-          <h3>Games &amp; Fun</h3>
-          <p>Interactive browser games that run at 60fps — no installs, no plugins, just open and play.</p>
-          <div class="feature-tag">Coming Soon</div>
-        </article>
+        <!-- 🏢 CONTENT EXPLORER (4 Sections) -->
+        <div style="padding-top: 160px; padding-bottom: 100px;">
+            <!-- 🌟 RECENTLY OPENED (Featured Continue) -->
+            <section class="hub-row" style="margin-bottom: 60px;">
+                <h2 class="row-title" style="color: #fff; opacity: 0.5; font-size: 0.85rem; letter-spacing: 4px; margin-bottom: 25px;">RECENTLY ACCESSED</h2>
+                <div class="hub-carousel" style="gap: 30px;">
+                    <div class="featured-item-hero" style="min-width: 580px; height: 300px; background: linear-gradient(90deg, rgba(7,11,20,0.95) 0%, rgba(7,11,20,0.4) 60%, transparent 100%), url('assets/tictactoe-cover.svg') center/cover; padding: 50px; position: relative; overflow: hidden; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;" onclick="location.href='games/tic-tac-toe.html'">
+                        
+                        <span class="badge" style="background: rgba(255,255,255,0.9); color: #000; padding: 6px 14px; border-radius: 6px; font-weight: 900; font-size: 0.7rem; position: absolute; top: 40px; left: 50px;">CONTINUE PLAYING</span>
+                        <div class="info" style="margin-top: 70px;">
+                            <h3 style="font-size: 2.2rem; margin-bottom: 10px;">Tic-Tac-Toe Crystal</h3>
+                            <p style="font-size: 1rem; color: #999;">Last session: 4 minutes ago</p>
+                            <button class="nexus-btn-luxe" style="margin-top: 30px; width: auto; min-width: 160px; padding: 14px 25px; font-size: 0.8rem; background: #fff; color: #000; border-radius: 8px; box-shadow: 0 10px 20px rgba(255,255,255,0.1);" onclick="event.stopPropagation(); location.href='games/games.html'">
+                                <span style="font-size: 1rem; vertical-align: middle; margin-right: 8px;">▶</span> LAUNCH CENTER
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-        <article class="feature-card" id="feature-tools">
-          <div class="feature-icon">🛠️</div>
-          <h3>Utility Tools</h3>
-          <p>Developer and everyday tools — converters, generators, calculators — all offline-capable.</p>
-          <div class="feature-tag">In Progress</div>
-        </article>
+            <section class="hub-row">
+                <h2 class="row-title nexus-gradient-text">🎮 NEXUS SYSTEM APPS</h2>
+                <div class="system-categories-grid">
+                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80');" onclick="location.href='games/games.html'">
+                        <div class="sys-category-overlay">
+                            <span class="sys-category-title">GAMES & FUN</span>
+                        </div>
+                    </div>
 
-        <article class="feature-card feature-card--highlight" id="feature-cicd">
-          <div class="feature-icon">⚡</div>
-          <h3>Instant CI/CD</h3>
-          <p>Push to GitHub, live in seconds. Every commit to <code>main</code> auto-deploys via GitHub Actions.</p>
-          <div class="feature-tag feature-tag--live">Live Now</div>
-        </article>
+                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&q=80');" onclick="location.href='news/news.html'">
+                        <div class="sys-category-overlay">
+                            <span class="sys-category-title">TRENDING WORLD</span>
+                        </div>
+                    </div>
 
-        <article class="feature-card" id="feature-widgets">
-          <div class="feature-icon">🧩</div>
-          <h3>Widgets</h3>
-          <p>Embeddable micro-UIs — clocks, charts, and components you can drop into any project.</p>
-          <div class="feature-tag">Planned</div>
-        </article>
+                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80');" onclick="location.href='community/community.html'">
+                        <div class="sys-category-overlay">
+                            <span class="sys-category-title">COMMUNITY NEXUS</span>
+                        </div>
+                    </div>
 
-        <article class="feature-card" id="feature-open">
-          <div class="feature-icon">🔓</div>
-          <h3>Open Source</h3>
-          <p>Everything is on GitHub. Fork it, remix it, ship it. No secrets, no paywalls.</p>
-          <div class="feature-tag">Always</div>
-        </article>
-
-        <article class="feature-card" id="feature-pwa">
-          <div class="feature-icon">📱</div>
-          <h3>Mobile First</h3>
-          <p>Responsive from day one. Looks and feels great on phones, tablets, and desktops.</p>
-          <div class="feature-tag">By Design</div>
-        </article>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══ SHOWCASE ═══ -->
-  <section id="showcase" class="showcase">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-tag">Coming Up</span>
-        <h2 class="section-title">Project Showcase</h2>
-        <p class="section-subtitle">Projects in the pipeline — watch this space.</p>
-      </div>
-      <div class="showcase-grid">
-
-        <div class="showcase-card" id="showcase-snake">
-          <div class="showcase-preview" style="--color: #7c3aed;">
-            <span class="showcase-emoji">🐍</span>
-          </div>
-          <div class="showcase-info">
-            <h3>Snake Game</h3>
-            <p>Classic arcade reimagined with a neon aesthetic.</p>
-            <span class="badge badge-soon">Coming Soon</span>
-          </div>
+                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=800&q=80');" onclick="location.href='author/author.html'">
+                        <div class="sys-category-overlay">
+                            <span class="sys-category-title">THE VAULT</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div>
 
-        <div class="showcase-card" id="showcase-calc">
-          <div class="showcase-preview" style="--color: #0891b2;">
-            <span class="showcase-emoji">🧮</span>
-          </div>
-          <div class="showcase-info">
-            <h3>Dev Calculator</h3>
-            <p>HEX, binary, decimal conversions instantly.</p>
-            <span class="badge badge-wip">In Progress</span>
-          </div>
-        </div>
+    </main>
 
-        <div class="showcase-card" id="showcase-timer">
-          <div class="showcase-preview" style="--color: #059669;">
-            <span class="showcase-emoji">⏱️</span>
-          </div>
-          <div class="showcase-info">
-            <h3>Pomodoro Timer</h3>
-            <p>Focus sessions with ambient soundscapes.</p>
-            <span class="badge badge-soon">Coming Soon</span>
-          </div>
-        </div>
+    <!-- 🧬 Physics & Cinematic Core -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="js/cinematic-startup.js"></script>
+    <script src="js/main.js"></script>
 
-        <div class="showcase-card showcase-card--cta" id="showcase-suggest">
-          <div class="showcase-preview" style="--color: #d97706;">
-            <span class="showcase-emoji">💡</span>
-          </div>
-          <div class="showcase-info">
-            <h3>Suggest a Project</h3>
-            <p>Have an idea? Open an issue on GitHub!</p>
-            <a href="https://github.com/JayantHariharan/my-web-dashboard/issues" target="_blank" rel="noopener noreferrer" class="badge badge-action" id="suggest-link">Suggest →</a>
-          </div>
-        </div>
+    <script>
+        function unlockPortal() {
+            const input = document.getElementById('auth-username');
+            const username = input.value.trim() || 'Explorer';
+            const auth = document.getElementById('crystal-auth-portal');
+            const hub = document.getElementById('master-hub-container');
+            const successMsg = document.getElementById('access-granted-msg');
+            const displayUser = document.getElementById('display-username');
+            const profilePic = document.getElementById('user-avatar');
 
-      </div>
-    </div>
-  </section>
+            // Set username in HUD
+            displayUser.innerText = username;
 
-  <!-- ═══ ABOUT / STACK ═══ -->
-  <section id="about" class="about">
-    <div class="container about-grid">
-      <div class="about-text">
-        <span class="section-tag">About</span>
-        <h2>Powered by Simple Tech,<br/>Deployed with Precision</h2>
-        <p>PlayNexus is a personal platform built with vanilla HTML, CSS, and JavaScript — no heavy frameworks, just clean, fast code. Every feature is version-controlled on GitHub and ships automatically via GitHub Actions to production.</p>
-        <div class="tech-stack">
-          <div class="tech-pill">HTML5</div>
-          <div class="tech-pill">CSS3</div>
-          <div class="tech-pill">JavaScript</div>
-          <div class="tech-pill">GitHub Actions</div>
-          <div class="tech-pill">FTP Deploy</div>
-        </div>
-      </div>
-      <div class="about-visual" aria-hidden="true">
-        <div class="pipeline">
-          <div class="pipeline-step" id="pipeline-code">
-            <div class="pipeline-icon">💻</div>
-            <span>Code</span>
-          </div>
-          <div class="pipeline-arrow">→</div>
-          <div class="pipeline-step" id="pipeline-push">
-            <div class="pipeline-icon">📤</div>
-            <span>Push</span>
-          </div>
-          <div class="pipeline-arrow">→</div>
-          <div class="pipeline-step" id="pipeline-actions">
-            <div class="pipeline-icon">⚙️</div>
-            <span>Actions</span>
-          </div>
-          <div class="pipeline-arrow">→</div>
-          <div class="pipeline-step pipeline-step--live" id="pipeline-live">
-            <div class="pipeline-icon">🌐</div>
-            <span>Live!</span>
-          </div>
-        </div>
-        <p class="pipeline-caption">git push → automatically live in ~30 seconds</p>
-      </div>
-    </div>
-  </section>
+            // Set random AI avatar
+            if (profilePic) {
+                const seed = username + Math.floor(Math.random() * 9999);
+                profilePic.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
+            }
 
-  <!-- ═══ CONTACT / CTA ═══ -->
-  <section id="contact" class="cta-section">
-    <div class="container">
-      <div class="cta-card">
-        <div class="cta-orb"></div>
-        <h2>Ready to Contribute?</h2>
-        <p>Fork the repo, build something cool, and open a PR. Every contribution counts.</p>
-        <div class="cta-buttons">
-          <a href="https://github.com/JayantHariharan/my-web-dashboard" target="_blank" rel="noopener noreferrer" class="btn btn-primary" id="cta-github-btn">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58v-2.03c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.21.09 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23A11.5 11.5 0 0 1 12 6.8c1.02.01 2.04.14 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.24 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.22.7.83.58C20.57 21.8 24 17.3 24 12 24 5.37 18.63 0 12 0z"/></svg>
-            Star on GitHub
-          </a>
-          <a href="https://github.com/JayantHariharan/my-web-dashboard/issues/new" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" id="cta-issue-btn">Open an Issue</a>
-        </div>
-      </div>
-    </div>
-  </section>
+            // Show success message
+            successMsg.style.opacity = '1';
+            successMsg.style.letterSpacing = '10px';
 
-  <!-- ═══ FOOTER ═══ -->
-  <footer class="footer">
-    <div class="container footer-inner">
-      <div class="footer-brand">
-        <span class="logo-icon">⬡</span>
-        <span class="logo-text">Play<span class="accent">Nexus</span></span>
-      </div>
-      <p class="footer-copy">© 2026 PlayNexus · Built with ❤️ · Deployed via GitHub Actions</p>
-      <div class="footer-links">
-        <a href="https://github.com/JayantHariharan/my-web-dashboard" target="_blank" rel="noopener noreferrer" id="footer-github-link">GitHub</a>
-        <a href="https://playnexus.unaux.com" id="footer-site-link">Site</a>
-      </div>
-    </div>
-  </footer>
+            // Store session
+            sessionStorage.setItem('playnexus_user', username);
+            if (profilePic) sessionStorage.setItem('playnexus_avatar', profilePic.src);
 
-  <script src="js/main.js"></script>
+            // Transition to Hub
+            setTimeout(() => {
+                auth.style.opacity = '0';
+                auth.style.transition = 'opacity 1s ease';
+                setTimeout(() => {
+                    auth.remove();
+                    hub.classList.remove('hidden');
+                    hub.style.opacity = '1';
+                    hub.style.transition = 'opacity 2s ease';
+                    if (window.startGravity) window.startGravity();
+                }, 1000);
+            }, 1000);
+        }
+
+        // Allow Enter key to login
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const btn = document.getElementById('login-btn');
+                if (btn) btn.click();
+            }
+        });
+
+        // Instant Session Recovery (Bypass Login)
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedUser = sessionStorage.getItem('playnexus_user');
+            if (savedUser) {
+                // Kill intro systems
+                const auth = document.getElementById('crystal-auth-portal');
+                const hub = document.getElementById('master-hub-container');
+                const canvas = document.getElementById('cinematic-bg');
+                const bloom = document.getElementById('logo-bloom');
+                
+                if (auth) auth.remove();
+                if (bloom) bloom.remove();
+                // 🌌 We explicitly purposely DO NOT remove the canvas. We leave it running permanently to provide the PlayStation 5 cinematic stars behind the main hub. ROOM FOR STARS.
+
+                // Restore Identity
+                document.getElementById('display-username').innerText = savedUser;
+                const avatar = sessionStorage.getItem('playnexus_avatar');
+                if (avatar) document.getElementById('user-avatar').src = avatar;
+
+                // Show Hub immediately
+                hub.classList.remove('hidden');
+                hub.style.opacity = '1';
+                
+                // Init physics instantly
+                setTimeout(() => { if (window.startGravity) window.startGravity(); }, 100);
+            }
+        });
+    </script>
 </body>
 </html>
