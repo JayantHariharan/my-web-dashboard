@@ -1,0 +1,34 @@
+name: 🚀 Deploy to PlayNexus
+
+on:
+  push:
+    branches: [ main ]       # Production deploy — only on main
+  workflow_dispatch:         # Allow manual trigger from GitHub UI
+
+jobs:
+  deploy:
+    name: FTP Deploy to ProFreeHost
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 📂 FTP Deploy
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server:    ${{ secrets.FTP_SERVER }}
+          username:  ${{ secrets.FTP_USERNAME }}
+          password:  ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./           # Upload from repo root
+          server-dir: /htdocs/    # ProFreeHost web root (WordPress deleted)
+          protocol: ftp
+          port: 21
+          exclude: |
+            **/.git/**
+            **/.github/**
+            **/node_modules/**
+            .gitignore
+            README.md
+            .DS_Store
+            Thumbs.db
