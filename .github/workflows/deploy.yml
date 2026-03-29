@@ -52,6 +52,12 @@ jobs:
         run: |
           test -d src/frontend && echo "Frontend exists" || exit 1
 
+      - name: Cleanup Python dev tools
+        run: |
+          pip uninstall -y flake8 mypy black bandit types-passlib types-psycopg2
+          pip cache purge
+          echo "✅ Cleaned up dev tools"
+
   migrate-db:
     needs: pre-checks
     if: github.ref == 'refs/heads/main'
@@ -83,6 +89,12 @@ jobs:
           echo "Applying migrations to database..."
           python -m backend.migrator
           echo "✅ Migrations applied successfully"
+
+      - name: Cleanup Python dev tools
+        run: |
+          pip uninstall -y flake8 mypy black bandit types-passlib types-psycopg2
+          pip cache purge
+          echo "✅ Cleaned up dev tools"
 
   deploy-to-render:
     needs: [pre-checks, migrate-db]
@@ -214,3 +226,10 @@ jobs:
           npm install playwright
           npx playwright install chromium --with-deps
           node tests/smoke.test.js
+
+      - name: Cleanup npm and Playwright cache
+        run: |
+          rm -rf node_modules package-lock.json
+          npm cache clean --force
+          npx playwright uninstall chromium || true
+          echo "✅ Cleaned up npm and Playwright dependencies"
