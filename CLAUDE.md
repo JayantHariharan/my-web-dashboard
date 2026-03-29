@@ -39,8 +39,8 @@ This launches a real browser, navigates to the site, takes a screenshot, and ver
 PlayNexus is a web dashboard/gaming hub with:
 - **Frontend:** Pure HTML/CSS/JavaScript (no build step, no framework)
 - **Backend:** Python FastAPI (serves static files + auth API)
-- **Database:** SQLite (user authentication only)
-- **Deployment:** FTP to FreeHost via GitHub Actions
+- **Database:** SQLite (local) / MySQL / PostgreSQL (production - depends on configuration)
+- **Deployment:** Render (all-in-one: frontend + backend together)
 
 ### Key Components
 
@@ -58,10 +58,11 @@ PlayNexus is a web dashboard/gaming hub with:
 **2. Backend API (backend/main.py)**
 - FastAPI app mounted to serve static files from `frontend/src/` (path computed relative to script location)
 - Authentication endpoints:
-  - `POST /api/login` - Validates credentials against SQLite `users` table
+  - `POST /api/login` - Validates credentials against `users` table
   - `POST /api/signup` - Creates new user with password confirmation
-- Uses `sessionStorage` on frontend; no server-side session management
-- Database is initialized on startup with `users` table
+- **Database:** Currently uses SQLite (local). For production (Render), update `get_db()` to use PostgreSQL (psycopg2) or MySQL (pymysql) based on `DATABASE_URL` environment variable
+- Database table `users` created on startup
+- No server-side session management (frontend uses `sessionStorage`)
 
 **3. Visual Effects & Physics**
 - Matter.js library loaded from CDN
@@ -69,12 +70,16 @@ PlayNexus is a web dashboard/gaming hub with:
 - `main.js` enables card physics in the hub (floating, bouncing cards)
 - Gravity toggle feature integrated into HUD
 
-**4. CI/CD Pipeline (.github/workflows/main.yml)**
-- Triggers on push to `main`, `develop`, or `feature/**` branches
-- Three jobs:
-  1. `validate` - Checks required files exist in `frontend/src/`
-  2. `deploy` - Runs only on `main`; FTP deploys `frontend/src/` to production server
-  3. `smoke-test` - Runs after deploy; uses Playwright to verify live site and capture screenshot
+**4. Deployment & CI/CD**
+
+**Render Auto-Deploy (Current):**
+- Service automatically deploys on every GitHub push
+- Configured once in Render dashboard
+- Build command: `pip install -r backend/requirements.txt`
+- Start command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+- Python version: 3.12 (specified in `runtime.txt` and `pyproject.toml`)
+
+**Legacy GitHub Actions:** (removed - was for ProFreeHost FTP deployment)
 
 ### Branch Workflow
 
@@ -86,10 +91,20 @@ main        ← production (every push triggers live deploy)
 
 ### Important Notes
 
-- **No npm/node workflow** - Only Python for local dev; Playwright used only in CI for smoke tests
-- **Session-based auth** - Client stores username in `sessionStorage`; backend authentication is currently unused in frontend (index.html has auth UI but bypasses it with session recovery)
-- **Static deployment** - All HTML is pre-built; FTP deployment copies `frontend/src/` folder only
-- **Sensitive data** - FTP credentials stored in GitHub Secrets; SITE_URL used for smoke test
+- **Render deployment** - Single service hosts both frontend and backend. Start command must be `uvicorn backend.main:app` (not `main:app`) because `main.py` is in `backend/` folder.
+- **Database flexibility** - Local development uses SQLite (`sqlite3`). Production (Render) should use PostgreSQL (`psycopg2-binary`) or MySQL (`pymysql`). Update `get_db()` in `backend/main.py` accordingly and set `DATABASE_URL` or `DB_*` environment variables.
+- **Session-based auth** - Frontend currently stores username in `sessionStorage`. The authentication UI exists but is bypassed via session recovery (no real API calls yet). To enable real auth, update `frontend/src/js/session.js` to call `/api/login` and `/api/signup`.
+- **Python version** - Render uses Python 3.12.9 (specified in `runtime.txt` and `pyproject.toml`). This avoids `pydantic-core` build errors.
+- **Ephemeral filesystem** - Render's filesystem resets on each deploy. Use external database, not local SQLite files, for persistence.
+- **Environment variables** - Configure in Render dashboard: `DATABASE_URL` (or `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`). Also `FRONTEND_DIR` path is computed automatically.
+
+### File Conventions
+
+- HTML files: 2-space indentation
+- CSS uses custom properties (CSS variables) for theme colors
+- JavaScript uses ES6+ syntax with module pattern (PlayNexus object)
+- Client-side auth flow bypassed via `sessionStorage` for demo purposes
+- Database queries use parameterized queries (`?` placeholders) to prevent SQL injection
 
 ### File Conventions
 
