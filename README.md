@@ -36,7 +36,8 @@ main        ← production (every push triggers live deploy)
 ```
 my-web-dashboard/
 ├── backend/                ← Python FastAPI server
-│   └── main.py             ← API endpoints + static file serving
+│   ├── main.py             ← API endpoints + static file serving
+│   └── requirements.txt    ← Python dependencies
 ├── frontend/               ← Frontend source code
 │   └── src/                ← LIVE FILES (served to browser)
 │       ├── index.html      ← Homepage
@@ -49,11 +50,11 @@ my-web-dashboard/
 │       └── author/         ← Author/Vault section
 ├── tests/                  ← Automated tests
 │   └── smoke.test.js       ← Visual smoke test (Playwright)
-├── .github/
-│   └── workflows/
-│       └── main.yml        ← CI/CD pipeline
 ├── .gitignore
 ├── CLAUDE.md               ← Claude Code guidance
+├── DEPLOYMENT.md           ← Render deployment guide
+├── pyproject.toml          ← Python version constraint
 ├── README.md
+├── runtime.txt             ← Python 3.12.9 for Render
 └── (other documentation files)
 ```
