@@ -65,7 +65,10 @@
                 <img src="assets/logo.png" style="width: 40px; height: auto;" alt="Nexus Logo">
                 <div class="nexus-gradient-text" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.5rem; letter-spacing: 2px;">PLAYNEXUS</div>
             </div>
-            
+
+            <!-- Theme Toggle -->
+            <button id="theme-toggle" style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.2rem;margin-right:10px;" aria-label="Toggle light/dark theme">🌙</button>
+
             <div id="profile-manager" style="display: flex; align-items: center; gap: 20px;">
                 <div style="text-align: right;">
                     <div style="font-weight: 800; color: #fff; font-size: 1rem;" id="display-username">Explorer</div>
@@ -131,6 +134,7 @@
 
     <!-- 🧬 Physics & Cinematic Core -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="js/toast.js"></script>
     <script src="js/cinematic-startup.js"></script>
     <script src="js/main.js"></script>
 
@@ -192,7 +196,7 @@
                 const hub = document.getElementById('master-hub-container');
                 const canvas = document.getElementById('cinematic-bg');
                 const bloom = document.getElementById('logo-bloom');
-                
+
                 if (auth) auth.remove();
                 if (bloom) bloom.remove();
                 // 🌌 We explicitly purposely DO NOT remove the canvas. We leave it running permanently to provide the PlayStation 5 cinematic stars behind the main hub. ROOM FOR STARS.
@@ -205,11 +209,29 @@
                 // Show Hub immediately
                 hub.classList.remove('hidden');
                 hub.style.opacity = '1';
-                
+
                 // Init physics instantly
                 setTimeout(() => { if (window.startGravity) window.startGravity(); }, 100);
             }
         });
+
+        // 🌗 Theme Toggle
+        (function() {
+            const themeToggle = document.getElementById('theme-toggle');
+            const savedTheme = localStorage.getItem('playnexus_theme') || 'dark';
+            if (savedTheme === 'light') {
+                document.body.classList.add('light-theme');
+                if (themeToggle) themeToggle.textContent = '☀️';
+            }
+            if (themeToggle) {
+                themeToggle.addEventListener('click', () => {
+                    document.body.classList.toggle('light-theme');
+                    const isLight = document.body.classList.contains('light-theme');
+                    themeToggle.textContent = isLight ? '☀️' : '🌙';
+                    localStorage.setItem('playnexus_theme', isLight ? 'light' : 'dark');
+                });
+            }
+        })();
     </script>
 </body>
 </html>

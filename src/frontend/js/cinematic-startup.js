@@ -39,7 +39,11 @@ const CinematicGateway = {
 
     spawnParticles() {
         // ✨ Golden Bokeh Particles (Refined for v8.0)
-        for (let i = 0; i < 120; i++) {
+        // Reduce particle count on mobile for better performance
+        const isMobile = window.innerWidth < 768;
+        const particleCount = isMobile ? 60 : 120;
+
+        for (let i = 0; i < particleCount; i++) {
             this.particles.push({
                 x: Math.random() * this.canvas.width,
                 y: Math.random() * this.canvas.height,

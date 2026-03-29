@@ -318,6 +318,7 @@
 
     <!-- Carousel Logic -->
     <!-- JS Logic -->
+    <script src="../../js/toast.js"></script>
     <script>
         // Hero Carousel Logic
         const slides = [
@@ -428,6 +429,54 @@
             if (force || e.target === modal) {
                 modal.classList.remove('active');
             }
+        }
+
+        // 🔍 Live Search Filter for Games
+        const searchInput = document.querySelector('.search-hub');
+        const gameCards = document.querySelectorAll('.epic-cover-card');
+
+        if (searchInput) {
+            searchInput.addEventListener('input', debounce(function(e) {
+                const query = e.target.value.toLowerCase().trim();
+                let hasVisible = false;
+
+                gameCards.forEach(card => {
+                    const title = card.querySelector('.epic-cover-title')?.textContent.toLowerCase() || '';
+                    const isDisabled = card.classList.contains('disabled');
+                    const isMatch = title.includes(query);
+
+                    if (query === '' || (isMatch && !isDisabled)) {
+                        card.style.display = '';
+                        hasVisible = true;
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+
+                // Show "no results" message if needed
+                const strip = document.querySelector('.epic-strip');
+                let noResultsMsg = strip.querySelector('.no-results-message');
+                if (!hasVisible && query !== '') {
+                    if (!noResultsMsg) {
+                        noResultsMsg = document.createElement('p');
+                        noResultsMsg.className = 'no-results-message';
+                        noResultsMsg.textContent = 'No games found matching your search.';
+                        noResultsMsg.style = 'text-align:center; padding:20px; color:#888; font-family:"Outfit";';
+                        strip.appendChild(noResultsMsg);
+                    }
+                } else if (noResultsMsg) {
+                    noResultsMsg.remove();
+                }
+            }, 300));
+        }
+
+        // Debounce utility
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
         }
     </script>
 </body>
