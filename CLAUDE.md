@@ -2,113 +2,400 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Common Development Tasks
+---
+
+## Quick Reference
 
 ### Running Locally
 
-**Frontend Only (Recommended for UI work):**
 ```bash
-cd my-web-dashboard/frontend/src
+# Backend (FastAPI + serves frontend)
+python src/backend/main.py
+# Open http://localhost:8000
+
+# Frontend only (dev server)
+cd src/frontend
 python -m http.server 3000
+# Open http://localhost:3000
 ```
-Then open http://localhost:3000
 
-**Full Stack (Backend + Frontend):**
+### Development Commands
+
+**Git hooks** (automatic):
+- `pre-commit` – Syntax, lint, secrets check, updates doc timestamps
+- `pre-push` – Full suite (lint, type, format, security, smoke test), updates doc timestamps
+
+**Skip hooks**: `git commit --no-verify` or `git push --no-verify` (NOT recommended)
+
+**Note**: Hooks automatically update "Last Updated" dates in `CLAUDE.md`, `docs/ARCHITECTURE.md`, `docs/FLYWAY.md` and stage them. Commit these changes separately.
+
+**Claude Code slash commands**:
+- `/security-scan` – Security audit (bandit, auth patterns, secrets)
+- `/code-quality` – Lint, type check, formatting review
+- `/deploy-ready` – Verify deployment readiness
+
+**Install dev tools** (for hooks & manual checks):
 ```bash
-cd my-web-dashboard
-python backend/main.py
+pip install flake8 mypy black bandit
+npm install playwright && npx playwright install chromium --with-deps
 ```
-The FastAPI server serves static files from the `frontend/src/` directory and provides authentication API endpoints at `/api/login` and `/api/signup`. Access at http://localhost:8000.
 
-### Testing
-
-**Run Visual Smoke Test:**
+**Manual checks**:
 ```bash
-cd my-web-dashboard
-export SITE_URL="your-live-site-url"
-npm install playwright
-npx playwright install chromium --with-deps
-node tests/smoke.test.js
-```
-This launches a real browser, navigates to the site, takes a screenshot, and verifies "PlayNexus" appears on the page.
-
-## Code Architecture
-
-### High-Level Overview
-
-PlayNexus is a web dashboard/gaming hub with:
-- **Frontend:** Pure HTML/CSS/JavaScript (no build step, no framework)
-- **Backend:** Python FastAPI (serves static files + auth API)
-- **Database:** SQLite (local) / MySQL / PostgreSQL (production - depends on configuration)
-- **Deployment:** Render (all-in-one: frontend + backend together)
-
-### Key Components
-
-**1. Static File Structure (my-web-dashboard/frontend/src/)**
-- `index.html` - Main entry point with authentication portal and hub interface
-- `css/` - Stylesheets (`style.css`, `crystal-portal.css`, `crystal-hub.css`)
-- `js/` - Client-side logic:
-  - `cinematic-startup.js` - Canvas-based particle background with Matter.js physics
-  - `main.js` - Core PlayNexus logic, physics engine management, card interactions
-  - `session.js` - Session recovery, intro screen handling, HUD updates
-  - `splash.js` - Splash screen animations
-- `assets/` - Images and icons
-- `games/`, `news/`, `community/`, `author/` - Feature sections (standalone HTML pages)
-
-**2. Backend API (backend/main.py)**
-- FastAPI app mounted to serve static files from `frontend/src/` (path computed relative to script location)
-- Authentication endpoints:
-  - `POST /api/login` - Validates credentials against `users` table
-  - `POST /api/signup` - Creates new user with password confirmation
-- **Database:** Currently uses SQLite (local). For production (Render), update `get_db()` to use PostgreSQL (psycopg2) or MySQL (pymysql) based on `DATABASE_URL` environment variable
-- Database table `users` created on startup
-- No server-side session management (frontend uses `sessionStorage`)
-
-**3. Visual Effects & Physics**
-- Matter.js library loaded from CDN
-- `cinematic-startup.js` creates particle system on canvas with antigravity physics
-- `main.js` enables card physics in the hub (floating, bouncing cards)
-- Gravity toggle feature integrated into HUD
-
-**4. Deployment & CI/CD**
-
-**Render Auto-Deploy (Current):**
-- Service automatically deploys on every GitHub push
-- Configured once in Render dashboard
-- Build command: `pip install -r backend/requirements.txt`
-- Start command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-- Python version: 3.12 (specified in `runtime.txt` and `pyproject.toml`)
-
-**Legacy GitHub Actions:** (removed - was for ProFreeHost FTP deployment)
-
-### Branch Workflow
-
-```
-main        ← production (every push triggers live deploy)
-  └─ develop  ← integration branch (safe to experiment)
-       └─ feature/initial_setup  ← active feature work
+flake8 src/backend/main.py --count --select=E9,F63,F7,F82
+mypy src/backend/main.py
+black --check src/backend/
+bandit -r src/backend/
+python -m py_compile src/backend/main.py  # syntax
+node tests/smoke.test.js  # with SITE_URL set
 ```
 
-### Important Notes
+**API testing**:
+```bash
+# Auth
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","password":"Test1234"}'
 
-- **Render deployment** - Single service hosts both frontend and backend. Start command must be `uvicorn backend.main:app` (not `main:app`) because `main.py` is in `backend/` folder.
-- **Database flexibility** - Local development uses SQLite (`sqlite3`). Production (Render) should use PostgreSQL (`psycopg2-binary`) or MySQL (`pymysql`). Update `get_db()` in `backend/main.py` accordingly and set `DATABASE_URL` or `DB_*` environment variables.
-- **Session-based auth** - Frontend currently stores username in `sessionStorage`. The authentication UI exists but is bypassed via session recovery (no real API calls yet). To enable real auth, update `frontend/src/js/session.js` to call `/api/login` and `/api/signup`.
-- **Python version** - Render uses Python 3.12.9 (specified in `runtime.txt` and `pyproject.toml`). This avoids `pydantic-core` build errors.
-- **Ephemeral filesystem** - Render's filesystem resets on each deploy. Use external database, not local SQLite files, for persistence.
-- **Environment variables** - Configure in Render dashboard: `DATABASE_URL` (or `DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`). Also `FRONTEND_DIR` path is computed automatically.
+curl -X POST http://localhost:8000/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"newuser","password":"Test1234","confirm_password":"Test1234"}'
 
-### File Conventions
+curl http://localhost:8000/api/auth/me?username=test
 
-- HTML files: 2-space indentation
-- CSS uses custom properties (CSS variables) for theme colors
-- JavaScript uses ES6+ syntax with module pattern (PlayNexus object)
-- Client-side auth flow bypassed via `sessionStorage` for demo purposes
-- Database queries use parameterized queries (`?` placeholders) to prevent SQL injection
+# Apps
+curl http://localhost:8000/api/apps/
 
-### File Conventions
+# Games
+curl http://localhost:8000/api/games/
+curl -X POST http://localhost:8000/api/games/tic-tac-toe/scores?username=test \
+  -H "Content-Type: application/json" \
+  -d '{"score":1500,"metadata":{"won":true}}'
 
-- HTML files: 2-space indentation
-- CSS uses custom properties (CSS variables) for theme colors
-- JavaScript uses ES6+ syntax with module pattern (PlayNexus object)
-- Client-side auth flow bypassed via `sessionStorage` for demo purposes
+curl http://localhost:8000/api/games/tic-tac-toe/leaderboard?limit=10
+
+# Health
+curl http://localhost:8000/health
+
+# Swagger UI
+# Open http://localhost:8000/docs (interactive)
+```
+
+---
+
+## Architecture
+
+**Stack**: FastAPI (Python 3.12) + static HTML/CSS/JS frontend + PostgreSQL (Render) / SQLite (local)
+
+**Pattern**: Modular monolith with repository pattern, Flyway-style migrations, bcrypt + pepper authentication.
+
+### Backend Structure (Multi-App)
+
+```
+src/backend/
+├── config.py              # Settings (env-based) – database, debug, secret_key
+├── log_config.py          # Logging configuration
+├── main.py                # Entry point – creates app, includes routers, mounts static
+├── migrator.py            # Database migration engine (auto-applies on startup)
+├── core/
+│   ├── app.py             # FastAPI factory, middleware, static files
+│   └── middlewares.py     # RateLimitMiddleware, RequestIdMiddleware, CORS
+├── shared/
+│   ├── database.py        # BaseRepository + repositories (User, App, Profile, Activity, GameScore)
+│   ├── security.py        # Password hashing (bcrypt + pepper)
+│   ├── schemas.py         # Shared Pydantic models
+│   └── exceptions.py      # Custom exceptions
+├── auth/
+│   ├── router.py          # /api/auth/login, /api/auth/signup, /api/auth/me
+│   └── service.py         # Authentication business logic
+├── games/
+│   └── router.py          # /api/games/, /api/games/{name}/scores, /leaderboard
+└── apps/
+    └── router.py          # /apps/, /apps/{id}/launch
+```
+
+**Note**: Rate limiting is implemented in `core/middlewares.py` using `SimpleRateLimiter` class. Separate `rate_limiter.py` files were removed as unused.
+
+### Frontend Structure (Current)
+
+```
+src/frontend/
+├── index.html                 # Main hub (login + dashboard)
+├── games/
+│   ├── games.html            # Games catalog with search & carousel
+│   └── tic-tac-toe.html      # Tic-Tac-Toe game
+├── author/
+│   └── author.html           # "The Vault" - developer portfolio
+├── community/
+│   └── community.html        # Community Nexus
+├── news/
+│   └── news.html             # Trending World
+├── css/
+│   ├── style.css             # Main styles (dark/light theme, components)
+│   └── crystal-portal.css    # Auth portal specific styles
+├── js/
+│   ├── cinematic-startup.js  # Canvas background animation (Matter.js)
+│   ├── main.js               # Physics engine, gravity effects
+│   └── toast.js              # Toast notification system
+└── assets/
+    ├── logo.png
+    ├── dashboard_bg.png
+    ├── tictactoe-cover.svg
+    └── coming-soon-cover.svg
+```
+
+**Features**:
+- Dark/Light theme toggle with localStorage persistence
+- Live search filtering on games page
+- Toast notifications (success/error/info/warning)
+- Matter.js physics effects
+- PS5-style cinematic entrance
+- Mobile-optimized (reduced particles on small screens)
+
+---
+
+## API Endpoints
+
+### Authentication (`/api/auth/*`)
+- `POST /api/auth/login` - Authenticate user (returns user_id)
+- `POST /api/auth/signup` - Register new account
+- `GET /api/auth/me` - Get current user profile
+
+**Rate limit**: 20 requests/hour per IP (combined)
+
+### Apps
+- `GET /api/apps/` - List all active apps
+- `GET /api/apps/{id}` - Get app details
+- `POST /api/apps/{id}/launch` - Track app launch
+
+**Rate limit**: 200 requests/hour per IP
+
+### Games
+- `GET /api/games/` - List available games
+- `POST /api/games/{game_name}/scores` - Submit score
+- `GET /api/games/{game_name}/leaderboard?limit=10` - Top scores
+- `GET /api/games/{game_name}/my-best?username=...` - User's best score
+
+**Rate limit**: 100 requests/hour per IP
+
+### Health
+- `GET /health` - Service health check (no rate limit)
+
+---
+
+## Rate Limiting Strategy
+
+| App Category | Endpoints | Limit | Block | Purpose |
+|--------------|-----------|-------|-------|---------|
+| Auth | `/api/auth/*` | 20/hr | 15min | Prevent brute force |
+| Games | `/api/games/*` | 100/hr | 10min | Allow gameplay |
+| Apps | `/apps/*` | 200/hr | 10min | Higher for utilities |
+| Health | `/health` | Unlimited | - | Monitoring |
+
+**Implementation**: Separate `SimpleRateLimiter` instances per app, in-memory storage (suitable for single Render instance). For multi-instance, replace with Redis backend.
+
+---
+
+## Database Schema
+
+### Tables
+- `users` - Core authentication (id, username, password_hash, created_at, last_login_at, created_ip, last_login_ip)
+- `user_profiles` - Extended profile (user_id, display_name, bio, avatar_url, created_at, updated_at)
+- `app_registry` - App catalog (id, name, route_path, description, icon, version, is_active, created_at)
+- `user_app_activity` - Usage tracking (id, user_id, app_id, session_id, metadata, created_at, last_accessed)
+- `game_scores` - Game leaderboards (id, user_id, game_name, score, metadata, created_at)
+- `schema_version` - Tracks applied migrations
+
+**Migrations**: Flyway-style in `flyway/sql/` (V1..V5). Auto-applied on startup in development via `migrator.py`. In production, run manually via Python: `python -m backend.migrator`.
+
+**Database location**: Development uses SQLite at project root (`./playnexus.db`). Production uses PostgreSQL via environment variables.
+
+---
+
+## Environment Variables
+
+### Database
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PGHOST` | Yes* | PostgreSQL host (e.g., abc.supabase.co) |
+| `PGPORT` | Yes* | Port (usually 5432) |
+| `PGUSER` | Yes* | Username (usually postgres) |
+| `PGPASSWORD` | Yes* | Database password |
+| `PGDATABASE` | Yes* | Database name |
+| `DATABASE_URL` | Alternative | Full connection string (overrides PG*) |
+
+### Application
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SECRET_KEY` | Production | Password pepper – generate: `openssl rand -hex 32` |
+| `DEBUG` | No | Enable debug mode (default: false) |
+| `LOG_LEVEL` | No | DEBUG/INFO/WARNING/ERROR (default: INFO) |
+
+*Required for PostgreSQL. If not set, falls back to SQLite (`sqlite:///./playnexus.db`).
+
+---
+
+## Adding New Features
+
+### New table (e.g., user_achievements)
+1. Create migration: `flyway/sql/V6__create_user_achievements.sql`
+2. Add repository in `src/backend/shared/database.py` (or new file if complex)
+3. Add Pydantic models in `src/backend/shared/schemas.py` or app-specific schemas
+4. Add API endpoints in appropriate router (`/api/achievements/`)
+5. Update Swagger docstrings with examples
+6. Update `docs/API-REFERENCE.html`
+7. Push → auto-deploy with migration
+
+### New app module (e.g., tools/calculators)
+1. Create directory: `src/backend/tools/` (if separate category) or add to `apps/`
+2. Create `router.py` with endpoints
+3. Optionally create `service.py` for business logic
+4. Register app in `app_registry` (via migration or admin API)
+5. Create frontend page: `src/frontend/app/tools/calculator.html`
+6. Add JavaScript: `src/frontend/js/tools/calculator.js`
+7. Add to hub grid (it will auto-fetch from `/api/apps`)
+8. Update docs & Swagger
+
+---
+
+## Deployment
+
+GitHub Actions → Render auto-deploy on `main`:
+
+1. Pre-checks: lint → mypy → syntax
+2. Apply migrations to Render PostgreSQL
+3. Trigger Render deploy
+4. Wait (max 30 min), check `/` and `/api/auth/login`
+5. Run smoke test (Playwright)
+6. Fail → auto-revert
+
+**One-time Render setup**:
+1. Create Render Web Service (connect GitHub repo)
+2. Set environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE, SECRET_KEY, DEBUG=false)
+3. Build command: `pip install -r requirements.txt`
+4. Start command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+5. Disable Auto-Deploy on Render (set to Manual)
+6. Add GitHub Secrets: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `RENDER_API_KEY`, `RENDER_SERVICE_ID`
+7. Push to `main` → auto-deploy
+
+---
+
+## Important Notes
+
+### Standard Project Files
+
+Keep these – they're expected in professional open-source projects:
+
+- `LICENSE` – Legal license (MIT) permitting reuse
+- `CODE_OF_CONDUCT.md` – Community standards
+- `CONTRIBUTING.md` – How to contribute
+- `.env.example` – Environment variable template
+
+Removing these makes the project look unmaintained.
+
+### Multi-App Architecture
+
+This codebase is designed as a **modular platform**:
+- Backend organized into feature modules (`auth/`, `games/`, `apps/`)
+- Database tracks installed apps (`app_registry` table)
+- Frontend dynamically loads app catalog from `/api/apps`
+- Easy to add new apps without modifying core code
+- Rate limiting per app category
+
+### Rate Limiter Storage
+
+Currently uses in-memory storage:
+- ✅ Fine for single-instance Render deployments (Free/Starter)
+- ❌ Does NOT share state across multiple instances
+- **To scale horizontally**: Replace `SimpleRateLimiter` with Redis backend
+  - Implement `RedisRateLimiter` using `redis-py`
+  - Use `INCR` with expiry for distributed counting
+  - Or use `redis-cell` for token bucket (more accurate)
+
+### Frontend-Backend Integration
+
+Frontend will:
+1. Load on page → fetch `/api/apps` to show catalog
+2. Auth flow: POST `/api/auth/signup` or `/api/auth/login`
+3. Store session (simple: username in sessionStorage; future: JWT)
+4. When launching app → POST `/apps/{id}/launch` to track usage
+5. Games submit scores → POST `/api/games/{name}/scores`
+
+Currently placeholder – implementation in progress.
+
+---
+
+## Project Structure
+
+```
+my-web-dashboard/
+├── src/
+│   ├── backend/          # Modular FastAPI application
+│   │   ├── shared/       # Shared code (database, security, schemas, exceptions)
+│   │   ├── auth/         # Authentication module
+│   │   ├── core/         # App factory, middlewares, migrator
+│   │   ├── games/        # Games module
+│   │   ├── apps/         # General apps module
+│   │   └── main.py       # Entry point
+│   └── frontend/         # Static HTML/CSS/JS (modular structure)
+├── docs/                 # Documentation (ARCHITECTURE.md, FLYWAY.md, API-REFERENCE.html)
+├── flyway/               # Database migrations
+│   └── sql/              # V1..V5
+├── tests/                # Smoke tests (Playwright)
+├── .github/workflows/    # CI/CD
+├── .claude/              # Claude Code config
+├── .git/hooks/           # Git hooks (pre-commit, pre-push)
+├── README.md             # Quick start
+├── CLAUDE.md             # This file
+├── CODE_OF_CONDUCT.md
+├── CONTRIBUTING.md
+├── requirements.txt      # Python dependencies
+├── runtime.txt           # Python version (3.12)
+└── .env.example          # Environment template
+```
+
+---
+
+## Migration History
+
+| Version | Description | Date |
+|---------|-------------|------|
+| V1 | Create `users` table | 2025-03-29 |
+| V2 | Create `user_profiles` table | 2025-03-30 |
+| V3 | Create `app_registry` table (seed: tic-tac-toe) | 2025-03-30 |
+| V4 | Create `user_app_activity` table | 2025-03-30 |
+| V5 | Create `game_scores` table | 2025-03-30 |
+
+---
+
+## Last Updated
+
+This document is auto-updated by git hooks when documentation changes.
+Current version reflects frontend enhancements and cleanup completed on 2026-03-30.
+
+---
+
+## Recent Changes (2026-03-30)
+
+### Frontend UX/UI Improvements
+- Added dark/light theme toggle with localStorage persistence
+- Implemented live search filtering on games page
+- Created toast notification system (success, error, info, warning types)
+- Mobile performance optimization (reduced Matter.js particles on small screens)
+
+### Backend Fixes
+- Fixed import paths throughout backend (correct relative imports)
+- Made psycopg2 optional for SQLite-only development
+- Added database auto-migration on startup via `migrator.py`
+- Fixed SQLite compatibility issues in Flyway migrations (placeholder substitution, JSON → TEXT, separated INDEX statements)
+- Updated deprecated FastAPI constants
+
+### Code Cleanup
+- Removed unused files: `src/backend/database.py`, `src/backend/security.py`, `src/backend/migrator.py` (recreated cleaner version), `src/backend/rate_limiter.py`
+- Removed `src/shared/` empty folder
+- Updated `.gitignore` to include `.claude/` and `*.db`
+- Database file correctly placed at project root (`./playnexus.db`)
+
+### Database
+- SQLite database auto-initialized with schema (7 tables: users, user_profiles, app_registry, user_app_activity, game_scores, schema_version, sqlite_sequence)
+- Migration system now fully functional for development

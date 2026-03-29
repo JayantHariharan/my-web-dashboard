@@ -34,6 +34,21 @@
   --container:  1200px;
 }
 
+/* Light Theme Override */
+.light-theme {
+    --bg-base: #f0f2f5;
+    --bg-surface: #ffffff;
+    --bg-card: rgba(255,255,255,0.7);
+    --bg-card-hover: rgba(255,255,255,0.9);
+    --border: rgba(0,0,0,0.1);
+    --border-hover: rgba(0,0,0,0.2);
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #94a3b8;
+    --crystal-bg: rgba(0, 0, 0, 0.05);
+    --crystal-border: rgba(0, 0, 0, 0.1);
+}
+
 /* ─── Reset ─── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; scroll-padding-top: var(--nav-height); }
