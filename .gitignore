@@ -29,3 +29,21 @@ secrets.json
 # ── Build outputs ─────────────────────────
 /build/
 /out/
+/logs/
+
+# ── Claude Code ───────────────────────────
+.claude/
+
+# ── Database (dev) ────────────────────────
+*.db
+
+# ── Python cache ─────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# ── Build configs ─────────────────────────
+pyproject.toml
+poetry.lock
