@@ -1,3 +1,7 @@
 fastapi==0.115.6
 uvicorn[standard]==0.32.1
 pydantic==2.9.2
+# Database drivers - choose based on your DATABASE_URL
+# For MySQL: mysql-connector-python
+# For PostgreSQL: psycopg2-binary
+psycopg2-binary==2.9.10

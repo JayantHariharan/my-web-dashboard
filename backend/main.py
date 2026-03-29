@@ -12,8 +12,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend", "src")
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
 
-# Database initialization
-DATABASE_URL = "https://api.freefhost.com/v1/databases"
+# Database initialization - use environment variable for production
+DATABASE_URL = os.environ.get("DATABASE_URL", "https://api.freefhost.com/v1/databases")
 
 def get_db():
     db = sqlite3.connect(DATABASE_URL)
