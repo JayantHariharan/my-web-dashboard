@@ -33,10 +33,10 @@ jobs:
 
       - name: 🔍 Check required files exist
         run: |
-          echo "── Checking project files in src/ ──"
-          test -f src/index.html    || (echo "❌ src/index.html missing!"   && exit 1)
-          test -f src/css/style.css || (echo "❌ src/css/style.css missing!" && exit 1)
-          test -f src/js/main.js    || (echo "❌ src/js/main.js missing!"    && exit 1)
+          echo "── Checking project files in frontend/src/ ──"
+          test -f frontend/src/index.html    || (echo "❌ frontend/src/index.html missing!"   && exit 1)
+          test -f frontend/src/css/style.css || (echo "❌ frontend/src/css/style.css missing!" && exit 1)
+          test -f frontend/src/js/main.js    || (echo "❌ frontend/src/js/main.js missing!"    && exit 1)
           echo "✅ All required source files are present"
 
       - name: 🧹 Cleanup workspace
@@ -44,14 +44,53 @@ jobs:
         run: rm -rf ${{ github.workspace }}/* || true
 
   # ─────────────────────────────────────────────────────────────
-  # JOB 2: Deploy to Production (ONLY on main branch)
+  # JOB 2: Deploy to Staging (All branches except main)
   # ─────────────────────────────────────────────────────────────
-  deploy:
+  deploy-staging:
+    name: 🚧 Staging Deploy
+    needs: validate
+    if: github.ref != 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+        with:
+          clean: true
+
+      - name: 🛡️ Mask Sensitive Data
+        run: |
+          echo "::add-mask::${{ secrets.FTP_USERNAME }}"
+          echo "::add-mask::${{ secrets.FTP_SERVER }}"
+
+      - name: 📂 FTP Deploy to Staging Subdirectory
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server:     ${{ secrets.FTP_SERVER }}
+          username:   ${{ secrets.FTP_USERNAME }}
+          password:   ${{ secrets.FTP_PASSWORD }}
+          local-dir:  ./frontend/src/
+          # Deploy to /htdocs/<branch-name>/ (e.g., /htdocs/develop/, /htdocs/feature/foo/)
+          server-dir: ${{ vars.FTP_SERVER_DIR || '/htdocs/' }}${{ github.ref_name }}/
+          protocol:   ftp
+          port:       21
+          exclude: |
+            **/.git/**
+            **/.github/**
+
+      - name: 🧹 Cleanup workspace
+        if: always()
+        run: rm -rf ${{ github.workspace }}/* || true
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 3: Deploy to Production (ONLY on main branch)
+  # ─────────────────────────────────────────────────────────────
+  deploy-prod:
     name: 🚀 Production Deploy
-    needs: validate          # MUST pass validation first
+    needs: validate
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    
+
     # Environment link in GitHub UI
     env:
       SITE_URL: ${{ secrets.SITE_URL }}
@@ -71,19 +110,62 @@ jobs:
           echo "::add-mask::${{ secrets.FTP_USERNAME }}"
           echo "::add-mask::${{ secrets.FTP_SERVER }}"
 
-      - name: 📂 FTP Deploy to Server
+      - name: 📂 FTP Deploy to Production
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server:     ${{ secrets.FTP_SERVER }}
           username:   ${{ secrets.FTP_USERNAME }}
           password:   ${{ secrets.FTP_PASSWORD }}
-          local-dir:  ./src/       # Deploy ONLY the source folder
+          local-dir:  ./frontend/src/
           server-dir: ${{ vars.FTP_SERVER_DIR || '/htdocs/' }}
           protocol:   ftp
           port:       21
           exclude: |
             **/.git/**
             **/.github/**
+
+      - name: 🧹 Cleanup workspace
+        if: always()
+        run: rm -rf ${{ github.workspace }}/* || true
+
+  # ─────────────────────────────────────────────────────────────
+  # JOB 4: Visual Smoke Test (Verification - only on main)
+  # ─────────────────────────────────────────────────────────────
+  smoke-test:
+    name: 🔍 Visual Smoke Test
+    needs: deploy-prod
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    env:
+      SITE_URL: ${{ secrets.SITE_URL }}
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+  #  Installing Playwright takes a moment, but it's the only
+  #  reliable way to bypass bot-firewalls in production.
+      - name: 🎭 Install Playwright
+        run: |
+          npm install playwright
+          npx playwright install chromium --with-deps
+
+      - name: 📸 Run Smoke Test
+        run: node tests/smoke.test.js
+
+      - name: 📦 Upload Live Screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-site-screenshot
+          path: screenshot.png
+          retention-days: 3
 
       - name: 🧹 Cleanup workspace
         if: always()

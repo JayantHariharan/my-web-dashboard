@@ -25,14 +25,29 @@
                     <p style="color: rgba(255,255,255,0.25); font-size: 0.65rem; letter-spacing: 4px; margin-top: 8px; font-family: 'Outfit';">CONSOLE PORTAL</p>
                 </div>
 
+                <!-- 🚪 AUTHENTICATION MODE SWITCHER -->
+                <div style="display: flex; justify-content: center; margin-bottom: 24px;">
+                    <button id="mode-btn" class="mode-toggle" onclick="toggleAuthMode()">Sign Up</button>
+                </div>
+
                 <!-- 🚪 SECURITY GATE -->
                 <div id="auth-form-container">
                     <div class="auth-field" style="margin-bottom: 14px;">
                         <input type="text" id="auth-username" class="floating-input" placeholder="Username">
                     </div>
-                    
-                    <button id="login-btn" class="nexus-btn-luxe" onclick="unlockPortal()">Enter the Nexus</button>
+
+                    <div class="auth-field" style="margin-bottom: 14px;">
+                        <input type="password" id="auth-password" class="floating-input" placeholder="Password">
+                    </div>
+
+                    <div id="confirm-password-field" class="auth-field" style="margin-bottom: 14px; display: none;">
+                        <input type="password" id="auth-confirm-password" class="floating-input" placeholder="Confirm Password">
+                    </div>
+
+                    <button id="auth-btn" class="nexus-btn-luxe" onclick="unlockPortal()">Enter the Nexus</button>
                 </div>
+
+                <div id="auth-error" style="margin-top: 35px; color: #ff4444; font-size: 0.7rem; text-align: center; letter-spacing: 4px; opacity: 0; transition: all 0.8s ease;"></div>
                 
                 <p id="access-granted-msg" style="margin-top: 35px; color: var(--nexus-cyan); font-size: 0.7rem; text-align: center; letter-spacing: 4px; opacity: 0; transition: all 0.8s ease;">
                     // SECURE ACCESS GRANTED
@@ -163,7 +178,7 @@
         // Allow Enter key to login
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Enter') {
-                const btn = document.getElementById('login-btn');
+                const btn = document.getElementById('auth-btn');
                 if (btn) btn.click();
             }
         });
