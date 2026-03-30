@@ -89,10 +89,7 @@ jobs:
       github.event_name == 'push' &&
       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
     runs-on: ubuntu-latest
-    environment:
-      # Use GitHub Environments for secret management
-      production: ${{ github.ref == 'refs/heads/main' }}
-      staging: ${{ github.ref == 'refs/heads/develop' }}
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
