@@ -87,34 +87,37 @@ curl http://localhost:8000/health
 
 **Stack**: FastAPI (Python 3.12) + static HTML/CSS/JS frontend + PostgreSQL (Render) / SQLite (local)
 
-**Pattern**: Modular monolith with repository pattern, Flyway-style migrations, bcrypt + pepper authentication.
+**Pattern**: Simplified auth-only backend with repository pattern, Flyway-style migrations, bcrypt + pepper authentication.
 
-### Backend Structure (Multi-App)
+### Backend Structure (Auth-Only)
 
 ```
 src/backend/
 ├── config.py              # Settings (env-based) – database, debug, secret_key
 ├── log_config.py          # Logging configuration
-├── main.py                # Entry point – creates app, includes routers, mounts static
+├── main.py                # Entry point – creates app, includes auth router, mounts static
 ├── migrator.py            # Database migration engine (auto-applies on startup)
 ├── core/
 │   ├── app.py             # FastAPI factory, middleware, static files
 │   └── middlewares.py     # RateLimitMiddleware, RequestIdMiddleware, CORS
 ├── shared/
-│   ├── database.py        # BaseRepository + repositories (User, App, Profile, Activity, GameScore)
+│   ├── database.py        # BaseRepository + UserRepository, UserProfileRepository
 │   ├── security.py        # Password hashing (bcrypt + pepper)
 │   ├── schemas.py         # Shared Pydantic models
 │   └── exceptions.py      # Custom exceptions
-├── auth/
-│   ├── router.py          # /api/auth/login, /api/auth/signup, /api/auth/me
-│   └── service.py         # Authentication business logic
-├── games/
-│   └── router.py          # /api/games/, /api/games/{name}/scores, /leaderboard
-└── apps/
-    └── router.py          # /apps/, /apps/{id}/launch
+└── auth/
+    ├── router.py          # /api/auth/login, /api/auth/signup, /api/auth/me
+    └── service.py         # Authentication business logic
 ```
 
-**Note**: Rate limiting is implemented in `core/middlewares.py` using `SimpleRateLimiter` class. Separate `rate_limiter.py` files were removed as unused.
+**Simplification (v7.0)**:
+- Removed multi-app architecture (games, apps modules)
+- Removed activity tracking, game scores, app registry
+- Removed database-based runtime configuration (app_config table)
+- All configuration now via environment variables
+- Focus: Secure, minimal authentication backend
+
+**Rate Limiting**: Implemented in `core/middlewares.py` using `SimpleRateLimiter` class. In-memory storage (suitable for single Render instance). For multi-instance scaling, replace with Redis backend.
 
 ### Frontend Structure (Current)
 
@@ -154,7 +157,7 @@ src/frontend/
 
 ---
 
-## API Endpoints
+## API Endpoints (Auth-Only)
 
 ### Authentication (`/api/auth/*`)
 - `POST /api/auth/login` - Authenticate user (returns user_id)
@@ -163,50 +166,52 @@ src/frontend/
 
 **Rate limit**: 20 requests/hour per IP (combined)
 
-### Apps
-- `GET /api/apps/` - List all active apps
-- `GET /api/apps/{id}` - Get app details
-- `POST /api/apps/{id}/launch` - Track app launch
-
-**Rate limit**: 200 requests/hour per IP
-
-### Games
-- `GET /api/games/` - List available games
-- `POST /api/games/{game_name}/scores` - Submit score
-- `GET /api/games/{game_name}/leaderboard?limit=10` - Top scores
-- `GET /api/games/{game_name}/my-best?username=...` - User's best score
-
-**Rate limit**: 100 requests/hour per IP
-
 ### Health
 - `GET /health` - Service health check (no rate limit)
+
+### Removed Endpoints (v7.0)
+
+The following endpoints were removed with the multi-app simplification:
+- ❌ `/api/apps/*` (apps catalog and launch tracking)
+- ❌ `/api/games/*` (game scores and leaderboards)
+
+The system is now focused solely on authentication.
 
 ---
 
 ## Rate Limiting Strategy
 
-| App Category | Endpoints | Limit | Block | Purpose |
-|--------------|-----------|-------|-------|---------|
-| Auth | `/api/auth/*` | 20/hr | 15min | Prevent brute force |
-| Games | `/api/games/*` | 100/hr | 10min | Allow gameplay |
-| Apps | `/apps/*` | 200/hr | 10min | Higher for utilities |
-| Health | `/health` | Unlimited | - | Monitoring |
+| Endpoint Category | Limit | Block | Purpose |
+|-------------------|-------|-------|---------|
+| Auth | 20/hr | 15min | Prevent brute force |
+| Health | Unlimited | - | Monitoring |
 
-**Implementation**: Separate `SimpleRateLimiter` instances per app, in-memory storage (suitable for single Render instance). For multi-instance, replace with Redis backend.
+**Note**: In v7.0, the multi-app architecture (games/apps) was removed. The system is now **authentication-only**. Only auth endpoints are rate-limited.
+
+**Implementation**: Simple `SimpleRateLimiter` with in-memory storage (suitable for single Render instance). For multi-instance scaling, replace with Redis backend.
 
 ---
 
 ## Database Schema
 
-### Tables
-- `users` - Core authentication (id, username, password_hash, created_at, last_login_at, created_ip, last_login_ip)
-- `user_profiles` - Extended profile (user_id, display_name, bio, avatar_url, created_at, updated_at)
-- `app_registry` - App catalog (id, name, route_path, description, icon, version, is_active, created_at)
-- `user_app_activity` - Usage tracking (id, user_id, app_id, session_id, metadata, created_at, last_accessed)
-- `game_scores` - Game leaderboards (id, user_id, game_name, score, metadata, created_at)
-- `schema_version` - Tracks applied migrations
+### Tables (Auth-Only Mode)
 
-**Migrations**: Flyway-style in `flyway/sql/` (V1..V5). Auto-applied on startup via `migrator.py` (both development and production). The GitHub Actions workflow triggers Render deploys; Render runs migrations automatically when the service starts.
+**Core authentication tables:**
+- `users` - Core authentication (id, username, password_hash, created_at, last_login_at, created_ip, last_login_ip)
+- `user_profiles` - Extended profile (user_id, display_name, bio, preferences, avatar_url, created_at, updated_at)
+- `schema_version` - Tracks applied migrations (Flyway-style)
+
+### Removed Tables (v7.0 simplification)
+
+The following non-authentication tables were removed to streamline the backend:
+- ❌ `app_registry` (apps catalog)
+- ❌ `user_app_activity` (app usage tracking)
+- ❌ `game_scores` (game leaderboards)
+- ❌ `app_config` (runtime configuration)
+
+All configuration is now via environment variables only (no database-based config).
+
+**Migrations**: Flyway-style in `flyway/sql/` (V1..V7). Auto-applied on startup via `migrator.py` (both development and production). The GitHub Actions workflow triggers Render deploys; Render runs migrations automatically when the service starts.
 
 **Database location**: Development uses SQLite in `data/playnexus.db`. Production uses PostgreSQL via environment variables.
 
@@ -294,58 +299,278 @@ For staging and production environments, you can store configurable settings in 
 
 ---
 
-## Adding New Features
+## Extending the System
 
-### New table (e.g., user_achievements)
-1. Create migration: `flyway/sql/V6__create_user_achievements.sql`
-2. Add repository in `src/backend/shared/database.py` (or new file if complex)
-3. Add Pydantic models in `src/backend/shared/schemas.py` or app-specific schemas
-4. Add API endpoints in appropriate router (`/api/achievements/`)
-5. Update Swagger docstrings with examples
-6. Update `docs/API-REFERENCE.html`
-7. Push → auto-deploy with migration
+**Note**: v7.0 simplified the system to authentication-only. Multi-app functionality was removed. If you need to extend the system, consider these patterns:
 
-### New app module (e.g., tools/calculators)
-1. Create directory: `src/backend/tools/` (if separate category) or add to `apps/`
-2. Create `router.py` with endpoints
-3. Optionally create `service.py` for business logic
-4. Register app in `app_registry` (via migration or admin API)
-5. Create frontend page: `src/frontend/app/tools/calculator.html`
-6. Add JavaScript: `src/frontend/js/tools/calculator.js`
-7. Add to hub grid (it will auto-fetch from `/api/apps`)
-8. Update docs & Swagger
+### Extending User Profiles
+
+To add new user profile fields:
+
+1. Create a migration to add columns to `user_profiles`:
+   ```sql
+   ALTER TABLE user_profiles ADD COLUMN your_field TEXT;
+   ```
+
+2. Update `UserProfileRepository` in `src/backend/shared/database.py` with helper methods
+
+3. Update Pydantic schemas in `src/backend/shared/schemas.py` (e.g., `UserProfileUpdate`)
+
+4. Add endpoint in `src/backend/auth/router.py` or create a new profile router
+
+### Re-adding Multi-App Support (Optional)
+
+If you need apps/games functionality again, you would:
+
+1. Re-add `app_registry`, `user_app_activity`, `game_scores` tables via migrations
+2. Recreate `AppRepository`, `UserActivityRepository`, `GameScoreRepository` in `database.py`
+3. Recreate `apps/` and `games/` routers
+4. Re-add `app_config` table if runtime config needed
+5. Include routers in `main.py`
+
+Consider whether this complexity is truly needed. For pure authentication backend, the current simplified architecture is **recommended**.
 
 ---
 
 ## Deployment
 
-GitHub Actions → Render auto-deploy on `main`:
+### Automated CI/CD (GitHub Actions → Render)
 
-1. **Test job** (on all pushes/PRs): Syntax check + critical lint only
-2. **Deploy job** (only main branch):
-   - Associate Render Environment Group (if `RENDER_ENV_GROUP_ID` set)
-   - Trigger Render deploy
-   - Wait for completion (max 30 min)
-   - Health check on `/health` and `/api/auth/login`
-3. Migrations run automatically on Render service startup via `migrator.py`
+**Unified workflow** for staging and production:
 
-**One-time Render setup**:
-1. Create Render Web Service (connect GitHub repo)
-2. Create an **Environment Group** (e.g., "PROD") with:
-   - `SECRET_KEY` (generate: `openssl rand -hex 32`)
-   - `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
-   - `DEBUG=false`
-3. Build command: `pip install -r requirements.txt`
-4. Start command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-5. Disable Auto-Deploy on Render (set to Manual)
-6. Add GitHub Secrets:
-   - `RENDER_API_KEY` (from Render Account → API Keys)
-   - `RENDER_SERVICE_ID` (from Render service URL)
-   - `RENDER_ENV_GROUP_ID` (optional but recommended - your PROD group ID)
-7. Associate your Render service with the Environment Group:
-   - In Render service → Environment → Environment Groups
-   - Select your PROD group
-8. Push to `main` → auto-deploy
+1. **Quality job** (all branches/PRs):
+   - Syntax check, linting (flake8), type check (mypy), security scan (bandit), format check (black)
+   - Runs on every push and PR
+   - Uploads quality reports as artifacts
+
+2. **Deploy job** (only on push to `main` or `develop`):
+   - Validates secrets (fails fast if missing)
+   - Auto-associates Render Environment Group (if configured)
+   - Triggers Render deployment via API
+   - Monitors deployment progress (max 30 min)
+   - Health checks (`/health`, `/api/auth/login`)
+   - Runs Playwright smoke test on deployed site
+   - Prints comprehensive deployment summary
+
+**Branch strategy**:
+- `develop`: Auto-deploys to **staging** on every push (uses `APP_ENV=test`)
+- `main`: Auto-deploys to **production** on every push (uses `APP_ENV=production`)
+  - ⚠️  **Branch protection recommended**: Prevent direct pushes, require PRs
+  - PR merges to `main` trigger production deployment
+
+**Smoke test**: `tests/smoke.test.js` runs automatically after each deployment to verify the site loads and displays "PlayNexus".
+
+### One-Time Render Setup
+
+**Create Render Web Service(s)**:
+
+1. Go to Render Dashboard → Create New → Web Service
+2. Connect your GitHub repository
+3. **Build command**: `pip install -r requirements.txt`
+4. **Start command**: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+5. **Disable Auto-Deploy**: Set to **Manual** (GitHub Actions will trigger deploys)
+6. **Add Environment Variables** (see below)
+7. Create service(s):
+   - **Staging**: Name like `playnexus-staging` (for `develop` branch)
+   - **Production**: Name like `playnexus` (for `main` branch)
+   - Or use a single service and switch via `APP_ENV`
+
+**Environment Variables** (set in Render service → Environment tab):
+
+| Variable | Staging | Production | Description |
+|----------|---------|------------|-------------|
+| `APP_ENV` | `test` | `production` | Environment identifier (loads config from `app_config` table) |
+| `SECRET_KEY` | ✅ | ✅ | Password pepper: generate with `openssl rand -hex 32` |
+| `PGHOST` | ⚠️ | ⚠️ | PostgreSQL host (if using external DB) |
+| `PGPORT` | ⚠️ | ⚠️ | Port (usually 5432) |
+| `PGUSER` | ⚠️ | ⚠️ | Username |
+| `PGPASSWORD` | ⚠️ | ⚠️ | Password |
+| `PGDATABASE` | ⚠️ | ⚠️ | Database name |
+| `DEBUG` | optional | optional | Default: `false` |
+| `LOG_LEVEL` | optional | optional | Default: `INFO` |
+
+> **Note**: If PostgreSQL variables are not set, the app automatically uses SQLite (`./data/playnexus.db`). This is fine for single-instance Render deployments (Free/Starter plans). For multi-instance scaling, use PostgreSQL.
+
+### GitHub Secrets Setup
+
+Add these in **Settings** → **Secrets and variables** → **Actions** → **New repository secret**:
+
+#### Option A: Separate Services (Recommended)
+
+**Staging secrets** (for `develop` branch):
+- `RENDER_API_KEY_TEST` - Render API key (from Render Account → API Keys)
+- `RENDER_SERVICE_ID_TEST` - Staging service ID (`srv-xxx` from service URL)
+- `RENDER_ENV_GROUP_ID_TEST` - (Optional) Environment Group ID (`evm-xxx`)
+
+**Production secrets** (for `main` branch):
+- `RENDER_API_KEY` - Render API key (can be same key)
+- `RENDER_SERVICE_ID_PROD` - Production service ID
+- `RENDER_ENV_GROUP_ID_PROD` - (Optional) Environment Group ID
+
+#### Option B: Single Service
+
+If using the same service for staging and production:
+- `RENDER_API_KEY` - API key
+- `RENDER_SERVICE_ID` - Service ID (same for both)
+- `RENDER_ENV_GROUP_ID` - (Optional) Environment Group ID
+
+### Branch Protection (Recommended)
+
+To enforce workflow and prevent accidental production deployments:
+
+1. Go to repository **Settings** → **Branches**
+2. **Add rule** → Branch name: `main`
+3. Enable:
+   - ✅ **Require a pull request before merging**
+     - Require approvals: `1` (or more)
+   - ✅ **Require status checks to pass before merging**
+     - Select: `quality` (from GitHub Actions)
+   - ✅ **Require linear history** (optional but recommended)
+4. Click **Create** or **Save changes**
+
+This ensures:
+- No direct pushes to `main`
+- All changes must be reviewed via PR
+- Quality checks must pass before merge
+- Production deploys are intentional (PR merges only)
+
+### Render Environment Groups (Optional)
+
+Environment Groups let you share environment variables across services and have consistent staging/production configs.
+
+**Setup**:
+1. In Render Dashboard: Environment Groups → Create Group (e.g., "PROD", "STAGING")
+2. Add environment variables to the group
+3. Add `RENDER_ENV_GROUP_ID` secrets to GitHub (one for each branch)
+4. The workflow auto-associates services with the correct group
+
+If you **don't** use Environment Groups, just leave `RENDER_ENV_GROUP_ID` unset. The workflow will skip association and proceed normally.
+
+---
+
+## 🚀 Quick Start
+
+1. **Setup Render**:
+   - Create staging and/or production services
+   - Configure environment variables (at least `SECRET_KEY` and `APP_ENV`)
+   - Disable auto-deploy (set to Manual)
+
+2. **Add GitHub Secrets**:
+   - Go to repository Settings → Actions → New repository secret
+   - Add `RENDER_API_KEY`, `RENDER_SERVICE_ID_*` (and optionally `*_ENV_GROUP_ID_*`)
+
+3. **Configure Branch Protection** (optional but recommended):
+   - Settings → Branches → Add rule for `main`
+   - Require PR reviews and status checks
+
+4. **Push to develop**:
+   ```bash
+   git push origin develop
+   ```
+   - Triggers staging deployment automatically
+   - Watch in GitHub → Actions
+
+5. **When ready for production**:
+   - Create PR from `develop` → `main`
+   - Merge after review
+   - Production deployment triggers automatically
+
+---
+
+## 📦 Local Development
+
+### `.env` File
+
+Copy `.env.example` to `.env` and fill in values:
+
+```bash
+cp .env.example .env
+# Edit .env with your local settings
+```
+
+Local development uses SQLite by default (no PostgreSQL needed). Set `DEBUG=true` for development mode.
+
+### Running
+
+```bash
+# Backend
+python src/backend/main.py
+
+# Frontend only (optional - backend also serves static)
+cd src/frontend && python -m http.server 3000
+
+# Access: http://localhost:8000
+```
+
+### Git Hooks
+
+Pre-commit and pre-push hooks automatically:
+- Run syntax, linting, security checks
+- Update documentation timestamps
+- Run smoke tests (pre-push)
+
+Install hooks: See `.git/hooks/` (auto-installed if using standard git setup)
+
+To skip: `git commit --no-verify` or `git push --no-verify` (not recommended)
+
+---
+
+## 🧪 Quality Checks
+
+Manual checks (before pushing):
+
+```bash
+# Install dev tools
+pip install flake8 mypy black bandit
+
+# Syntax
+python -m py_compile src/backend/main.py
+
+# Lint (critical errors)
+flake8 src/backend/ --count --select=E9,F63,F7,F82 --show-source --statistics
+
+# Full lint
+flake8 src/backend/
+
+# Type check
+mypy src/backend/main.py --ignore-missing-imports
+
+# Security scan
+bandit -r src/backend/
+
+# Format check
+black --check src/backend/
+```
+
+---
+
+## 🎯 Production Readiness Checklist
+
+Before going live:
+
+- [ ] Branch protection enabled on `main`
+- [ ] GitHub Secrets added for both environments
+- [ ] Render services created (staging + production)
+- [ ] Environment variables set (at least `SECRET_KEY`, `APP_ENV`)
+- [ ] Database provisioned (PostgreSQL for production)
+- [ ] Smoke tests passing on staging
+- [ ] Render logs monitored for errors
+- [ ] Domain/DNS configured (if using custom domain)
+- [ ] Backup strategy in place (PostgreSQL backups)
+- [ ] Monitoring alerts configured (Render alerts)
+
+---
+
+## 📚 Documentation
+
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - System design, modular architecture
+- [FLYWAY.md](docs/FLYWAY.md) - Database migrations guide
+- [API-REFERENCE.html](docs/API-REFERENCE.html) - API reference (offline-capable)
+- [CI-CD-SETUP.md](docs/CI-CD-SETUP.md) - Detailed CI/CD setup and troubleshooting
+
+---
+
+**Last Updated**: 2026-03-30
 
 ---
 
@@ -430,10 +655,15 @@ my-web-dashboard/
 | Version | Description | Date |
 |---------|-------------|------|
 | V1 | Create `users` table | 2025-03-29 |
-| V2 | Create `user_profiles` table | 2025-03-30 |
-| V3 | Create `app_registry` table (seed: tic-tac-toe) | 2025-03-30 |
-| V4 | Create `user_app_activity` table | 2025-03-30 |
-| V5 | Create `game_scores` table | 2025-03-30 |
+| V2 | Add username index & create `user_profiles` | 2025-03-30 |
+
+**v7.0 Simplification (2026-03-30):**
+- Removed obsolete migrations V3-V6 that created multi-app tables
+- Those tables (`app_registry`, `user_app_activity`, `game_scores`, `app_config`) are no longer used by the code
+- They are **not automatically dropped** to preserve any existing data
+- If you need to remove them, manually execute DROP TABLE statements (see `docs/FLYWAY.md`)
+
+**Migration philosophy:** We only apply non-destructive migrations automatically. Table drops should be manual to prevent accidental data loss.
 
 ---
 

@@ -22,9 +22,17 @@ This project uses Flyway-style versioned SQL migrations for database schema mana
 |---------|-------------|------|
 | V1 | Create `users` table with audit fields | `flyway/sql/V1__create_users.sql` |
 | V2 | Add username index & create `user_profiles` table | `flyway/sql/V2__add_username_index.sql`, `flyway/sql/V2__user_profiles.sql` |
-| V3 | Create `app_registry` table with seed data | `flyway/sql/V3__app_registry.sql` |
-| V4 | Create `user_app_activity` table | `flyway/sql/V4__user_app_activity.sql` |
-| V5 | Create `game_scores` table | `flyway/sql/V5__game_scores.sql` |
+
+**Note:** The original multi-app migrations (V3-V6) that created `app_registry`, `user_app_activity`, `game_scores`, and `app_config` were removed in v7.0. Those tables are now obsolete but **not automatically dropped** to preserve any existing data. If you have those tables and want to remove them, manually execute:
+
+```sql
+DROP TABLE IF EXISTS game_scores CASCADE;
+DROP TABLE IF EXISTS user_app_activity CASCADE;
+DROP TABLE IF EXISTS app_registry CASCADE;
+DROP TABLE IF EXISTS app_config CASCADE;
+```
+
+**Migration philosophy**: We only apply forward migrations that create or modify schema. We never automatically drop tables to prevent accidental data loss. Destructive changes should be manual.
 
 ---
 
