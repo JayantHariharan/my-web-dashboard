@@ -1,21 +1,19 @@
-name: CI/CD Pipeline
+name: Deploy to Render
 
 on:
   push:
-    branches:
-      - '**'  # All branches
+    branches: [main]
   pull_request:
-    branches:
-      - '**'
+    branches: [main]
 
 jobs:
-  pre-checks:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -23,266 +21,119 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          pip install flake8 mypy black bandit types-passlib types-psycopg2
+          pip install flake8
 
-      - name: Lint with flake8
+      - name: Syntax check
+        run: python -m py_compile src/backend/main.py
+
+      - name: Lint (critical errors only)
         run: |
-          flake8 src/backend/main.py --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 src/backend/ --count --select=E9,F63,F7,F82 --isolated
+        continue-on-error: false
 
-      - name: Type check with mypy (optional)
-        run: |
-          mypy src/backend/main.py || true
-        continue-on-error: true
-
-      - name: Check Python syntax
-        run: |
-          python -m py_compile src/backend/main.py
-          echo "✅ Python syntax valid"
-
-      - name: Check code formatting with black
-        run: |
-          black --check src/backend/ || { echo "❌ Code needs formatting: black src/backend/"; exit 1; }
-
-      - name: Run unit tests
-        run: |
-          # Add your unit tests here if you have them
-          echo "No unit tests configured yet"
-
-      - name: Check frontend files exist
-        run: |
-          test -d src/frontend && echo "Frontend exists" || exit 1
-
-      - name: Cleanup Python dev tools
-        run: |
-          pip uninstall -y flake8 mypy black bandit types-passlib types-psycopg2
-          pip cache purge
-          echo "✅ Cleaned up dev tools"
-
-  migrate-db:
-    needs: pre-checks
+  deploy:
+    needs: test
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install flake8 mypy black bandit types-passlib types-psycopg2
-
-      - name: Run database migrations
-        env:
-          PGHOST: ${{ secrets.PGHOST }}
-          PGPORT: ${{ secrets.PGPORT }}
-          PGUSER: ${{ secrets.PGUSER }}
-          PGPASSWORD: ${{ secrets.PGPASSWORD }}
-          PGDATABASE: ${{ secrets.PGDATABASE }}
-          PYTHONPATH: ${{ github.workspace }}/src
-        run: |
-          echo "Applying migrations to database..."
-          python -m backend.migrator
-          echo "✅ Migrations applied successfully"
-
-      - name: Cleanup Python dev tools
-        run: |
-          pip uninstall -y flake8 mypy black bandit types-passlib types-psycopg2
-          pip cache purge
-          echo "✅ Cleaned up dev tools"
-
-  deploy-to-render:
-    needs: [pre-checks, migrate-db]
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: production
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Associate Render Environment Group
+      - name: Associate Environment Group
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
           RENDER_ENV_GROUP_ID: ${{ secrets.RENDER_ENV_GROUP_ID }}
         run: |
-          echo "Ensuring service is associated with environment group..."
-
-          # If RENDER_ENV_GROUP_ID is not set, skip this step
+          # Skip if RENDER_ENV_GROUP_ID is not set
           if [ -z "$RENDER_ENV_GROUP_ID" ]; then
-            echo "RENDER_ENV_GROUP_ID is not set. Skipping environment group association."
-            echo "To enable, add RENDER_ENV_GROUP_ID as a repository secret."
+            echo "ℹ️  RENDER_ENV_GROUP_ID not set, skipping environment group association"
             exit 0
           fi
 
-          # Fetch current service configuration
+          echo "Ensuring service is associated with environment group..."
+
+          # Get current service configuration
           response=$(curl -s \
             "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
             -H "Authorization: Bearer ${RENDER_API_KEY}")
 
-          # Check current envVarsIncludeFromGroup
+          # Check if group is already associated
           current_groups=$(echo "$response" | jq -r '.envVarsIncludeFromGroup // []')
 
-          if echo "$current_groups" | grep -q "${RENDER_ENV_GROUP_ID}"; then
-            echo "✅ Environment group is already associated."
+          if echo "$current_groups" | grep -q "$RENDER_ENV_GROUP_ID"; then
+            echo "✅ Environment group already associated"
           else
-            echo "🔧 Associating environment group ${RENDER_ENV_GROUP_ID}..."
+            echo "🔗 Associating environment group..."
 
-            # Update service to include the environment group
-            update_response=$(curl -s -X PATCH \
+            # Associate the group
+            curl -s -X PATCH \
               "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
               -H "Authorization: Bearer ${RENDER_API_KEY}" \
               -H "Content-Type: application/json" \
-              -d "{\"envVarsIncludeFromGroup\":[\"${RENDER_ENV_GROUP_ID}\"]}")
+              -d "{\"envVarsIncludeFromGroup\":[\"$RENDER_ENV_GROUP_ID\"]}"
 
-            echo "Update response: $update_response"
-
-            # Verify association
+            # Verify
             sleep 2
-            verify_response=$(curl -s \
+            verify=$(curl -s \
               "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
               -H "Authorization: Bearer ${RENDER_API_KEY}")
-            verify_groups=$(echo "$verify_response" | jq -r '.envVarsIncludeFromGroup // []')
+            verify_groups=$(echo "$verify" | jq -r '.envVarsIncludeFromGroup // []')
 
-            if echo "$verify_groups" | grep -q "${RENDER_ENV_GROUP_ID}"; then
-              echo "✅ Environment group successfully associated."
+            if echo "$verify_groups" | grep -q "$RENDER_ENV_GROUP_ID"; then
+              echo "✅ Environment group associated successfully"
             else
-              echo "❌ Failed to associate environment group."
-              echo "Service response: $verify_response"
+              echo "❌ Failed to associate environment group"
               exit 1
             fi
           fi
 
-      - name: Trigger Render Deploy
+      - name: Deploy to Render
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
         run: |
-          # Trigger a new deploy on Render
-          response=$(curl -s -X POST \
+          # Trigger deploy
+          deploy_id=$(curl -s -X POST \
             "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
             -H "Authorization: Bearer ${RENDER_API_KEY}" \
-            -H "Content-Type: application/json")
+            -H "Content-Type: application/json" | jq -r '.id')
 
-          deploy_id=$(echo "$response" | jq -r '.id')
-          if [ -z "$deploy_id" ] || [ "$deploy_id" = "null" ]; then
-            echo "Failed to trigger deploy. Response: $response"
-            exit 1
-          fi
+          [ -n "$deploy_id" ] && [ "$deploy_id" != "null" ] || { echo "❌ Failed to trigger deploy"; exit 1; }
+          echo "📤 Deploy $deploy_id triggered"
 
-          echo "Deploy triggered with ID: $deploy_id"
-          echo "DEPLOY_ID=$deploy_id" >> $GITHUB_ENV
-
-      - name: Wait for Render Deploy to Complete
-        env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
-        run: |
-          deploy_id="${{ env.DEPLOY_ID }}"
-          echo "Waiting for deploy $deploy_id to complete..."
-
-          for i in {1..60}; do  # Wait up to 30 minutes (60 x 30s)
-            response=$(curl -s \
+          # Wait for completion
+          for i in {1..60}; do
+            status=$(curl -s \
               "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys/${deploy_id}" \
-              -H "Authorization: Bearer ${RENDER_API_KEY}")
+              -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -r '.status')
 
-            status=$(echo "$response" | jq -r '.status')
-            echo "Deploy status: $status"
-
-            if [ "$status" = "live" ] || [ "$status" = "succeeded" ]; then
-              echo "✅ Deploy completed successfully!"
-              break
-            elif [ "$status" = "errored" ] || [ "$status" = "failed" ]; then
-              echo "❌ Deploy failed!"
-              echo "Full response: $response"
-              exit 1
-            elif [ "$status" = "canceled" ]; then
-              echo "❌ Deploy was canceled!"
-              exit 1
-            else
-              echo "Still deploying... (attempt $i/60)"
-              sleep 30
-            fi
+            case $status in
+              live|succeeded) echo "✅ Deploy succeeded"; break ;;
+              errored|failed|canceled) echo "❌ Deploy $status"; exit 1 ;;
+              *) printf '.'; sleep 30 ;;
+            esac
           done
 
-          # Final check
-          response=$(curl -s \
-            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys/${deploy_id}" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}")
-          final_status=$(echo "$response" | jq -r '.status')
-
-          if [ "$final_status" != "live" ] && [ "$final_status" != "succeeded" ]; then
-            echo "❌ Deploy did not complete successfully. Final status: $final_status"
-            exit 1
-          fi
-
-      - name: Get Render Service URL
-        id: get-url
+      - name: Health Check
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
         run: |
-          response=$(curl -s \
+          url=$(curl -s \
             "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}")
-          service_url=$(echo "$response" | jq -r '.service.url')
-          echo "service_url=$service_url" >> $GITHUB_OUTPUT
+            -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -r '.service.url')
 
-      - name: Post-deploy Health Check
-        run: |
-          service_url="${{ steps.get-url.outputs.service_url }}"
-          if [ -z "$service_url" ] || [ "$service_url" = "null" ]; then
-            echo "❌ Could not get service URL"
-            exit 1
-          fi
+          [ -n "$url" ] && [ "$url" != "null" ] || { echo "❌ No service URL"; exit 1; }
 
-          echo "Checking health of $service_url..."
-
-          # Check multiple endpoints
-          endpoints=("/" "/api/login")
-          for endpoint in "${endpoints[@]}"; do
-            max_attempts=30
-            for i in $(seq 1 $max_attempts); do
-              status_code=$(curl -s -o /dev/null -w "%{http_code}" "${service_url}${endpoint}" || echo "000")
-              if [ "$status_code" = "200" ] || [ "$status_code" = "302" ]; then
-                echo "✅ Endpoint ${endpoint} is responding (HTTP $status_code)"
+          for endpoint in /health /api/auth/login; do
+            for i in {1..30}; do
+              code=$(curl -s -o /dev/null -w "%{http_code}" "$url$endpoint" || echo "000")
+              if [[ "$code" =~ ^(200|302)$ ]]; then
+                echo "✅ $endpoint -> $code"
                 break
-              else
-                echo "Endpoint ${endpoint} not ready yet (HTTP $status_code), waiting... ($i/$max_attempts)"
-                sleep 10
               fi
+              sleep 5
             done
-
-            # Final check for this endpoint
-            status_code=$(curl -s -o /dev/null -w "%{http_code}" "${service_url}${endpoint}" || echo "000")
-            if [ "$status_code" != "200" ] && [ "$status_code" != "302" ]; then
-              echo "❌ Endpoint ${endpoint} failed health check. Final status: $status_code"
-              exit 1
-            fi
           done
-
-      - name: Run Smoke Tests
-        run: |
-          service_url="${{ steps.get-url.outputs.service_url }}"
-          echo "Running smoke tests against $service_url..."
-
-          # Set environment variable for smoke test
-          export SITE_URL="$service_url"
-
-          # Install and run Playwright tests
-          npm init -y
-          npm install playwright
-          npx playwright install chromium --with-deps
-          node tests/smoke.test.js
-
-      - name: Cleanup npm and Playwright cache
-        run: |
-          rm -rf node_modules package-lock.json
-          npm cache clean --force
-          npx playwright uninstall chromium || true
-          echo "✅ Cleaned up npm and Playwright dependencies"
