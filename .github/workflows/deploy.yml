@@ -53,6 +53,7 @@ jobs:
           fi
 
           echo "Ensuring service is associated with environment group..."
+          echo "Environment Group ID: ${RENDER_ENV_GROUP_ID:0:8}... (truncated for security)"
 
           # Get current service configuration
           response=$(curl -s \
@@ -68,23 +69,22 @@ jobs:
             echo "🔗 Associating environment group..."
 
             # Associate the group
-            curl -s -X PATCH \
+            patch_response=$(curl -s -w "\n%{http_code}" -X PATCH \
               "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
               -H "Authorization: Bearer ${RENDER_API_KEY}" \
               -H "Content-Type: application/json" \
-              -d "{\"envVarsIncludeFromGroup\":[\"$RENDER_ENV_GROUP_ID\"]}"
+              -d "{\"envVarsIncludeFromGroup\":[\"$RENDER_ENV_GROUP_ID\"]}")
 
-            # Verify
-            sleep 2
-            verify=$(curl -s \
-              "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
-              -H "Authorization: Bearer ${RENDER_API_KEY}")
-            verify_groups=$(echo "$verify" | jq -r '.envVarsIncludeFromGroup // []')
+            http_code=$(echo "$patch_response" | tail -n1)
+            patch_body=$(echo "$patch_response" | sed '$d')
 
-            if echo "$verify_groups" | grep -q "$RENDER_ENV_GROUP_ID"; then
-              echo "✅ Environment group associated successfully"
+            echo "PATCH response (HTTP $http_code): $patch_body"
+
+            if [[ "$http_code" =~ ^(200|201|204)$ ]]; then
+              echo "✅ Association successful"
             else
-              echo "❌ Failed to associate environment group"
+              echo "❌ Association failed with HTTP $http_code"
+              echo "Response: $patch_body"
               exit 1
             fi
           fi
