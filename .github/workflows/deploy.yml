@@ -68,8 +68,8 @@ jobs:
       - name: Format check (Black)
         run: |
           echo "🎨 Checking code formatting..."
-          black --check src/backend/ || echo "⚠️  Code needs formatting. Run 'black src/backend/' locally."
-        continue-on-error: true
+          black --check src/backend/
+        # Fail the workflow if code is not properly formatted
 
       - name: Upload quality reports
         if: always()

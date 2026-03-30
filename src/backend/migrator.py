@@ -17,9 +17,7 @@ logger = logging.getLogger(__name__)
 def find_migrations() -> List[str]:
     """Find all SQL migration files in order."""
     # Project root flyway/sql directory
-    migrations_dir = (
-        Path(__file__).parent.parent.parent / "flyway" / "sql"
-    )
+    migrations_dir = Path(__file__).parent.parent.parent / "flyway" / "sql"
     if not migrations_dir.exists():
         logger.warning(f"Migrations directory not found: {migrations_dir}")
         return []
@@ -44,10 +42,7 @@ def apply_migrations():
 
     logger.info(f"Found {len(migrations)} migration(s) to apply")
 
-    with get_connection(
-        settings.database.is_postgres,
-        settings.database.url
-    ) as conn:
+    with get_connection(settings.database.is_postgres, settings.database.url) as conn:
         cursor = conn.cursor()
 
         # Create migrations table if it doesn't exist (SQLite)
