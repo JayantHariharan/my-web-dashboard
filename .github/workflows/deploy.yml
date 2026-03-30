@@ -336,13 +336,27 @@ jobs:
               "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys/${deploy_id}" \
               -H "Authorization: Bearer ${RENDER_API_KEY}")
 
-            status=$(echo "$response" | jq -r '.status')
-            description=$(echo "$response" | jq -r '.description // ""')
+            # Check if we got a valid response
+            if echo "$response" | grep -q '"error"'; then
+              echo "❌ Error from Render API:"
+              echo "$response" | jq '.' 2>/dev/null || echo "$response"
+              exit 1
+            fi
+
+            status=$(echo "$response" | jq -r '.status // empty')
+            description=$(echo "$response" | jq -r '.description // empty')
 
             # Log progress with timestamps
             timestamp=$(date -u +%H:%M:%S)
-            echo "[$timestamp] Attempt $i/60 - Status: $status"
+            echo "[$timestamp] Attempt $i/60 - Status: ${status:-<none>}"
             [ -n "$description" ] && echo "   ➜ $description"
+
+            # If status is empty, show full response to debug
+            if [ -z "$status" ]; then
+              echo "⚠️  WARNING: Empty status in response. Full response:"
+              echo "$response" | jq '.' 2>/dev/null || echo "$response"
+              echo ""
+            fi
 
             case $status in
               live|succeeded)
@@ -361,6 +375,7 @@ jobs:
                 exit 1
                 ;;
               *)
+                # Still in progress (building, uploading, etc.)
                 sleep 30
                 ;;
             esac
