@@ -396,24 +396,19 @@ Consider whether this complexity is truly needed. For pure authentication backen
 
 Add these in **Settings** → **Secrets and variables** → **Actions** → **New repository secret**:
 
-#### Option A: Separate Services (Recommended)
+**Required Secrets:**
 
-**Staging secrets** (for `develop` branch):
-- `RENDER_API_KEY_TEST` - Render API key (from Render Account → API Keys)
-- `RENDER_SERVICE_ID_TEST` - Staging service ID (`srv-xxx` from service URL)
-- `RENDER_ENV_GROUP_ID_TEST` - (Optional) Environment Group ID (`evm-xxx`)
+| Secret Name | Description | Notes |
+|-------------|-------------|-------|
+| `RENDER_API_KEY` | Your Render API key | **Same key for both staging & production** |
+| `RENDER_SERVICE_ID` | Production service ID (`srv-xxx`) | For `main` branch |
+| `RENDER_SERVICE_ID_TEST` | Staging service ID (`srv-xxx`) | For `develop` branch |
 
-**Production secrets** (for `main` branch):
-- `RENDER_API_KEY` - Render API key (can be same key)
-- `RENDER_SERVICE_ID_PROD` - Production service ID
-- `RENDER_ENV_GROUP_ID_PROD` - (Optional) Environment Group ID
+**Optional Secrets:**
+| `RENDER_ENV_GROUP_ID` | Production environment group ID | If using Environment Groups |
+| `RENDER_ENV_GROUP_ID_TEST` | Staging environment group ID | If using Environment Groups |
 
-#### Option B: Single Service
-
-If using the same service for staging and production:
-- `RENDER_API_KEY` - API key
-- `RENDER_SERVICE_ID` - Service ID (same for both)
-- `RENDER_ENV_GROUP_ID` - (Optional) Environment Group ID
+**Note:** You need **one Render service for staging** and **one for production** (or the same service with different `APP_ENV`). The service IDs will be different. But you can reuse the same API key for both.
 
 ### Branch Protection (Recommended)
 
