@@ -64,15 +64,11 @@ class Settings:
     log_level: int = logging.INFO
 
     # Runtime configuration (loaded from app_config table)
-    # These defaults are fallbacks if DB is unavailable or missing keys
-    site_name: str = "PlayNexus"
-    maintenance_mode: bool = False
-    registration_enabled: bool = True
-    debug_features_enabled: bool = False
-    max_upload_size: int = 52428800  # 50MB
-    rate_limit_requests: int = 10000
-    allow_cors: str = "*"
-    # Add more as needed
+    # Only include what's currently needed; add more as requirements grow
+    registration_enabled: bool = True  # Auth-related: allow new user signups
+
+    # Store any extra config keys from DB that don't have explicit fields
+    extra_config: Dict[str, Any] = field(default_factory=dict)
 
     # Store any extra config keys from DB that don't have explicit fields
     extra_config: Dict[str, Any] = field(default_factory=dict)
@@ -106,8 +102,10 @@ class Settings:
     def load_runtime_config(self, logger: Optional[logging.Logger] = None) -> None:
         """Load environment-specific runtime configuration from app_config table.
 
-        This is called AFTER database connection is established (in startup).
-        It updates settings with values from app_config for the current environment.
+        Called after database connection is established (in startup).
+        Updates settings with values from app_config for the current APP_ENV.
+
+        Only known keys are set on the settings object; unknown keys go to extra_config.
 
         Args:
             logger: Optional logger for debug messages
@@ -120,12 +118,8 @@ class Settings:
         try:
             from .shared.database import get_connection
 
-            # Determine current environment from branch or explicit APP_ENV
             app_env = os.environ.get("APP_ENV", "")
             if not app_env:
-                # Infer from Render service name or branch
-                # Render sets RENDER_SERVICE_ID; we could check if it contains 'dev' or 'prod'
-                # But simplest: require APP_ENV to be set explicitly in Render env group
                 if logger:
                     logger.warning("APP_ENV not set, cannot load environment-specific config")
                 return
@@ -142,17 +136,11 @@ class Settings:
                     logger.info(f"Loaded {len(rows)} runtime config values for environment: {app_env}")
 
                 for key, value in rows:
-                    # Convert types based on key
-                    if key in ['maintenance_mode', 'registration_enabled', 'debug_features_enabled']:
+                    # Only handle known keys explicitly
+                    if key == 'registration_enabled':
                         parsed_value = value.lower() == 'true'
-                    elif key in ['max_upload_size', 'rate_limit_requests']:
-                        try:
-                            parsed_value = int(value)
-                        except ValueError:
-                            parsed_value = value
-                    elif key == 'allow_cors':
-                        parsed_value = value  # keep as string
                     else:
+                        # Future keys: add more handling here as needed
                         parsed_value = value
 
                     # Set on self if attribute exists, otherwise store in extra_config
@@ -164,7 +152,6 @@ class Settings:
         except Exception as e:
             if logger:
                 logger.warning(f"Could not load runtime config from database: {e}")
-            # Continue with defaults - not critical
 
 
 # Global settings instance

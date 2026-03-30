@@ -253,18 +253,13 @@ For staging and production environments, you can store configurable settings in 
 
 3. **At startup**, after migrations run, the app loads all config for the current `APP_ENV` and updates the `settings` object.
 
-### Predefined Config Keys:
+### Predefined Config Keys (initially auth-only):
 
 | Key | Type | Default | Purpose |
 |-----|------|---------|---------|
-| `site_name` | string | "PlayNexus" | Display name shown in UI |
-| `maintenance_mode` | boolean | false | Enable maintenance page |
 | `registration_enabled` | boolean | true | Allow new user signups |
-| `debug_features_enabled` | boolean | false | Show debug/experimental features |
-| `max_upload_size` | integer | 52428800 | Max file upload (bytes) |
-| `rate_limit_requests` | integer | 10000 | Requests per hour per IP |
-| `allow_cors` | string | "*" | CORS allowed origins |
 
+*Start small. Add more keys as needed by updating Settings and this table.*
 ### Adding New Config Keys:
 
 1. Add field to `Settings` class in `src/backend/config.py`

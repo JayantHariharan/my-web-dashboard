@@ -227,17 +227,16 @@ All configuration is via environment variables (set in Render environment groups
 
 For test and production, you can define runtime-configurable settings in the `app_config` database table. Set `APP_ENV` to `test` (develop branch) or `production` (main branch), and the app will load corresponding values automatically.
 
-**Predefined settings:**
+**Predefined settings (initial - auth-focused):**
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `site_name` | string | "PlayNexus" | Site display name |
-| `maintenance_mode` | boolean | false | Enable maintenance page |
-| `registration_enabled` | boolean | true | Allow new signups |
-| `debug_features_enabled` | boolean | false | Show debug features |
-| `max_upload_size` | integer | 52428800 (50MB) | Max file upload size |
-| `rate_limit_requests` | integer | 10000 | Requests per hour per IP |
-| `allow_cors` | string | "\*" | CORS allowed origins |
+| `registration_enabled` | boolean | true | Allow new user signups |
+
+*More settings will be added as the application grows. To add a new config key:*
+1. *Add a field to `Settings` class in `src/backend/config.py`*
+2. *Update `load_runtime_config()` to handle its type conversion*
+3. *Insert default values into `app_config` for both `test` and `production` environments*
 
 **How to modify:**
 - Insert/update rows in `app_config` table for your environment
