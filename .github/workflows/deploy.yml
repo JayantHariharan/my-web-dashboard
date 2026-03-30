@@ -122,8 +122,12 @@ jobs:
             fi
             echo "render_service_id=$render_service_id" >> $GITHUB_ENV
 
-            # Environment Group ID (optional)
-            echo "render_env_group_id=${{ secrets.RENDER_ENV_GROUP_ID }}" >> $GITHUB_ENV
+            # Environment Group ID (optional) - supports fallback to _TEST variant
+            render_env_group_id="${{ secrets.RENDER_ENV_GROUP_ID }}"
+            if [ -z "$render_env_group_id" ]; then
+              render_env_group_id="${{ secrets.RENDER_ENV_GROUP_ID_TEST }}"
+            fi
+            echo "render_env_group_id=$render_env_group_id" >> $GITHUB_ENV
           else
             echo "deploy_env=staging" >> $GITHUB_OUTPUT
             echo "display_env=Staging/Test" >> $GITHUB_OUTPUT
@@ -142,8 +146,12 @@ jobs:
             fi
             echo "render_service_id=$render_service_id" >> $GITHUB_ENV
 
-            # Environment Group ID (optional)
-            echo "render_env_group_id=${{ secrets.RENDER_ENV_GROUP_ID_TEST }}" >> $GITHUB_ENV
+            # Environment Group ID (optional) - supports fallback to base secret
+            render_env_group_id="${{ secrets.RENDER_ENV_GROUP_ID_TEST }}"
+            if [ -z "$render_env_group_id" ]; then
+              render_env_group_id="${{ secrets.RENDER_ENV_GROUP_ID }}"
+            fi
+            echo "render_env_group_id=$render_env_group_id" >> $GITHUB_ENV
           fi
 
           echo "APP_ENV=${{ steps.env-config.outputs.app_env }}" >> $GITHUB_ENV
