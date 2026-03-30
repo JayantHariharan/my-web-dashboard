@@ -36,7 +36,7 @@ async def startup_event():
     """Initialize application on startup."""
     logger.info("Starting PlayNexus API...")
     logger.info(f"Environment: {'DEBUG' if settings.debug else 'PRODUCTION'}")
-    db_type = 'PostgreSQL' if settings.database.is_postgres else 'SQLite'
+    db_type = "PostgreSQL" if settings.database.is_postgres else "SQLite"
     logger.info(f"Database: {db_type}")
 
     # Apply database schema migrations

@@ -120,8 +120,8 @@ class BaseRepository:
         """
         columns = list(data.keys())
         placeholders = ["%s" if self._is_postgres else "?"] * len(columns)
-        cols_str = ', '.join(columns)
-        placeholders_str = ', '.join(placeholders)
+        cols_str = ", ".join(columns)
+        placeholders_str = ", ".join(placeholders)
         sql = f"INSERT INTO {self.table_name} ({cols_str}) VALUES ({placeholders_str})"
         with self.get_cursor() as cursor:
             cursor.execute(sql, tuple(data.values()))
@@ -148,8 +148,8 @@ class BaseRepository:
         ]
         values = list(data.values())
         values.append(pk_value)
-        sets_str = ', '.join(set_items)
-        placeholder = '%s' if self._is_postgres else '?'
+        sets_str = ", ".join(set_items)
+        placeholder = "%s" if self._is_postgres else "?"
         sql = f"UPDATE {self.table_name} SET {sets_str} WHERE id = {placeholder}"
         with self.get_cursor() as cursor:
             cursor.execute(sql, tuple(values))
