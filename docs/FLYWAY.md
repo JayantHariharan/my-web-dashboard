@@ -127,7 +127,7 @@ Or manually revert via database console if needed (not recommended for productio
 3. **Test migrations locally** before pushing:
    ```bash
    # Delete local database and let app recreate with all migrations
-   rm playnexus.db  # if using SQLite
+   rm data/playnexus.db  # if using SQLite
    python -m backend.main
    ```
 4. **Make migrations idempotent** with `IF NOT EXISTS` / `DROP IF EXISTS`.

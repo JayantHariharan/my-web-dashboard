@@ -212,7 +212,7 @@ Rate limits are per IP address and vary by app category:
 
 ### Database
 
-- **Development**: SQLite (`sqlite:///./playnexus.db`) – no setup needed
+- **Development**: SQLite (`sqlite:///./data/playnexus.db`) – no setup needed
 - **Production**: PostgreSQL (recommended: Supabase or Render PostgreSQL)
 
 Migrations are auto-applied on startup via `migrator.py` (also run in CI before deploy).

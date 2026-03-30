@@ -208,7 +208,7 @@ src/frontend/
 
 **Migrations**: Flyway-style in `flyway/sql/` (V1..V5). Auto-applied on startup via `migrator.py` (both development and production). The GitHub Actions workflow triggers Render deploys; Render runs migrations automatically when the service starts.
 
-**Database location**: Development uses SQLite at project root (`./playnexus.db`). Production uses PostgreSQL via environment variables.
+**Database location**: Development uses SQLite in `data/playnexus.db`. Production uses PostgreSQL via environment variables.
 
 ---
 
@@ -231,7 +231,7 @@ src/frontend/
 | `DEBUG` | No | Enable debug mode (default: false) |
 | `LOG_LEVEL` | No | DEBUG/INFO/WARNING/ERROR (default: INFO) |
 
-*Required for PostgreSQL. If not set, falls back to SQLite (`sqlite:///./playnexus.db`).
+*Required for PostgreSQL. If not set, falls back to SQLite (`sqlite:///./data/playnexus.db`).
 
 ---
 
@@ -404,7 +404,7 @@ Current version reflects frontend enhancements and cleanup completed on 2026-03-
 - Removed unused files: `src/backend/database.py`, `src/backend/security.py`, `src/backend/migrator.py` (recreated cleaner version), `src/backend/rate_limiter.py`
 - Removed `src/shared/` empty folder
 - Updated `.gitignore` to include `.claude/` and `*.db`
-- Database file correctly placed at project root (`./playnexus.db`)
+- Database file correctly placed in `data/` directory (`./data/playnexus.db`)
 
 ### Database
 - SQLite database auto-initialized with schema (7 tables: users, user_profiles, app_registry, user_app_activity, game_scores, schema_version, sqlite_sequence)

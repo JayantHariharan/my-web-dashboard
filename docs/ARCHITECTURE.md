@@ -65,7 +65,7 @@ PlayNexus is a **full-stack web application** with a FastAPI backend serving a s
 
 ### Database
 - **Production**: PostgreSQL (Render-managed)
-- **Development**: SQLite (local file: `./playnexus.db`)
+- **Development**: SQLite (local file: `./data/playnexus.db`)
 - **Migrations**: Flyway-style versioned SQL scripts in `flyway/sql/`
 - **Schema tracking**: `schema_version` table
 
@@ -287,7 +287,8 @@ my-web-dashboard/
 ├── requirements.txt          # Dependencies
 ├── runtime.txt              # Python version
 ├── .env.example             # Env template
-└── playnexus.db             # SQLite dev database (gitignored)
+└── data/
+    └── playnexus.db         # SQLite dev database (gitignored)
 ```
 
 ---

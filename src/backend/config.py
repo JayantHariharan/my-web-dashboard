@@ -32,11 +32,11 @@ class DatabaseConfig:
             if all([pg_host, pg_user, pg_password, pg_database]):
                 raw_url = f"postgresql://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_database}"
             else:
-                # Fallback to local SQLite (place in project root)
+                # Fallback to local SQLite (place in data/ directory)
                 project_root = os.path.dirname(
                     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                 )
-                db_path = os.path.join(project_root, "playnexus.db")
+                db_path = os.path.join(project_root, "data", "playnexus.db")
                 raw_url = f"sqlite:///{db_path.replace(os.sep, '/')}"
 
         is_postgres = raw_url.startswith("postgresql://") or raw_url.startswith(
