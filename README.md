@@ -184,6 +184,7 @@ Production deployment is **fully automated** via GitHub Actions to Render.
 | `SECRET_KEY` | `openssl rand -hex 32` (keep this secret!) |
 | `DEBUG` | `false` |
 | `LOG_LEVEL` | `INFO` |
+| `APP_ENV` | `staging` (dev) or `production` (prod) - for env-specific config |
 
 4. **Add GitHub Secrets** (for GitHub Actions)
    - `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
@@ -220,6 +221,27 @@ Migrations are auto-applied on startup via `migrator.py` (also run in CI before 
 ### Environment Variables
 
 See [`.env.example`](.env.example) for complete list.
+
+### Environment-Specific Configuration
+
+For staging and production, you can define runtime-configurable settings in the `app_config` database table. Set `APP_ENV` to `staging` (develop branch) or `production` (main branch), and the app will load corresponding values automatically.
+
+**Predefined settings:**
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `site_name` | string | "PlayNexus" | Site display name |
+| `maintenance_mode` | boolean | false | Enable maintenance page |
+| `registration_enabled` | boolean | true | Allow new signups |
+| `debug_features_enabled` | boolean | false | Show debug features |
+| `max_upload_size` | integer | 52428800 (50MB) | Max file upload size |
+| `rate_limit_requests` | integer | 10000 | Requests per hour per IP |
+| `allow_cors` | string | "\*" | CORS allowed origins |
+
+**How to modify:**
+- Insert/update rows in `app_config` table for your environment
+- Changes take effect on next app restart (or implement hot-reload)
+- No redeploy needed for config changes!
 
 ---
 

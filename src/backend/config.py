@@ -1,12 +1,14 @@
 """
 Configuration management for PlayNexus backend.
 Handles environment-based settings with validation.
+- Environment variables for connection & secrets
+- Database table (app_config) for runtime, environment-specific settings
 """
 
 import logging
 import os
-from dataclasses import dataclass
-from typing import Optional
+from dataclasses import dataclass, field
+from typing import Optional, Dict, Any
 
 
 @dataclass
@@ -48,22 +50,40 @@ class DatabaseConfig:
 
 @dataclass
 class Settings:
-    """Application settings."""
+    """Application settings.
+
+    Split into:
+    - Core: from environment variables (set at deploy time)
+    - Runtime: from database app_config table (can change without restart)
+    """
 
     database: DatabaseConfig
     debug: bool = False
-    secret_key: str = "change-me-in-production"  # Used for sessions if needed
+    secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 30
-    log_level: int = logging.INFO  # Logging level (DEBUG, INFO, etc.)
+    log_level: int = logging.INFO
+
+    # Runtime configuration (loaded from app_config table)
+    # These defaults are fallbacks if DB is unavailable or missing keys
+    site_name: str = "PlayNexus"
+    maintenance_mode: bool = False
+    registration_enabled: bool = True
+    debug_features_enabled: bool = False
+    max_upload_size: int = 52428800  # 50MB
+    rate_limit_requests: int = 10000
+    allow_cors: str = "*"
+    # Add more as needed
+
+    # Store any extra config keys from DB that don't have explicit fields
+    extra_config: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_env(cls) -> "Settings":
-        """Build settings from environment variables."""
+        """Build base settings from environment variables."""
         debug = os.environ.get("DEBUG", "false").lower() in ("true", "1", "yes")
         log_level_str = os.environ.get(
             "LOG_LEVEL", "INFO" if not debug else "DEBUG"
         ).upper()
-        # Convert string to logging level constant
         log_level_map = {
             "DEBUG": logging.DEBUG,
             "INFO": logging.INFO,
@@ -82,6 +102,69 @@ class Settings:
             ),
             log_level=log_level,
         )
+
+    def load_runtime_config(self, logger: Optional[logging.Logger] = None) -> None:
+        """Load environment-specific runtime configuration from app_config table.
+
+        This is called AFTER database connection is established (in startup).
+        It updates settings with values from app_config for the current environment.
+
+        Args:
+            logger: Optional logger for debug messages
+        """
+        if self.debug:
+            if logger:
+                logger.info("Skipping runtime config load in DEBUG mode (using defaults)")
+            return
+
+        try:
+            from .shared.database import get_connection
+
+            # Determine current environment from branch or explicit APP_ENV
+            app_env = os.environ.get("APP_ENV", "")
+            if not app_env:
+                # Infer from Render service name or branch
+                # Render sets RENDER_SERVICE_ID; we could check if it contains 'dev' or 'prod'
+                # But simplest: require APP_ENV to be set explicitly in Render env group
+                if logger:
+                    logger.warning("APP_ENV not set, cannot load environment-specific config")
+                return
+
+            with get_connection(self.database.is_postgres, self.database.url) as conn:
+                cursor = conn.cursor()
+                cursor.execute(
+                    "SELECT key, value FROM app_config WHERE env = ?",
+                    (app_env,)
+                )
+                rows = cursor.fetchall()
+
+                if logger:
+                    logger.info(f"Loaded {len(rows)} runtime config values for environment: {app_env}")
+
+                for key, value in rows:
+                    # Convert types based on key
+                    if key in ['maintenance_mode', 'registration_enabled', 'debug_features_enabled']:
+                        parsed_value = value.lower() == 'true'
+                    elif key in ['max_upload_size', 'rate_limit_requests']:
+                        try:
+                            parsed_value = int(value)
+                        except ValueError:
+                            parsed_value = value
+                    elif key == 'allow_cors':
+                        parsed_value = value  # keep as string
+                    else:
+                        parsed_value = value
+
+                    # Set on self if attribute exists, otherwise store in extra_config
+                    if hasattr(self, key):
+                        setattr(self, key, parsed_value)
+                    else:
+                        self.extra_config[key] = parsed_value
+
+        except Exception as e:
+            if logger:
+                logger.warning(f"Could not load runtime config from database: {e}")
+            # Continue with defaults - not critical
 
 
 # Global settings instance

@@ -230,8 +230,64 @@ src/frontend/
 | `SECRET_KEY` | Production | Password pepper – generate: `openssl rand -hex 32` |
 | `DEBUG` | No | Enable debug mode (default: false) |
 | `LOG_LEVEL` | No | DEBUG/INFO/WARNING/ERROR (default: INFO) |
+| `APP_ENV` | Recommended | Environment name: `staging` or `production` (used for env-specific config from app_config table) |
 
 *Required for PostgreSQL. If not set, falls back to SQLite (`sqlite:///./data/playnexus.db`).
+
+---
+
+## Environment-Specific Configuration
+
+For staging and production environments, you can store configurable settings in the `app_config` database table. This allows you to change site behavior without redeploying.
+
+### How It Works:
+
+1. **Environment variables** (set in Render) determine connection and core behavior:
+   - `APP_ENV` = `staging` (for develop branch) or `production` (for main branch)
+   - `SECRET_KEY`, `DEBUG`, database credentials
+
+2. **Database table** `app_config` stores key-value pairs scoped to environment:
+   ```sql
+   SELECT key, value FROM app_config WHERE env = 'staging'  -- or 'production'
+   ```
+
+3. **At startup**, after migrations run, the app loads all config for the current `APP_ENV` and updates the `settings` object.
+
+### Predefined Config Keys:
+
+| Key | Type | Default | Purpose |
+|-----|------|---------|---------|
+| `site_name` | string | "PlayNexus" | Display name shown in UI |
+| `maintenance_mode` | boolean | false | Enable maintenance page |
+| `registration_enabled` | boolean | true | Allow new user signups |
+| `debug_features_enabled` | boolean | false | Show debug/experimental features |
+| `max_upload_size` | integer | 52428800 | Max file upload (bytes) |
+| `rate_limit_requests` | integer | 10000 | Requests per hour per IP |
+| `allow_cors` | string | "*" | CORS allowed origins |
+
+### Adding New Config Keys:
+
+1. Add field to `Settings` class in `src/backend/config.py`
+2. Update the `load_runtime_config()` method to handle its type conversion
+3. Add migration to insert default values for both `staging` and `production`:
+   ```sql
+   INSERT INTO app_config (key, value, env, description) VALUES
+   ('your_key', 'default_value', 'staging', 'Description'),
+   ('your_key', 'default_value', 'production', 'Description');
+   ```
+4. Access via `settings.your_key` anywhere in the code
+
+### Setting Up in Render:
+
+**Staging Service** (develop branch):
+- Environment Group: `DEV` or `STAGING`
+- Add `APP_ENV=staging`
+- (Optional) Override any config by adding rows to `app_config` for env='staging'
+
+**Production Service** (main branch):
+- Environment Group: `PROD`
+- Add `APP_ENV=production`
+- Use production values in `app_config`
 
 ---
 

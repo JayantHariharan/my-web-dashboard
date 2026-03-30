@@ -170,6 +170,17 @@ Ordered middleware chain in `core/app.py`:
    - `script` (TEXT, migration filename)
    - `installed_on` (TIMESTAMP)
 
+7. **app_config** (Runtime Configuration)
+   - `key` (TEXT, part of composite PK)
+   - `value` (TEXT, config value)
+   - `env` (TEXT, environment: 'staging' or 'production', part of composite PK)
+   - `description` (TEXT, optional)
+   - `updated_at` (TIMESTAMP)
+   - Unique constraint on `(key, env)`
+   - Index on `env` for fast lookup
+   - Purpose: Store environment-specific settings (site_name, maintenance_mode, etc.)
+   - Values loaded at startup based on `APP_ENV` environment variable
+
 ---
 
 ## Security Considerations

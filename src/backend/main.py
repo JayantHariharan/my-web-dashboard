@@ -51,9 +51,15 @@ async def startup_event():
         apply_migrations()
     except Exception as e:
         logger.error(f"Database migration failed: {e}")
-        # In development, we can continue even if migrations fail
         if not settings.debug:
             raise
+
+    # Load runtime configuration from app_config table (staging/production specific)
+    try:
+        settings.load_runtime_config(logger)
+        logger.info(f"Runtime config loaded. Site: {settings.site_name}, Maintenance: {settings.maintenance_mode}")
+    except Exception as e:
+        logger.warning(f"Could not load runtime config: {e}")
 
     # Migrate any existing plain-text passwords to bcrypt (only runs if needed)
     try:
