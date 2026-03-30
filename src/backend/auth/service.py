@@ -6,7 +6,6 @@ Provides reusable authentication functions.
 from typing import Optional, Tuple
 from ...shared.database import user_repo
 from ...shared.security import hash_password, verify_password
-from ...shared.exceptions import AuthenticationError
 from ..shared.log_config import logger
 
 

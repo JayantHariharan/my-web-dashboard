@@ -6,9 +6,12 @@ Entry point for running the FastAPI application.
 import os
 import logging
 
+from fastapi.staticfiles import StaticFiles
+
 from .core.app import create_app
 from .config import settings
 from .log_config import setup_logging
+from .auth.router import router as auth_router
 
 # Configure logging early
 setup_logging()
@@ -18,14 +21,11 @@ logger = logging.getLogger(__name__)
 app = create_app()
 
 # Include routers from modules
-from .auth.router import router as auth_router
-
 app.include_router(auth_router)
 
 # Mount static files (frontend)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
-from fastapi.staticfiles import StaticFiles
 
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
 
