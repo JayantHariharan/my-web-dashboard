@@ -88,6 +88,7 @@ jobs:
           path: |
             bandit-report.json
             . Coverage reports would go here if pytest added
+          retention-days: 7  # Auto-delete after 7 days
 
   # ============================================================================
   # DEPLOYMENT - Only for main and develop branches (not PRs)
