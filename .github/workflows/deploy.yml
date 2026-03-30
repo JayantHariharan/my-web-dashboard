@@ -254,22 +254,35 @@ jobs:
             "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
             -H "Authorization: Bearer ${RENDER_API_KEY}")
 
-          service_name=$(echo "$service_info" | jq -r '.service.name // "N/A"')
-          service_url=$(echo "$service_info" | jq -r '.service.url // "N/A"')
-          service_status=$(echo "$service_info" | jq -r '.service.suspended // false')
+          # The API returns service info at top level (not nested under .service)
+          service_name=$(echo "$service_info" | jq -r '.name // "N/A"')
+          service_url=$(echo "$service_info" | jq -r '.url // "N/A"')
+          service_suspended=$(echo "$service_info" | jq -r '.suspended // false')
 
-          if [ "$service_name" = "N/A" ] || echo "$service_info" | grep -q '"error"'; then
+          # Check if response indicates error or missing service
+          if echo "$service_info" | grep -q '"error"'; then
+            error_msg=$(echo "$service_info" | jq -r '.error // .message // "Unknown error"')
+            echo "❌ Render API error: $error_msg"
+            exit 1
+          fi
+
+          if [ "$service_name" = "N/A" ] || [ "$service_url" = "N/A" ]; then
             echo "❌ Service not found or API key invalid!"
-            echo "Response: $service_info" | jq '.' 2>/dev/null || echo "$service_info"
-            echo "Please verify:"
-            echo "  - RENDER_SERVICE_ID is correct"
-            echo "  - RENDER_API_KEY has access to this service"
+            echo "   RENDER_SERVICE_ID: ${RENDER_SERVICE_ID:0:12}..."
+            echo ""
+            echo "   Response from Render API:"
+            echo "$service_info" | jq '.' 2>/dev/null || echo "$service_info"
+            echo ""
+            echo "💡 Please verify:"
+            echo "   - RENDER_SERVICE_ID is correct (get from Render dashboard URL)"
+            echo "   - RENDER_API_KEY has access to this service (owner or collaborator)"
+            echo "   - Service exists in the same Render account as the API key"
             exit 1
           fi
 
           echo "✅ Service verified: $service_name"
           echo "   URL: https://$service_url"
-          if [ "$service_status" = "true" ]; then
+          if [ "$service_suspended" = "true" ]; then
             echo "   ⚠️  WARNING: Service is suspended! Unsuspend it in Render dashboard."
             exit 1
           fi
