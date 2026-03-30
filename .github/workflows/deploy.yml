@@ -106,13 +106,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Associate Render Environment Group
-        if: ${{ secrets.RENDER_ENV_GROUP_ID != '' }}
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
           RENDER_ENV_GROUP_ID: ${{ secrets.RENDER_ENV_GROUP_ID }}
         run: |
           echo "Ensuring service is associated with environment group..."
+
+          # If RENDER_ENV_GROUP_ID is not set, skip this step
+          if [ -z "$RENDER_ENV_GROUP_ID" ]; then
+            echo "RENDER_ENV_GROUP_ID is not set. Skipping environment group association."
+            echo "To enable, add RENDER_ENV_GROUP_ID as a repository secret."
+            exit 0
+          fi
 
           # Fetch current service configuration
           response=$(curl -s \
