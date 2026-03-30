@@ -65,7 +65,7 @@ PlayNexus is a **full-stack web application** with a FastAPI backend serving a s
 
 ### Database
 - **Production**: PostgreSQL (Render-managed)
-- **Development**: SQLite (local file: `./playnexus.db`)
+- **Development**: SQLite (local file: `./data/playnexus.db`)
 - **Migrations**: Flyway-style versioned SQL scripts in `flyway/sql/`
 - **Schema tracking**: `schema_version` table
 
@@ -169,6 +169,17 @@ Ordered middleware chain in `core/app.py`:
    - `version` (INTEGER, but stores filename like "V1__create_users.sql")
    - `script` (TEXT, migration filename)
    - `installed_on` (TIMESTAMP)
+
+7. **app_config** (Runtime Configuration)
+   - `key` (TEXT, part of composite PK)
+   - `value` (TEXT, config value)
+   - `env` (TEXT, environment: 'staging' or 'production', part of composite PK)
+   - `description` (TEXT, optional)
+   - `updated_at` (TIMESTAMP)
+   - Unique constraint on `(key, env)`
+   - Index on `env` for fast lookup
+   - Purpose: Store environment-specific settings (site_name, maintenance_mode, etc.)
+   - Values loaded at startup based on `APP_ENV` environment variable
 
 ---
 
@@ -287,9 +298,10 @@ my-web-dashboard/
 ├── requirements.txt          # Dependencies
 ├── runtime.txt              # Python version
 ├── .env.example             # Env template
-└── playnexus.db             # SQLite dev database (gitignored)
+└── data/
+    └── playnexus.db         # SQLite dev database (gitignored)
 ```
 
 ---
 
-## Last Updated: 2026-03-30
+## Last Updated: 2026-03-31

@@ -1,6 +1,8 @@
 """
 Configuration management for PlayNexus backend.
 Handles environment-based settings with validation.
+- Environment variables for connection & secrets
+- Simplified: no database-based runtime config (auth-only mode)
 """
 
 import logging
@@ -32,11 +34,14 @@ class DatabaseConfig:
             if all([pg_host, pg_user, pg_password, pg_database]):
                 raw_url = f"postgresql://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_database}"
             else:
-                # Fallback to local SQLite (place in project root)
+                # Fallback to local SQLite (place in data/ directory)
                 project_root = os.path.dirname(
                     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
                 )
-                db_path = os.path.join(project_root, "playnexus.db")
+                data_dir = os.path.join(project_root, "data")
+                # Ensure data directory exists
+                os.makedirs(data_dir, exist_ok=True)
+                db_path = os.path.join(data_dir, "playnexus.db")
                 raw_url = f"sqlite:///{db_path.replace(os.sep, '/')}"
 
         is_postgres = raw_url.startswith("postgresql://") or raw_url.startswith(
@@ -48,13 +53,16 @@ class DatabaseConfig:
 
 @dataclass
 class Settings:
-    """Application settings."""
+    """Application settings (auth-only mode)."""
 
     database: DatabaseConfig
     debug: bool = False
-    secret_key: str = "change-me-in-production"  # Used for sessions if needed
+    secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 30
-    log_level: int = logging.INFO  # Logging level (DEBUG, INFO, etc.)
+    log_level: int = logging.INFO
+
+    # Auth-related settings
+    registration_enabled: bool = True  # Allow new user signups
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -63,7 +71,6 @@ class Settings:
         log_level_str = os.environ.get(
             "LOG_LEVEL", "INFO" if not debug else "DEBUG"
         ).upper()
-        # Convert string to logging level constant
         log_level_map = {
             "DEBUG": logging.DEBUG,
             "INFO": logging.INFO,

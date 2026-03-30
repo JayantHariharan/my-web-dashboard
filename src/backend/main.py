@@ -19,12 +19,8 @@ app = create_app()
 
 # Include routers from modules
 from .auth.router import router as auth_router
-from .games.router import router as games_router
-from .apps.router import router as apps_router
 
 app.include_router(auth_router)
-app.include_router(games_router)
-app.include_router(apps_router)
 
 # Mount static files (frontend)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -51,9 +47,12 @@ async def startup_event():
         apply_migrations()
     except Exception as e:
         logger.error(f"Database migration failed: {e}")
-        # In development, we can continue even if migrations fail
         if not settings.debug:
             raise
+
+    # Note: Runtime configuration from app_config table has been removed
+    # All configuration is now via environment variables only (simplified auth-only mode)
+    logger.info("Configuration: Using environment variables only (no database config)")
 
     # Migrate any existing plain-text passwords to bcrypt (only runs if needed)
     try:
