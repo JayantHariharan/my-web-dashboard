@@ -107,51 +107,22 @@ jobs:
             echo "deploy_env=production" >> $GITHUB_OUTPUT
             echo "display_env=Production" >> $GITHUB_OUTPUT
             echo "app_env=production" >> $GITHUB_OUTPUT
-            # Secrets for production branch
-            # Supports both RENDER_API_KEY and RENDER_API_KEY_TEST for flexibility
-            render_api_key="${{ secrets.RENDER_API_KEY }}"
-            if [ -z "$render_api_key" ]; then
-              render_api_key="${{ secrets.RENDER_API_KEY_TEST }}"
-            fi
-            echo "render_api_key=$render_api_key" >> $GITHUB_ENV
-
-            # Service ID: try RENDER_SERVICE_ID first, fall back to _TEST variant
-            render_service_id="${{ secrets.RENDER_SERVICE_ID }}"
-            if [ -z "$render_service_id" ]; then
-              render_service_id="${{ secrets.RENDER_SERVICE_ID_TEST }}"
-            fi
-            echo "render_service_id=$render_service_id" >> $GITHUB_ENV
-
-            # Environment Group ID (optional) - supports fallback to _TEST variant
-            render_env_group_id="${{ secrets.RENDER_ENV_GROUP_ID }}"
-            if [ -z "$render_env_group_id" ]; then
-              render_env_group_id="${{ secrets.RENDER_ENV_GROUP_ID_TEST }}"
-            fi
-            echo "render_env_group_id=$render_env_group_id" >> $GITHUB_ENV
+            # API Key: Use same key for both environments (you have only one)
+            echo "render_api_key=${{ secrets.RENDER_API_KEY }}" >> $GITHUB_ENV
+            # Service ID: Different service for production
+            echo "render_service_id=${{ secrets.RENDER_SERVICE_ID }}" >> $GITHUB_ENV
+            # Environment Group ID (optional)
+            echo "render_env_group_id=${{ secrets.RENDER_ENV_GROUP_ID }}" >> $GITHUB_ENV
           else
             echo "deploy_env=staging" >> $GITHUB_OUTPUT
             echo "display_env=Staging/Test" >> $GITHUB_OUTPUT
             echo "app_env=test" >> $GITHUB_OUTPUT
-            # Secrets for develop branch (supports both _TEST and base secrets)
-            render_api_key="${{ secrets.RENDER_API_KEY_TEST }}"
-            if [ -z "$render_api_key" ]; then
-              render_api_key="${{ secrets.RENDER_API_KEY }}"
-            fi
-            echo "render_api_key=$render_api_key" >> $GITHUB_ENV
-
-            # Service ID: try _TEST first, fall back to base
-            render_service_id="${{ secrets.RENDER_SERVICE_ID_TEST }}"
-            if [ -z "$render_service_id" ]; then
-              render_service_id="${{ secrets.RENDER_SERVICE_ID }}"
-            fi
-            echo "render_service_id=$render_service_id" >> $GITHUB_ENV
-
-            # Environment Group ID (optional) - supports fallback to base secret
-            render_env_group_id="${{ secrets.RENDER_ENV_GROUP_ID_TEST }}"
-            if [ -z "$render_env_group_id" ]; then
-              render_env_group_id="${{ secrets.RENDER_ENV_GROUP_ID }}"
-            fi
-            echo "render_env_group_id=$render_env_group_id" >> $GITHUB_ENV
+            # API Key: Same key for staging (only one key)
+            echo "render_api_key=${{ secrets.RENDER_API_KEY }}" >> $GITHUB_ENV
+            # Service ID: Different service for staging (test variant)
+            echo "render_service_id=${{ secrets.RENDER_SERVICE_ID_TEST }}" >> $GITHUB_ENV
+            # Environment Group ID (optional) - test variant
+            echo "render_env_group_id=${{ secrets.RENDER_ENV_GROUP_ID_TEST }}" >> $GITHUB_ENV
           fi
 
           echo "APP_ENV=${{ steps.env-config.outputs.app_env }}" >> $GITHUB_ENV
@@ -163,15 +134,15 @@ jobs:
           missing_secrets=()
 
           if [ -z "$render_api_key" ]; then
-            if [ "${GITHUB_REF##*/}" = "main" ]; then
-              missing_secrets+=("RENDER_API_KEY (or RENDER_API_KEY_TEST)")
-            else
-              missing_secrets+=("RENDER_API_KEY_TEST (or RENDER_API_KEY)")
-            fi
+            missing_secrets+=("RENDER_API_KEY (same key for all environments)")
           fi
 
           if [ -z "$render_service_id" ]; then
-            missing_secrets+=("RENDER_SERVICE_ID (or RENDER_SERVICE_ID_TEST)")
+            if [ "${GITHUB_REF##*/}" = "main" ]; then
+              missing_secrets+=("RENDER_SERVICE_ID")
+            else
+              missing_secrets+=("RENDER_SERVICE_ID_TEST")
+            fi
           fi
 
           # Optional: Environment Group ID (warn if missing)
@@ -185,8 +156,9 @@ jobs:
               echo "   - $secret"
             done
             echo ""
-            echo "💡 Tip: You can use the same Render API key and service ID for both"
-            echo "   staging and production - just set the base secret (without _TEST)."
+            echo "💡 Tip: You need ONE API key (RENDER_API_KEY) for both environments."
+            echo "   But you need separate service IDs: RENDER_SERVICE_ID (prod) and"
+            echo "   RENDER_SERVICE_ID_TEST (staging)."
             echo ""
             echo "Please add these secrets in GitHub repository settings:"
             echo "Settings → Secrets and variables → Actions"
