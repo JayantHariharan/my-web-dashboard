@@ -81,7 +81,8 @@ async def login(login_data: LoginData, request: Request):
         from ..shared.log_config import logger
 
         logger.warning(
-            f"Failed login attempt for non-existent user: {username} from IP {client_ip}"
+            f"Failed login attempt for non-existent user: {username} "
+            f"from IP {client_ip}"
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
@@ -92,7 +93,8 @@ async def login(login_data: LoginData, request: Request):
         from ..shared.log_config import logger
 
         logger.warning(
-            f"Failed login attempt (wrong password) for user: {username} from IP {client_ip}"
+            f"Failed login attempt (wrong password) for user: {username} "
+            f"from IP {client_ip}"
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
@@ -148,7 +150,8 @@ async def signup(register_data: RegisterData, request: Request):
     - Rate limiting: 20 requests per hour per IP
 
     ## Error Responses
-    - `400 Bad Request`: Validation error (empty fields, password mismatch, weak username)
+    - `400 Bad Request`: Validation error (empty fields, password mismatch,
+      weak username)
     - `409 Conflict`: Username already exists
     - `429 Too Many Requests`: Rate limit exceeded
     - `500 Internal Server Error`: Database or hashing error
