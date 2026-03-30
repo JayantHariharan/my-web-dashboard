@@ -229,7 +229,8 @@ jobs:
 
           echo "=========================================="
           echo "🚀 Triggering deployment to ${{ steps.env-config.outputs.display_env }}"
-          echo "Service ID: ${RENDER_SERVICE_ID:0:12}..."
+          echo "Branch: ${GITHUB_REF##*/}"
+          echo "Service ID: ${RENDER_SERVICE_ID}"
           echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "=========================================="
 
