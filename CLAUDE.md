@@ -367,7 +367,8 @@ Consider whether this complexity is truly needed. For pure authentication backen
 1. Go to Render Dashboard → Create New → Web Service
 2. Connect your GitHub repository
 3. **Build command**: `pip install -r requirements.txt`
-4. **Start command**: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+4. **Start command**: `uvicorn src.backend.main:app --host 0.0.0.0 --port $PORT`
+   (Alternative: `python src/backend/main.py` – both work)
 5. **Disable Auto-Deploy**: Set to **Manual** (GitHub Actions will trigger deploys)
 6. **Add Environment Variables** (see below)
 7. Create service(s):
