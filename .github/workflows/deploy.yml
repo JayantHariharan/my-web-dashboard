@@ -166,7 +166,7 @@ jobs:
             if [ "${GITHUB_REF##*/}" = "main" ]; then
               missing_secrets+=("RENDER_API_KEY (or RENDER_API_KEY_TEST)")
             else
-              missing_secrets+=("RENDER_APIKEY_TEST (or RENDER_API_KEY)")
+              missing_secrets+=("RENDER_API_KEY_TEST (or RENDER_API_KEY)")
             fi
           fi
 
