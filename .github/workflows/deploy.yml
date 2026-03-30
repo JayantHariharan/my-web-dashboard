@@ -26,6 +26,15 @@ jobs:
           cache: 'pip'
           cache-dependency-path: requirements.txt
 
+      - name: Cleanup build artifacts
+        run: |
+          echo "🧹 Cleaning build artifacts and cache..."
+          python -m pip cache purge
+          find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+          find . -type f -name "*.pyc" -delete
+          rm -rf .mypy_cache .pytest_cache .coverage htmlcov 2>/dev/null || true
+          echo "✅ Cleanup complete"
+
       - name: Install dependencies
         run: |
           pip install --upgrade pip
@@ -127,6 +136,21 @@ jobs:
 
           echo "APP_ENV=${{ steps.env-config.outputs.app_env }}" >> $GITHUB_ENV
 
+      - name: Debug environment info
+        if: always()
+        run: |
+          echo "🔍 Debug Information:"
+          echo "   Branch: ${GITHUB_REF##*/}"
+          echo "   Event: ${{ github.event_name }}"
+          echo "   Repository: ${{ github.repository }}"
+          echo "   Actor: ${{ github.actor }}"
+          echo ""
+          echo "   Secret availability (check marks indicate set):"
+          echo "   - RENDER_API_KEY: ${{ secrets.RENDER_API_KEY != '' }}"
+          echo "   - RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID != '' }}"
+          echo "   - RENDER_SERVICE_ID_TEST: ${{ secrets.RENDER_SERVICE_ID_TEST != '' }}"
+          echo "   - RENDER_ENV_GROUP_ID: ${{ secrets.RENDER_ENV_GROUP_ID != '' }}"
+
       - name: Validate secrets
         run: |
           echo "🔐 Validating required secrets..."
@@ -134,20 +158,20 @@ jobs:
           missing_secrets=()
 
           if [ -z "$render_api_key" ]; then
-            missing_secrets+=("RENDER_API_KEY (same key for all environments)")
+            missing_secrets+=("RENDER_API_KEY")
           fi
 
           if [ -z "$render_service_id" ]; then
             if [ "${GITHUB_REF##*/}" = "main" ]; then
-              missing_secrets+=("RENDER_SERVICE_ID")
+              missing_secrets+=("RENDER_SERVICE_ID (production service)")
             else
-              missing_secrets+=("RENDER_SERVICE_ID_TEST")
+              missing_secrets+=("RENDER_SERVICE_ID_TEST (staging service)")
             fi
           fi
 
           # Optional: Environment Group ID (warn if missing)
           if [ -z "$render_env_group_id" ]; then
-            echo "⚠️  RENDER_ENV_GROUP_ID[_TEST] not set - skipping environment group association"
+            echo "⚠️  RENDER_ENV_GROUP_ID not set - skipping environment group association"
           fi
 
           if [ ${#missing_secrets[@]} -gt 0 ]; then
@@ -219,9 +243,36 @@ jobs:
 
           echo "=========================================="
           echo "🚀 Starting deployment to ${{ steps.env-config.outputs.display_env }}"
-          echo "Service: ${RENDER_SERVICE_ID:0:16}..."
+          echo "Service ID: ${RENDER_SERVICE_ID}"
+          echo "API Key: ${RENDER_API_KEY:0:10}... (masked)"
           echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "=========================================="
+
+          # First, verify service exists and is accessible
+          echo "📋 Verifying service exists and is accessible..."
+          service_info=$(curl -s \
+            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}")
+
+          service_name=$(echo "$service_info" | jq -r '.service.name // "N/A"')
+          service_url=$(echo "$service_info" | jq -r '.service.url // "N/A"')
+          service_status=$(echo "$service_info" | jq -r '.service.suspended // false')
+
+          if [ "$service_name" = "N/A" ] || echo "$service_info" | grep -q '"error"'; then
+            echo "❌ Service not found or API key invalid!"
+            echo "Response: $service_info" | jq '.' 2>/dev/null || echo "$service_info"
+            echo "Please verify:"
+            echo "  - RENDER_SERVICE_ID is correct"
+            echo "  - RENDER_API_KEY has access to this service"
+            exit 1
+          fi
+
+          echo "✅ Service verified: $service_name"
+          echo "   URL: https://$service_url"
+          if [ "$service_status" = "true" ]; then
+            echo "   ⚠️  WARNING: Service is suspended! Unsuspend it in Render dashboard."
+            exit 1
+          fi
 
           # Check for in-progress deploys
           echo "🔍 Checking for in-progress deployments..."
