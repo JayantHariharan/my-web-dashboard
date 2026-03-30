@@ -107,17 +107,20 @@ jobs:
           waited=0
 
           while [ $waited -lt $((max_wait_minutes * 2)) ]; do
-            current_deploy=$(curl -s \
+            # Fetch most recent deploy
+            response=$(curl -s \
               "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
-              -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -r '.[0] // empty')
+              -H "Authorization: Bearer ${RENDER_API_KEY}")
 
-            if [ -z "$current_deploy" ]; then
+            # Extract first deploy ID and status safely
+            current_id=$(echo "$response" | jq -r '.[0].id // empty')
+            current_status=$(echo "$response" | jq -r '.[0].status // empty')
+
+            # Handle empty/null responses
+            if [ -z "$current_id" ] || [ "$current_id" = "null" ] || [ -z "$current_status" ] || [ "$current_status" = "null" ]; then
               echo "   No deploy history found"
               break
             fi
-
-            current_status=$(echo "$current_deploy" | jq -r '.status')
-            current_id=$(echo "$current_deploy" | jq -r '.id')
 
             if [[ "$current_status" =~ ^(live|succeeded|errored|failed|canceled)$ ]]; then
               echo "   Previous deploy ($current_id) is $current_status - ready to deploy"
@@ -335,17 +338,20 @@ jobs:
           waited=0
 
           while [ $waited -lt $((max_wait_minutes * 2)) ]; do
-            current_deploy=$(curl -s \
+            # Fetch most recent deploy
+            response=$(curl -s \
               "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
-              -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -r '.[0] // empty')
+              -H "Authorization: Bearer ${RENDER_API_KEY}")
 
-            if [ -z "$current_deploy" ]; then
+            # Extract first deploy ID and status safely
+            current_id=$(echo "$response" | jq -r '.[0].id // empty')
+            current_status=$(echo "$response" | jq -r '.[0].status // empty')
+
+            # Handle empty/null responses
+            if [ -z "$current_id" ] || [ "$current_id" = "null" ] || [ -z "$current_status" ] || [ "$current_status" = "null" ]; then
               echo "   No deploy history found"
               break
             fi
-
-            current_status=$(echo "$current_deploy" | jq -r '.status')
-            current_id=$(echo "$current_deploy" | jq -r '.id')
 
             if [[ "$current_status" =~ ^(live|succeeded|errored|failed|canceled)$ ]]; then
               echo "   Previous deploy ($current_id) is $current_status - ready to deploy"
