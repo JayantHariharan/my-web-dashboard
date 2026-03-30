@@ -173,7 +173,11 @@ jobs:
           echo "   Name: $service_name"
           echo "   URL: https://$service_url"
           echo "   State: $service_state"
-          echo "   Service URL: https://$service_url" >> $GITHUB_ENV
+
+          # Set DEPLOY_URL for later steps if service_url is valid
+          if [ "$service_url" != "N/A" ] && [ -n "$service_url" ]; then
+            echo "DEPLOY_URL=https://$service_url" >> $GITHUB_ENV
+          fi
 
       - name: Associate Environment Group
         if: env.RENDER_ENV_GROUP_ID != ''
@@ -524,7 +528,11 @@ jobs:
           echo "   Name: $service_name"
           echo "   URL: https://$service_url"
           echo "   State: $service_state"
-          echo "   Service URL: https://$service_url" >> $GITHUB_ENV
+
+          # Set DEPLOY_URL for later steps if service_url is valid
+          if [ "$service_url" != "N/A" ] && [ -n "$service_url" ]; then
+            echo "DEPLOY_URL=https://$service_url" >> $GITHUB_ENV
+          fi
 
       - name: Trigger Render deployment
         id: trigger-deploy
