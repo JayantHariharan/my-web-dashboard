@@ -336,17 +336,28 @@ Consider whether this complexity is truly needed. For pure authentication backen
 
 ### Automated CI/CD (GitHub Actions → Render)
 
-**Unified workflow** for staging and production:
+**Decoupled workflow** with separate staging and production jobs:
 
 1. **Quality job** (all branches/PRs):
    - Syntax check, linting (flake8), type check (mypy), security scan (bandit), format check (black)
    - Runs on every push and PR
    - Uploads quality reports as artifacts
 
-2. **Deploy job** (only on push to `main` or `develop`):
-   - Validates secrets (fails fast if missing)
+2. **Deploy-staging job** (only on push to `develop`):
+   - Validates staging secrets (fails fast if missing)
+   - Verifies Render service accessibility
    - Auto-associates Render Environment Group (if configured)
-   - Triggers Render deployment via API
+   - Triggers staging deployment via Render API
+   - Monitors deployment progress (max 30 min)
+   - Health checks (`/health`, `/api/auth/login`)
+   - Runs Playwright smoke test on deployed site
+   - Prints comprehensive deployment summary
+
+3. **Deploy-production job** (only on push to `main`):
+   - Validates production secrets (fails fast if missing)
+   - Verifies Render service accessibility
+   - Auto-associates Render Environment Group (if configured)
+   - Triggers production deployment via Render API
    - Monitors deployment progress (max 30 min)
    - Health checks (`/health`, `/api/auth/login`)
    - Runs Playwright smoke test on deployed site
@@ -441,6 +452,15 @@ Environment Groups let you share environment variables across services and have 
 4. The workflow auto-associates services with the correct group
 
 If you **don't** use Environment Groups, just leave `RENDER_ENV_GROUP_ID` unset. The workflow will skip association and proceed normally.
+
+### Deployment Troubleshooting
+
+Experiencing deployment issues? See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for:
+- Quick diagnostic commands
+- Common issues & solutions (Auto-Deploy, Service ID, API key)
+- Manual API testing guide
+- Expected workflow output
+- Step-by-step debugging
 
 ---
 
