@@ -140,6 +140,41 @@ jobs:
           echo "   Service ID: ${RENDER_SERVICE_ID:0:12}..."
           echo "   Env Group ID: ${RENDER_ENV_GROUP_ID:-Not set}"
 
+      - name: Verify Render service
+        env:
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
+        run: |
+          echo "🔍 Verifying Render service exists and is accessible..."
+
+          response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            "${{ env.RENDER_API_BASE }}/services/${RENDER_SERVICE_ID}" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}")
+
+          http_code=$(echo "$response" | grep "HTTP_STATUS:" | cut -d: -f2)
+          response_body=$(echo "$response" | sed '/HTTP_STATUS:/d')
+
+          echo "📨 Service verification response (HTTP $http_code):"
+          echo "$response_body" | jq '.' 2>/dev/null || echo "$response_body"
+
+          if [[ ! "$http_code" =~ ^(200|201)$ ]]; then
+            echo "❌ Failed to verify Render service"
+            echo "   Check that the service ID is correct"
+            echo "   Check that the API key has access to this service"
+            echo "   Service ID should be like: srv-xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            exit 1
+          fi
+
+          service_name=$(echo "$response_body" | jq -r '.service.name // "N/A"')
+          service_url=$(echo "$response_body" | jq -r '.service.url // "N/A"')
+          service_state=$(echo "$response_body" | jq -r '.service.state // "N/A"')
+
+          echo "✅ Service verified:"
+          echo "   Name: $service_name"
+          echo "   URL: https://$service_url"
+          echo "   State: $service_state"
+          echo "   Service URL: https://$service_url" >> $GITHUB_ENV
+
       - name: Associate Environment Group
         if: env.RENDER_ENV_GROUP_ID != ''
         env:
@@ -149,6 +184,7 @@ jobs:
         run: |
           echo "🔗 Associating staging service with environment group..."
 
+          # Get current groups
           response=$(curl -s \
             "${{ env.RENDER_API_BASE }}/services/${RENDER_SERVICE_ID}" \
             -H "Authorization: Bearer ${RENDER_API_KEY}")
@@ -455,44 +491,40 @@ jobs:
           echo "   Service ID: ${RENDER_SERVICE_ID:0:12}..."
           echo "   Env Group ID: ${RENDER_ENV_GROUP_ID:-Not set}"
 
-      - name: Associate Environment Group
-        if: env.RENDER_ENV_GROUP_ID != ''
+      - name: Verify Render service
         env:
           RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
-          RENDER_ENV_GROUP_ID: ${{ env.RENDER_ENV_GROUP_ID }}
         run: |
-          echo "🔗 Associating production service with environment group..."
+          echo "🔍 Verifying Render service exists and is accessible..."
 
-          response=$(curl -s \
+          response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
             "${{ env.RENDER_API_BASE }}/services/${RENDER_SERVICE_ID}" \
             -H "Authorization: Bearer ${RENDER_API_KEY}")
 
-          current_groups=$(echo "$response" | jq -r '.envVarsIncludeFromGroup // []')
+          http_code=$(echo "$response" | grep "HTTP_STATUS:" | cut -d: -f2)
+          response_body=$(echo "$response" | sed '/HTTP_STATUS:/d')
 
-          if echo "$current_groups" | grep -q "$RENDER_ENV_GROUP_ID"; then
-            echo "✅ Already associated with environment group"
-          else
-            echo "📋 Current groups: $current_groups"
-            echo "🎯 Adding group: $RENDER_ENV_GROUP_ID"
+          echo "📨 Service verification response (HTTP $http_code):"
+          echo "$response_body" | jq '.' 2>/dev/null || echo "$response_body"
 
-            patch_response=$(curl -s -w "\n%{http_code}" -X PATCH \
-              "${{ env.RENDER_API_BASE }}/services/${RENDER_SERVICE_ID}" \
-              -H "Authorization: Bearer ${RENDER_API_KEY}" \
-              -H "Content-Type: application/json" \
-              -d "{\"envVarsIncludeFromGroup\":[\"$RENDER_ENV_GROUP_ID\"]}")
-
-            http_code=$(echo "$patch_response" | tail -n1)
-            patch_body=$(echo "$patch_response" | sed '$d')
-
-            if [[ "$http_code" =~ ^(200|201|204)$ ]]; then
-              echo "✅ Environment group associated successfully"
-            else
-              echo "❌ Association failed (HTTP $http_code)"
-              echo "Response: $patch_body"
-              exit 1
-            fi
+          if [[ ! "$http_code" =~ ^(200|201)$ ]]; then
+            echo "❌ Failed to verify Render service"
+            echo "   Check that the service ID is correct"
+            echo "   Check that the API key has access to this service"
+            echo "   Service ID should be like: srv-xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            exit 1
           fi
+
+          service_name=$(echo "$response_body" | jq -r '.service.name // "N/A"')
+          service_url=$(echo "$response_body" | jq -r '.service.url // "N/A"')
+          service_state=$(echo "$response_body" | jq -r '.service.state // "N/A"')
+
+          echo "✅ Service verified:"
+          echo "   Name: $service_name"
+          echo "   URL: https://$service_url"
+          echo "   State: $service_state"
+          echo "   Service URL: https://$service_url" >> $GITHUB_ENV
 
       - name: Trigger Render deployment
         id: trigger-deploy
