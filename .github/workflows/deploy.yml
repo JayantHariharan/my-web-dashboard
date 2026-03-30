@@ -133,7 +133,12 @@ jobs:
             missing_secrets+=("RENDER_API_KEY (or RENDER_API_KEY_TEST)")
           fi
           if [ -z "$render_service_id" ]; then
-            missing_secrets+=("RENDER_SERVICE_ID_PROD or RENDER_SERVICE_ID_TEST")
+            missing_secrets+=("RENDER_SERVICE_ID (or RENDER_SERVICE_ID_TEST for staging)")
+          fi
+
+          # Optional: Environment Group ID (warn if missing)
+          if [ -z "$render_env_group_id" ]; then
+            echo "⚠️  RENDER_ENV_GROUP_ID[_TEST] not set - skipping environment group association"
           fi
 
           if [ ${#missing_secrets[@]} -gt 0 ]; then
