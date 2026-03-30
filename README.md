@@ -184,12 +184,19 @@ Production deployment is **fully automated** via GitHub Actions to Render.
 | `SECRET_KEY` | `openssl rand -hex 32` (keep this secret!) |
 | `DEBUG` | `false` |
 | `LOG_LEVEL` | `INFO` |
-| `APP_ENV` | `staging` (dev) or `production` (prod) - for env-specific config |
+| `APP_ENV` | `test` (dev) or `production` (prod) - for env-specific config |
 
 4. **Add GitHub Secrets** (for GitHub Actions)
-   - `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
-   - `RENDER_API_KEY` (from Render dashboard)
-   - `RENDER_SERVICE_ID` (from Render service URL)
+
+   **For Production** (main branch):
+   - `RENDER_API_KEY` (from Render Account → API Keys)
+   - `RENDER_SERVICE_ID_PROD` (from Render service URL: srv-xxx)
+   - `RENDER_ENV_GROUP_ID_PROD` (from Render Environment Groups: evm-xxx)
+
+   **For Test/Development** (develop branch):
+   - `RENDER_API_KEY_TEST` (API key from a separate Render account or same account)
+   - `RENDER_SERVICE_ID_TEST` (service ID for test service)
+   - `RENDER_ENV_GROUP_ID_TEST` (environment group ID for TEST group)
 
 5. **Disable Auto-Deploy on Render** (set to Manual)
    - GitHub Actions will trigger deploys manually
@@ -224,7 +231,7 @@ See [`.env.example`](.env.example) for complete list.
 
 ### Environment-Specific Configuration
 
-For staging and production, you can define runtime-configurable settings in the `app_config` database table. Set `APP_ENV` to `staging` (develop branch) or `production` (main branch), and the app will load corresponding values automatically.
+For test and production, you can define runtime-configurable settings in the `app_config` database table. Set `APP_ENV` to `test` (develop branch) or `production` (main branch), and the app will load corresponding values automatically.
 
 **Predefined settings:**
 

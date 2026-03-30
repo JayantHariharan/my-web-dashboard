@@ -243,12 +243,12 @@ For staging and production environments, you can store configurable settings in 
 ### How It Works:
 
 1. **Environment variables** (set in Render) determine connection and core behavior:
-   - `APP_ENV` = `staging` (for develop branch) or `production` (for main branch)
+   - `APP_ENV` = `test` (for develop branch) or `production` (for main branch)
    - `SECRET_KEY`, `DEBUG`, database credentials
 
 2. **Database table** `app_config` stores key-value pairs scoped to environment:
    ```sql
-   SELECT key, value FROM app_config WHERE env = 'staging'  -- or 'production'
+   SELECT key, value FROM app_config WHERE env = 'test'  -- or 'production'
    ```
 
 3. **At startup**, after migrations run, the app loads all config for the current `APP_ENV` and updates the `settings` object.
@@ -269,24 +269,32 @@ For staging and production environments, you can store configurable settings in 
 
 1. Add field to `Settings` class in `src/backend/config.py`
 2. Update the `load_runtime_config()` method to handle its type conversion
-3. Add migration to insert default values for both `staging` and `production`:
+3. Add migration to insert default values for both `test` and `production`:
    ```sql
    INSERT INTO app_config (key, value, env, description) VALUES
-   ('your_key', 'default_value', 'staging', 'Description'),
+   ('your_key', 'default_value', 'test', 'Description'),
    ('your_key', 'default_value', 'production', 'Description');
    ```
 4. Access via `settings.your_key` anywhere in the code
 
 ### Setting Up in Render:
 
-**Staging Service** (develop branch):
-- Environment Group: `DEV` or `STAGING`
-- Add `APP_ENV=staging`
-- (Optional) Override any config by adding rows to `app_config` for env='staging'
+**Test Service** (develop branch):
+- Environment Group: `TEST`
+- Add `APP_ENV=test`
+- GitHub Secrets needed:
+  - `RENDER_API_KEY_TEST` (API key from Render account)
+  - `RENDER_SERVICE_ID_TEST` (service ID: srv-xxx)
+  - `RENDER_ENV_GROUP_ID_TEST` (environment group ID: evm-xxx)
+- (Optional) Override any config by adding rows to `app_config` for env='test'
 
 **Production Service** (main branch):
 - Environment Group: `PROD`
 - Add `APP_ENV=production`
+- GitHub Secrets needed:
+  - `RENDER_API_KEY` (API key from Render account)
+  - `RENDER_SERVICE_ID_PROD` (service ID: srv-xxx)
+  - `RENDER_ENV_GROUP_ID_PROD` (environment group ID: evm-xxx)
 - Use production values in `app_config`
 
 ---
