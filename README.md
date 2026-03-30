@@ -59,11 +59,6 @@ python -m venv venv
 # Install dependencies
 pip install -r requirements.txt
 
-# Copy environment template
-cp .env.example .env
-# Edit .env: set SECRET_KEY to a random string (e.g., openssl rand -hex 32)
-```
-
 ### 2. Run Application
 
 ```bash
@@ -79,30 +74,7 @@ python -m http.server 3000
 
 **Note**: Backend automatically serves frontend from `src/frontend/` at `/`. For development, you can use either.
 
-### 3. Configure Environment
-
-Edit `.env`:
-
-```env
-# Database options:
-
-# Option A: Individual PG* variables (Render/Supabase)
-PGHOST=localhost
-PGPORT=5432
-PGUSER=postgres
-PGPASSWORD=yourpassword
-PGDATABASE=playnexus
-
-# Option B: Single connection string
-# DATABASE_URL=postgresql://postgres:password@localhost:5432/playnexus
-
-# Application
-SECRET_KEY=openssl rand -hex 32  # Required in production
-DEBUG=true                       # Set to false in production
-LOG_LEVEL=INFO                   # DEBUG, INFO, WARNING, ERROR
-```
-
-### 4. Test API
+### 3. Test API
 
 ```bash
 # Signup
@@ -227,7 +199,29 @@ Migrations are auto-applied on startup via `migrator.py` (also run in CI before 
 
 ### Environment Variables
 
-See [`.env.example`](.env.example) for complete list.
+All configuration is via environment variables (set in Render environment groups or locally):
+
+#### Database
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `PGHOST` | Yes* | PostgreSQL host (e.g., abc.supabase.co) |
+| `PGPORT` | Yes* | Port (usually 5432) |
+| `PGUSER` | Yes* | Username (usually postgres) |
+| `PGPASSWORD` | Yes* | Database password |
+| `PGDATABASE` | Yes* | Database name |
+| `DATABASE_URL` | Alternative | Full connection string (overrides PG*) |
+
+#### Application
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SECRET_KEY` | Production | Password pepper – generate: `openssl rand -hex 32` |
+| `DEBUG` | No | Enable debug mode (default: false) |
+| `LOG_LEVEL` | No | DEBUG/INFO/WARNING/ERROR (default: INFO) |
+| `APP_ENV` | Recommended | Environment name: `test` (develop) or `production` (main) for env-specific config |
+
+*Required for PostgreSQL. If not set, falls back to SQLite (`sqlite:///./data/playnexus.db`).
 
 ### Environment-Specific Configuration
 
