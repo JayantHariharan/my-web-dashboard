@@ -343,7 +343,8 @@ Production deployment is **fully automated** via GitHub Actions to Render.
 2. **Create Render Web Service**
    - Connect GitHub repository
    - Build command: `pip install -r requirements.txt`
-   - Start command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
+   - Start command: `uvicorn src.backend.main:app --host 0.0.0.0 --port $PORT`
+     (Alternative: `python src/backend/main.py` – both work)
    - Set environment (see below)
 
 3. **Configure Render Environment Variables**
