@@ -105,6 +105,59 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Associate Render Environment Group
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          RENDER_ENV_GROUP_ID: ${{ secrets.RENDER_ENV_GROUP_ID }}
+        run: |
+          echo "Ensuring service is associated with environment group..."
+
+          # If RENDER_ENV_GROUP_ID is not set, skip this step
+          if [ -z "$RENDER_ENV_GROUP_ID" ]; then
+            echo "RENDER_ENV_GROUP_ID is not set. Skipping environment group association."
+            echo "To enable, add RENDER_ENV_GROUP_ID as a repository secret."
+            exit 0
+          fi
+
+          # Fetch current service configuration
+          response=$(curl -s \
+            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}")
+
+          # Check current envVarsIncludeFromGroup
+          current_groups=$(echo "$response" | jq -r '.envVarsIncludeFromGroup // []')
+
+          if echo "$current_groups" | grep -q "${RENDER_ENV_GROUP_ID}"; then
+            echo "✅ Environment group is already associated."
+          else
+            echo "🔧 Associating environment group ${RENDER_ENV_GROUP_ID}..."
+
+            # Update service to include the environment group
+            update_response=$(curl -s -X PATCH \
+              "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
+              -H "Authorization: Bearer ${RENDER_API_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "{\"envVarsIncludeFromGroup\":[\"${RENDER_ENV_GROUP_ID}\"]}")
+
+            echo "Update response: $update_response"
+
+            # Verify association
+            sleep 2
+            verify_response=$(curl -s \
+              "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
+              -H "Authorization: Bearer ${RENDER_API_KEY}")
+            verify_groups=$(echo "$verify_response" | jq -r '.envVarsIncludeFromGroup // []')
+
+            if echo "$verify_groups" | grep -q "${RENDER_ENV_GROUP_ID}"; then
+              echo "✅ Environment group successfully associated."
+            else
+              echo "❌ Failed to associate environment group."
+              echo "Service response: $verify_response"
+              exit 1
+            fi
+          fi
+
       - name: Trigger Render Deploy
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
