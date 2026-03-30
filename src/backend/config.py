@@ -8,7 +8,6 @@ Handles environment-based settings with validation.
 import logging
 import os
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass

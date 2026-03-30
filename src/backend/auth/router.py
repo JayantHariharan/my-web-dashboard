@@ -3,15 +3,13 @@ Authentication API router.
 Handles user login, signup, and session management.
 """
 
-from fastapi import APIRouter, Request, HTTPException, status, Depends
+from fastapi import APIRouter, Request, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional
 
-from ..config import settings
 from ..shared.database import user_repo
 from ..shared.security import hash_password, verify_password
-from ..shared.schemas import LoginData, RegisterData, AuthResponse, UserResponse
-from ..shared.exceptions import AuthenticationError
+from ..shared.schemas import LoginData, RegisterData, UserResponse
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
