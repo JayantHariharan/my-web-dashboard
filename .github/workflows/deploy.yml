@@ -41,7 +41,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Associate Environment Group
-        if: ${{ secrets.RENDER_ENV_GROUP_ID }}
+        if: ${{ secrets.RENDER_ENV_GROUP_ID != '' }}
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}

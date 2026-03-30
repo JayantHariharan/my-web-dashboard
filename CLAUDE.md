@@ -206,7 +206,7 @@ src/frontend/
 - `game_scores` - Game leaderboards (id, user_id, game_name, score, metadata, created_at)
 - `schema_version` - Tracks applied migrations
 
-**Migrations**: Flyway-style in `flyway/sql/` (V1..V5). Auto-applied on startup in development via `migrator.py`. In production, run manually via Python: `python -m backend.migrator`.
+**Migrations**: Flyway-style in `flyway/sql/` (V1..V5). Auto-applied on startup via `migrator.py` (both development and production). The GitHub Actions workflow triggers Render deploys; Render runs migrations automatically when the service starts.
 
 **Database location**: Development uses SQLite at project root (`./playnexus.db`). Production uses PostgreSQL via environment variables.
 
@@ -262,21 +262,31 @@ src/frontend/
 
 GitHub Actions → Render auto-deploy on `main`:
 
-1. Pre-checks: lint → mypy → syntax
-2. Apply migrations to Render PostgreSQL
-3. Trigger Render deploy
-4. Wait (max 30 min), check `/` and `/api/auth/login`
-5. Run smoke test (Playwright)
-6. Fail → auto-revert
+1. **Test job** (on all pushes/PRs): Syntax check + critical lint only
+2. **Deploy job** (only main branch):
+   - Associate Render Environment Group (if `RENDER_ENV_GROUP_ID` set)
+   - Trigger Render deploy
+   - Wait for completion (max 30 min)
+   - Health check on `/health` and `/api/auth/login`
+3. Migrations run automatically on Render service startup via `migrator.py`
 
 **One-time Render setup**:
 1. Create Render Web Service (connect GitHub repo)
-2. Set environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE, SECRET_KEY, DEBUG=false)
+2. Create an **Environment Group** (e.g., "PROD") with:
+   - `SECRET_KEY` (generate: `openssl rand -hex 32`)
+   - `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
+   - `DEBUG=false`
 3. Build command: `pip install -r requirements.txt`
 4. Start command: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
 5. Disable Auto-Deploy on Render (set to Manual)
-6. Add GitHub Secrets: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `RENDER_API_KEY`, `RENDER_SERVICE_ID`
-7. Push to `main` → auto-deploy
+6. Add GitHub Secrets:
+   - `RENDER_API_KEY` (from Render Account → API Keys)
+   - `RENDER_SERVICE_ID` (from Render service URL)
+   - `RENDER_ENV_GROUP_ID` (optional but recommended - your PROD group ID)
+7. Associate your Render service with the Environment Group:
+   - In Render service → Environment → Environment Groups
+   - Select your PROD group
+8. Push to `main` → auto-deploy
 
 ---
 
