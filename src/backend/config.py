@@ -32,7 +32,10 @@ class DatabaseConfig:
             pg_port = os.environ.get("PGPORT", "5432")
 
             if all([pg_host, pg_user, pg_password, pg_database]):
-                raw_url = f"postgresql://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_database}"
+                raw_url = (
+                    f"postgresql://{pg_user}:{pg_password}@{pg_host}:"
+                    f"{pg_port}/{pg_database}"
+                )
             else:
                 # Fallback to local SQLite (place in data/ directory)
                 project_root = os.path.dirname(

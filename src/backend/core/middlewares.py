@@ -88,7 +88,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             client_ip = "unknown"
             if request.client:
                 client_ip = request.client.host
-            # Check X-Forwarded-For header (may contain multiple IPs, first is original client)
+            # Check X-Forwarded-For header (use first IP if multiple)
             x_forwarded_for = request.headers.get("X-Forwarded-For")
             if x_forwarded_for:
                 # Take the first IP in the list

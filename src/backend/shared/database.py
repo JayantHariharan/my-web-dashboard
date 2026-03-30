@@ -120,7 +120,9 @@ class BaseRepository:
         """
         columns = list(data.keys())
         placeholders = ["%s" if self._is_postgres else "?"] * len(columns)
-        sql = f"INSERT INTO {self.table_name} ({', '.join(columns)}) VALUES ({', '.join(placeholders)})"
+        cols_str = ', '.join(columns)
+        placeholders_str = ', '.join(placeholders)
+        sql = f"INSERT INTO {self.table_name} ({cols_str}) VALUES ({placeholders_str})"
         with self.get_cursor() as cursor:
             cursor.execute(sql, tuple(data.values()))
             if self._is_postgres:
@@ -146,7 +148,9 @@ class BaseRepository:
         ]
         values = list(data.values())
         values.append(pk_value)
-        sql = f"UPDATE {self.table_name} SET {', '.join(set_items)} WHERE id = {'%s' if self._is_postgres else '?'}"
+        sets_str = ', '.join(set_items)
+        placeholder = '%s' if self._is_postgres else '?'
+        sql = f"UPDATE {self.table_name} SET {sets_str} WHERE id = {placeholder}"
         with self.get_cursor() as cursor:
             cursor.execute(sql, tuple(values))
             return cursor.rowcount > 0
@@ -312,7 +316,7 @@ class UserRepository(BaseRepository):
             conn = self._get_connection()
             cursor = conn.cursor()
             placeholder = "%s" if self._is_postgres else "?"
-            query = f"""
+            query = """
                 SELECT id, username, password
                 FROM users
                 WHERE password NOT LIKE '$2b$%'
@@ -334,7 +338,10 @@ class UserRepository(BaseRepository):
                 from .security import hash_password
 
                 new_hash = hash_password(plain_password)
-                update_sql = f"UPDATE users SET password = {placeholder} WHERE id = {placeholder}"
+                update_sql = (
+                    f"UPDATE users SET password = {placeholder} "
+                    f"WHERE id = {placeholder}"
+                )
                 cursor.execute(update_sql, (new_hash, user_id))
                 if cursor.rowcount > 0:
                     migrated_count += 1

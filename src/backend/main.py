@@ -36,9 +36,8 @@ async def startup_event():
     """Initialize application on startup."""
     logger.info("Starting PlayNexus API...")
     logger.info(f"Environment: {'DEBUG' if settings.debug else 'PRODUCTION'}")
-    logger.info(
-        f"Database: {'PostgreSQL' if settings.database.is_postgres else 'SQLite'}"
-    )
+    db_type = 'PostgreSQL' if settings.database.is_postgres else 'SQLite'
+    logger.info(f"Database: {db_type}")
 
     # Apply database schema migrations
     try:
@@ -50,9 +49,8 @@ async def startup_event():
         if not settings.debug:
             raise
 
-    # Note: Runtime configuration from app_config table has been removed
-    # All configuration is now via environment variables only (simplified auth-only mode)
-    logger.info("Configuration: Using environment variables only (no database config)")
+    # Config is now via environment variables only (auth-only mode)
+    logger.info("Configuration: Using environment variables only")
 
     # Migrate any existing plain-text passwords to bcrypt (only runs if needed)
     try:
@@ -63,7 +61,7 @@ async def startup_event():
             logger.warning(f"Auto-migrated {migrated} plain-text password(s).")
     except Exception as e:
         logger.error(f"Password migration failed: {e}")
-        # Don't crash startup if migration fails; continue with hashed passwords only
+        # Don't crash if migration fails; continue with hashed passwords
 
 
 @app.on_event("shutdown")
