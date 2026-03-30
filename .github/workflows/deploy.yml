@@ -119,7 +119,7 @@ jobs:
             echo "app_env=production" >> $GITHUB_OUTPUT
             # Secrets for production branch
             echo "render_api_key=${{ secrets.RENDER_API_KEY }}" >> $GITHUB_ENV
-            echo "render_service_id=${{ secrets.RENDER_SERVICE_ID }}" >> $GITHUB_ENV
+            echo "render_service_id=${{ secrets.RENDER_SERVICE_ID_PROD }}" >> $GITHUB_ENV
             echo "render_env_group_id=${{ secrets.RENDER_ENV_GROUP_ID }}" >> $GITHUB_ENV
           else
             echo "deploy_env=staging" >> $GITHUB_OUTPUT
@@ -144,7 +144,7 @@ jobs:
           fi
           if [ -z "$render_service_id" ]; then
             if [ "${GITHUB_REF##*/}" = "main" ]; then
-              missing_secrets+=("RENDER_SERVICE_ID (production)")
+              missing_secrets+=("RENDER_SERVICE_ID_PROD (production)")
             else
               missing_secrets+=("RENDER_SERVICE_ID_TEST (staging)")
             fi
