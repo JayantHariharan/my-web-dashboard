@@ -26,9 +26,6 @@ concurrency:
 jobs:
   migrate:
     runs-on: ubuntu-latest
-    concurrency:
-      group: flyway-${{ inputs.environment }}
-      cancel-in-progress: true
     environment: ${{ inputs.environment }}
     outputs:
       success: ${{ steps.migrate.outputs.success }}

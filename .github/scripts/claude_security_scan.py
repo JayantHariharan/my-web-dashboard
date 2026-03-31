@@ -232,16 +232,12 @@ def run_claude_analysis_openrouter(prompt: str, api_key: str, model: str = "meta
 def main():
     print("🔍 Starting Claude-powered security scan...")
 
-    # Determine which API to use
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY")
+    # Check for OpenRouter API key
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
 
-    if not anthropic_key and not openrouter_key:
-        print("⚠️  No API key set - skipping Claude analysis")
-        print("Set either:")
-        print("  - ANTHROPIC_API_KEY (for direct Anthropic API)")
-        print("  - OPENROUTER_API_KEY (for OpenRouter proxy)")
-        print("In GitHub: Settings → Secrets and variables → Actions")
+    if not openrouter_key:
+        print("⚠️  No OpenRouter API key set - skipping Claude analysis")
+        print("Set OPENROUTER_API_KEY in GitHub: Settings → Secrets and variables → Actions")
         sys.exit(0)
 
     # Collect files
@@ -263,16 +259,10 @@ def main():
     prompt = build_security_prompt(file_contents)
 
     # Run analysis
-    print("🤖 Querying Claude for security analysis...")
-    if anthropic_key:
-        print("   Using: Anthropic API")
-        result = run_claude_analysis_anthropic(prompt, anthropic_key)
-    elif openrouter_key:
-        print("   Using: OpenRouter")
-        # Get model from env or use default
-        model = os.environ.get("OPENROUTER_MODEL", "anthropic/claude-3-opus")
-        print(f"   Model: {model}")
-        result = run_claude_analysis_openrouter(prompt, openrouter_key, model)
+    print("🤖 Querying Claude via OpenRouter for security analysis...")
+    model = os.environ.get("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct")
+    print(f"   Model: {model}")
+    result = run_claude_analysis_openrouter(prompt, openrouter_key, model)
 
     # Add timestamp
     from datetime import datetime

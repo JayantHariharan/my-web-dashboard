@@ -1,10 +1,10 @@
 #!/bin/bash
-# Comprehensive quality & security checks
+# AI-Powered comprehensive quality & security checks
 # Run this manually to verify code before pushing or in CI
 
 set -e
 
-echo "🔍 Running comprehensive quality & security checks..."
+echo "🚀 Running AI-powered comprehensive quality & security checks..."
 echo ""
 
 # Colors
@@ -48,73 +48,45 @@ else
 fi
 echo ""
 
-# 2. Black formatting
-check "Code formatting (black)"
-if command -v black &> /dev/null; then
-    if black --check src/backend/ 2>/dev/null; then
-        pass "Code properly formatted"
-    else
-        fail "Code needs formatting"
-        echo "  Run: black src/backend/"
-    fi
-else
-    warn "black not installed (pip install black)"
-fi
-echo ""
+# 2. AI-Powered Comprehensive Quality Scan (replaces black, flake8, mypy, bandit)
+check "AI Quality Scan"
+if [ -n "$OPENROUTER_API_KEY" ]; then
+    if python - <<'PY' 2>/dev/null
+import os, sys
+sys.path.insert(0, '.github/scripts')
+from ai_quality_scan import main
+sys.exit(main())
+PY
+    then
+        if [ -f "ai-quality-report.json" ]; then
+            # Parse summary
+            CRITICAL=$(python -c "import json; print(json.load(open('ai-quality-report.json')).get('summary',{}).get('by_severity',{}).get('Critical',0))" 2>/dev/null || echo "0")
+            HIGH=$(python -c "import json; print(json.load(open('ai-quality-report.json')).get('summary',{}).get('by_severity',{}).get('High',0))" 2>/dev/null || echo "0")
+            TOTAL=$(python -c "import json; print(json.load(open('ai-quality-report.json')).get('summary',{}).get('total_issues',0))" 2>/dev/null || echo "0")
+            STYLE=$(python -c "import json; print(json.load(open('ai-quality-report.json')).get('summary',{}).get('by_category',{}).get('style',0))" 2>/dev/null || echo "0")
+            TYPE=$(python -c "import json; print(json.load(open('ai-quality-report.json')).get('summary',{}).get('by_category',{}).get('type',0))" 2>/dev/null || echo "0")
+            FORMATTING=$(python -c "import json; print(json.load(open('ai-quality-report.json')).get('summary',{}).get('by_category',{}).get('formatting',0))" 2>/dev/null || echo "0")
 
-# 3. Flake8 linting
-check "Linting (flake8)"
-if command -v flake8 &> /dev/null; then
-    if flake8 src/backend/ --isolated > /dev/null 2>&1; then
-        pass "No lint errors"
-    else
-        fail "Lint errors found"
-        echo "  Critical errors:"
-        flake8 src/backend/ --count --select=E9,F63,F7,F82 --show-source --isolated || true
-    fi
-else
-    warn "flake8 not installed (pip install flake8)"
-fi
-echo ""
-
-# 4. Mypy type checking
-check "Type checking (mypy)"
-if command -v mypy &> /dev/null; then
-    if mypy src/backend/main.py --ignore-missing-imports 2>/dev/null; then
-        pass "No type errors"
-    else
-        warn "Type errors found (checking)"
-        mypy src/backend/main.py --ignore-missing-imports || true
-    fi
-else
-    warn "mypy not installed (pip install mypy)"
-fi
-echo ""
-
-# 5. Bandit security scan
-check "Security scan (bandit)"
-if command -v bandit &> /dev/null; then
-    if bandit -r src/backend/ -f json -o /tmp/bandit-report.json 2>/dev/null; then
-        # Use Python to parse JSON (no jq dependency)
-        HIGH_CRITICAL=$(python -c "import json; print(sum(1 for i in json.load(open('/tmp/bandit-report.json')) if i.get('issue_severity') in ('High','Critical')))" 2>/dev/null || echo "0")
-        MEDIUM=$(python -c "import json; print(sum(1 for i in json.load(open('/tmp/bandit-report.json')) if i.get('issue_severity') == 'Medium'))" 2>/dev/null || echo "0")
-        if [ "$HIGH_CRITICAL" -eq "0" ]; then
-            pass "No High/Critical issues (${MEDIUM} Medium)"
+            if [ "$CRITICAL" -eq "0" ] && [ "$HIGH" -eq "0" ]; then
+                pass "No Critical/High issues (Total: $TOTAL, Style: $STYLE, Type: $TYPE, Format: $FORMATTING)"
+            else
+                fail "$CRITICAL Critical and $HIGH High issues found (Total: $TOTAL)"
+                echo "  Top issues:"
+                python -c "import json; issues=sorted(json.load(open('ai-quality-report.json')).get('issues',[]), key=lambda x: {'Critical':4,'High':3,'Medium':2,'Low':1,'Info':0}.get(x.get('severity',''),0), reverse=True); [print(f\"  {i['file']}:{i['line']} - {i['title']}\") for i in issues[:5]]" 2>/dev/null || true
+            fi
         else
-            fail "$HIGH_CRITICAL High/Critical issues found"
-            echo "  Top issues:"
-            python -c "import json; [print(f\"  {i['filename']}:{i['line_number']} - {i['issue_text']}\") for i in json.load(open('/tmp/bandit-report.json')) if i.get('issue_severity') in ('High','Critical')][:10]" 2>/dev/null || true
+            warn "No report generated"
         fi
     else
-        warn "Bandit scan failed"
+        warn "AI quality scan failed"
     fi
 else
-    warn "bandit not installed (pip install bandit)"
+    warn "OPENROUTER_API_KEY not set (skipping AI quality scan)"
 fi
 echo ""
 
-# 6. AI Security Analysis (if OpenRouter key available)
-check "AI Security Analysis (OpenRouter)"
+# 3. AI Security Analysis (separate, focused scan - uses OpenRouter)
+check "AI Security Analysis"
 if [ -n "$OPENROUTER_API_KEY" ]; then
     if python .github/scripts/claude_security_scan.py 2>/dev/null; then
         if [ -f "claude-security-report.json" ]; then
@@ -122,24 +94,23 @@ if [ -n "$OPENROUTER_API_KEY" ]; then
             HIGH=$(python -c "import json; print(json.load(open('claude-security-report.json')).get('summary',{}).get('by_severity',{}).get('High',0))" 2>/dev/null || echo "0")
             TOTAL=$(python -c "import json; print(json.load(open('claude-security-report.json')).get('summary',{}).get('total_issues',0))" 2>/dev/null || echo "0")
             if [ "$CRITICAL" -eq "0" ] && [ "$HIGH" -eq "0" ]; then
-                pass "No Critical/High issues (Total: $TOTAL)"
+                pass "No Critical/High security issues (Total: $TOTAL)"
             else
-                fail "$CRITICAL Critical and $HIGH High issues found"
+                fail "$CRITICAL Critical and $HIGH High security issues found"
                 echo "  See claude-security-report.json for details"
             fi
         else
-            warn "No report generated"
+            warn "No security report generated"
         fi
     else
-        warn "Analysis failed"
+        warn "Security analysis failed"
     fi
 else
-    warn "OPENROUTER_API_KEY not set (skipping AI analysis)"
-    echo "  Set env var or add secret to enable this check."
+    warn "OPENROUTER_API_KEY not set (skipping AI security analysis)"
 fi
 echo ""
 
-# 7. Check for secrets in code
+# 4. Check for hardcoded secrets (fast pattern match)
 check "Hardcoded secrets"
 SECRET_PATTERNS=(
     "SECRET_KEY\s*="
@@ -165,7 +136,7 @@ else
 fi
 echo ""
 
-# 8. Verify documentation timestamps are current
+# 5. Verify documentation timestamps are current
 check "Documentation timestamps"
 TODAY=$(date +%Y-%m-%d)
 OLD_DATES=0
@@ -185,7 +156,7 @@ else
 fi
 echo ""
 
-# 9. Database migration check
+# 6. Database migration check
 check "Database migrations"
 if ls flyway/sql/V*.sql > /dev/null 2>&1; then
     pass "Migrations exist ($(ls flyway/sql/V*.sql | wc -l) files)"
@@ -213,7 +184,6 @@ else
     echo "Fix the errors above before pushing."
     echo ""
     echo "💡 Tips:"
-    echo "  - Format code: black src/backend/"
     echo "  - Run manually: ./scripts/run-quality-checks.sh"
     echo "  - Skip (not recommended): git push --no-verify"
     exit 1
