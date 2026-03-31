@@ -22,21 +22,21 @@ python -m http.server 3000
 ### Development Commands
 
 **Git hooks** (automatic):
-- `pre-commit` – Syntax, lint, secrets check, updates doc timestamps
-- `pre-push` – Full suite (lint, type, format, security, smoke test), updates doc timestamps
+- `pre-commit` – Syntax, AI-powered quality check, updates doc timestamps
+- `pre-push` – Full suite (syntax, AI quality scan, smoke test), updates doc timestamps
 
 **Skip hooks**: `git commit --no-verify` or `git push --no-verify` (NOT recommended)
 
 **Note**: Hooks automatically update "Last Updated" dates in `docs/DEVELOPER.md`, `docs/ARCHITECTURE.md`, `docs/FLYWAY.md` and stage them. Commit these changes separately.
 
 **Claude Code slash commands**:
-- `/security-scan` – Security audit (bandit, auth patterns, secrets)
-- `/code-quality` – Lint, type check, formatting review
+- `/security-scan` – Security audit (AI-powered Claude security analysis)
+- `/code-quality` – AI-powered comprehensive quality scan (replaces flake8/mypy/black/bandit)
 - `/deploy-ready` – Verify deployment readiness
 
 **Install dev tools** (for hooks & manual checks):
 ```bash
-pip install flake8 mypy black bandit pyyaml
+pip install openai pyyaml
 npm install playwright && npx playwright install chromium --with-deps
 ```
 
@@ -45,11 +45,9 @@ npm install playwright && npx playwright install chromium --with-deps
 
 **Manual checks**:
 ```bash
-flake8 src/backend/main.py --count --select=E9,F63,F7,F82
-mypy src/backend/main.py
-black --check src/backend/
-bandit -r src/backend/
-python -m py_compile src/backend/main.py  # syntax
+python -m py_compile src/backend/main.py  # syntax check
+python .github/scripts/ai_quality_scan.py   # AI quality scan (replaces flake8, mypy, black, bandit)
+python .github/scripts/claude_security_scan.py  # AI security-only scan
 node tests/smoke.test.js  # with SITE_URL set
 ```
 
@@ -190,7 +188,8 @@ Before committing/pushing:
 
 ### Deploy to Render
 - Push to `main` or `develop` branch
-- GitHub Actions runs: quality → flyway migrate → deploy
+- GitHub Actions runs: precheck → flyway migrate → deploy
+- Quality checks run automatically on PRs before merge
 - Monitor workflow status in GitHub Actions tab
 - Health checks run automatically after deploy
 
@@ -217,4 +216,4 @@ Then run: `python scripts/migrate.py` to apply migrations.
 
 ---
 
-**Last Updated**: 2026-03-31
+**Last Updated**: 2026-04-01

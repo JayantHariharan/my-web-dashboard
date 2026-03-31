@@ -1,8 +1,6 @@
-name: Quality & Security Checks
+name: AI-Powered Quality & Security Checks
 
 on:
-  push:
-    branches: [main, develop]
   pull_request:
     branches: [main, develop]
 
@@ -23,124 +21,97 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install flake8 mypy black bandit anthropic openai
+          pip install openai
 
       - name: Python syntax check
         run: python -m py_compile src/backend/main.py
 
-      - name: Lint with flake8 (critical errors)
-        run: |
-          flake8 src/backend/ --count --select=E9,F63,F7,F82 --show-source --statistics --output-file=flake8-report.txt
-
-      - name: Upload flake8 report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: flake8-report
-          path: flake8-report.txt
-          retention-days: 7
-
-      - name: Type check with mypy
-        run: |
-          mypy src/backend/main.py --ignore-missing-imports --show-error-codes 2>&1 | tee mypy-report.txt
-
-      - name: Upload mypy report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mypy-report
-          path: mypy-report.txt
-          retention-days: 7
-
-      - name: Format check with black
-        run: |
-          black --check src/backend/
-
-      - name: Security scan with bandit
-        run: |
-          bandit -r src/backend/ -f json -o bandit-report.json || true
-
-      - name: Upload bandit report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: bandit-report
-          path: bandit-report.json
-          retention-days: 7
-
-      - name: Claude Security Analysis
+      - name: AI-Powered Comprehensive Quality Scan
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct' }}
+          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'anthropic/claude-3-opus' }}
         run: |
-          # Check if OPENROUTER_API_KEY is set (non-empty)
-          if [ -z "$OPENROUTER_API_KEY" ]; then
-            echo "⚠️  OPENROUTER_API_KEY is not set - skipping Claude security analysis"
-            echo "report_path=" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+          echo "🚀 Running AI-powered comprehensive code quality scan..."
+          echo "   (replaces flake8, mypy, black, bandit in a single analysis)"
 
-          echo "🔍 Running AI-powered security analysis via OpenRouter..."
+          python .github/scripts/ai_quality_scan.py
 
-          python .github/scripts/claude_security_scan.py
-
-          if [ -f "claude-security-report.json" ]; then
-            echo "📊 Security report generated:"
-            cat claude-security-report.json | python -m json.tool
+          if [ -f "ai-quality-report.json" ]; then
+            echo "📊 Quality report generated:"
+            cat ai-quality-report.json | python -m json.tool
 
             # Upload report as artifact
-            echo "report_path=claude-security-report.json" >> $GITHUB_OUTPUT
+            echo "report_path=ai-quality-report.json" >> $GITHUB_OUTPUT
           else
-            echo "⚠️  No security report generated"
+            echo "⚠️  No quality report generated"
             echo "report_path=" >> $GITHUB_OUTPUT
+            exit 1
           fi
-        id: claude-scan
+        id: ai-scan
 
-      - name: Upload Claude security report
-        if: always() && steps.claude-scan.outputs.report_path != ''
+      - name: Upload AI quality report
+        if: always() && steps.ai-scan.outputs.report_path != ''
         uses: actions/upload-artifact@v4
         with:
-          name: claude-security-report
-          path: ${{ steps.claude-scan.outputs.report_path }}
+          name: ai-quality-report
+          path: ${{ steps.ai-scan.outputs.report_path }}
           retention-days: 7
 
-      - name: Security summary
+      - name: Quality Summary
         if: always()
         run: |
-          echo "## Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🤖 AI Code Quality Scan Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           python - <<'PY'
           import json, sys, os
           summary_md = ""
 
-          # Bandit
           try:
-              with open('bandit-report.json') as f:
-                  bandit = json.load(f)
-              # Bandit severities: LOW, MEDIUM, HIGH. Count Medium+ issues.
-              medium_plus = [i for i in bandit if i.get('issue_severity') in ('MEDIUM', 'HIGH')]
-              summary_md += f"**Bandit Issues (Medium+):** {len(medium_plus)}\n"
-          except FileNotFoundError:
-              summary_md += "**Bandit Issues:** Not generated\n"
-          except Exception as e:
-              summary_md += f"**Bandit Issues:** Error reading report ({e})\n"
+              with open('ai-quality-report.json') as f:
+                  report = json.load(f)
 
-          # Claude
-          try:
-              with open('claude-security-report.json') as f:
-                  claude = json.load(f)
-              s = claude.get('summary', {})
-              total = s.get('total_issues', 0)
-              by_sev = s.get('by_severity', {})
-              crit = by_sev.get('Critical', 0)
-              high = by_sev.get('High', 0)
-              summary_md += f"**Claude Security Issues:** Total: {total} | Critical: {crit} | High: {high}\n"
-          except FileNotFoundError:
-              summary_md += "**Claude Security Issues:** Skipped (no security API key set)\n"
-          except Exception as e:
-              summary_md += f"**Claude Security Issues:** Error reading report ({e})\n"
+              stats = report.get("statistics", {})
+              summary = report.get("summary", {})
 
-          summary_md += "\nSee artifacts for detailed reports.\n"
+              summary_md += "### Scan Overview\n"
+              summary_md += f"- **Files scanned:** {summary.get('files_scanned', stats.get('files_with_issues', 0))}\n"
+              summary_md += f"- **Total lines:** {stats.get('total_lines', 'N/A')}\n"
+              summary_md += f"- **Functions with docstrings:** {stats.get('functions_with_docstrings', 0)}\n"
+              summary_md += f"- **Type-annotated functions:** {stats.get('type_annotated_functions', 0)}\n\n"
+
+              summary_md += "### Issues by Severity\n"
+              for severity in ["Critical", "High", "Medium", "Low", "Info"]:
+                  count = summary.get("by_severity", {}).get(severity, 0)
+                  if count > 0:
+                      emoji = "🔴" if severity in ["Critical", "High"] else "🟡" if severity == "Medium" else "🟢"
+                      summary_md += f"- {emoji} **{severity}:** {count}\n"
+
+              summary_md += "\n### Issues by Category\n"
+              categories = summary.get("by_category", {})
+              for category, count in categories.items():
+                  if count > 0:
+                      emoji = {
+                          "security": "🔒",
+                          "bug": "🐛",
+                          "quality": "📐",
+                          "style": "💅",
+                          "type": "🏷️",
+                          "formatting": "✨"
+                      }.get(category, "•")
+                      summary_md += f"- {emoji} **{category}:** {count}\n"
+
+              # Show blocking status
+              if summary.get("has_blocking_issues"):
+                  summary_md += "\n⚠️ **Blocking Issues Detected** (Critical/High severity or Medium+ security)\n"
+              else:
+                  summary_md += "\n✅ **No blocking issues found**\n"
+
+          except FileNotFoundError:
+              summary_md += "⚠️ Quality report not found\n"
+          except Exception as e:
+              summary_md += f"⚠️ Error reading report: {e}\n"
+
+          summary_md += "\n---\n*Generated by AI Code Quality Scanner*\n"
           print(summary_md)
           summary_file = os.getenv('GITHUB_STEP_SUMMARY')
           if summary_file:
@@ -148,44 +119,56 @@ jobs:
                   f.write(summary_md)
           PY
 
-      - name: Check for blocking security issues
+      - name: Check for blocking quality issues
         if: always()
         run: |
           python - <<'PY'
           import json, sys
-          fail = 0
 
-          # Check bandit for high/critical
           try:
-              with open('bandit-report.json') as f:
-                  bandit = json.load(f)
-              high_critical = [i for i in bandit if i.get('issue_severity') in ('HIGH', 'CRITICAL')]
-              if len(high_critical) > 0:
-                  print(f"❌ Found {len(high_critical)} High/Critical issues in bandit scan")
-                  fail = 1
-          except FileNotFoundError:
-              pass
-          except Exception as e:
-              print(f"⚠️  Error reading bandit report: {e}")
+              with open('ai-quality-report.json') as f:
+                  report = json.load(f)
 
-          # Check Claude for critical/high
-          try:
-              with open('claude-security-report.json') as f:
-                  claude = json.load(f)
-              by_sev = claude.get('summary', {}).get('by_severity', {})
-              critical = by_sev.get('Critical', 0)
-              high = by_sev.get('High', 0)
+              summary = report.get("summary", {})
+              fail = 0
+
+              # Critical or High severity issues are blocking
+              critical = summary.get("by_severity", {}).get("Critical", 0)
+              high = summary.get("by_severity", {}).get("High", 0)
+
               if critical > 0 or high > 0:
-                  print(f"❌ Claude found {critical} Critical and {high} High severity issues")
+                  print(f"❌ Found {critical} Critical and {high} High severity issues")
                   fail = 1
-          except FileNotFoundError:
-              pass
-          except Exception as e:
-              print(f"⚠️  Error reading Claude report: {e}")
 
-          if fail:
-              print("❌ Security quality checks failed. Review reports and fix issues.")
+              # Medium+ security issues are blocking
+              medium_security = 0
+              for issue in report.get("issues", []):
+                  if issue.get("category") == "security" and issue.get("severity") in ["Medium", "High", "Critical"]:
+                      medium_security += 1
+
+              if medium_security > 0:
+                  print(f"❌ Found {medium_security} Medium+ severity security issues")
+                  fail = 1
+
+              if fail:
+                  print("\n❌ Quality checks failed. Review the AI quality report for details.")
+                  print("   Top issues to fix:")
+                  issues = sorted(
+                      report.get("issues", []),
+                      key=lambda x: {"Critical": 4, "High": 3, "Medium": 2, "Low": 1, "Info": 0}.get(x.get("severity"), 0),
+                      reverse=True
+                  )[:5]
+                  for issue in issues:
+                      print(f"   - {issue['file']}:{issue['line']} - {issue['title']}")
+                  sys.exit(1)
+              else:
+                  print("✅ All quality checks passed!")
+                  sys.exit(0)
+
+          except FileNotFoundError:
+              print("❌ Quality report not found")
               sys.exit(1)
-          else:
-              print("✅ Security quality checks passed")
+          except Exception as e:
+              print(f"⚠️ Error reading quality report: {e}")
+              sys.exit(1)
           PY
