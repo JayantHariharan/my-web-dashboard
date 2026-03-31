@@ -336,14 +336,9 @@ Consider whether this complexity is truly needed. For pure authentication backen
 
 ### Automated CI/CD (GitHub Actions → Render)
 
-**Decoupled workflow** with separate staging and production jobs:
+**Simple deployment workflow** - quality checks not automated:
 
-1. **Quality job** (all branches/PRs):
-   - Syntax check, linting (flake8), type check (mypy), security scan (bandit), format check (black)
-   - Runs on every push and PR
-   - Uploads quality reports as artifacts
-
-2. **Deploy-staging job** (only on push to `develop`):
+1. **Deploy-staging job** (on push to `develop`):
    - Validates staging secrets (fails fast if missing)
    - Verifies Render service accessibility
    - Auto-associates Render Environment Group (if configured)
