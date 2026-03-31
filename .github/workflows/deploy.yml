@@ -13,6 +13,7 @@ jobs:
     environment: staging
     env:
       APP_ENV: test
+      DEBUG: true
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID_TEST }}
       RENDER_ENV_GROUP_ID: ${{ secrets.RENDER_ENV_GROUP_ID_TEST }}
@@ -88,6 +89,26 @@ jobs:
             echo "✅ Environment group associated successfully"
             echo "⏳ Waiting 10 seconds for configuration to propagate..."
             sleep 10
+
+            # Verify SECRET_KEY exists in the environment group
+            echo ""
+            echo "🔍 Verifying SECRET_KEY exists in environment group..."
+            group_response=$(curl -s \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/env-groups/$RENDER_ENV_GROUP_ID")
+
+            group_secret=$(echo "$group_response" | jq -r '.envVars[] | select(.key=="SECRET_KEY") | .value' 2>/dev/null)
+
+            if [ -z "$group_secret" ] || [ "$group_secret" = "null" ]; then
+              echo "⚠️  WARNING: SECRET_KEY not found in environment group!"
+              echo "   The group may not have SECRET_KEY configured."
+              echo "   Please add SECRET_KEY to Render Environment Group:"
+              echo "   Render → Environment Groups → $RENDER_ENV_GROUP_ID → Environment Variables"
+              echo "   Add: Key=SECRET_KEY, Value=<your-secret>"
+              # Don't fail here - let deployment proceed and app will provide clearer error
+            else
+              echo "✅ SECRET_KEY is present in environment group (value masked)"
+            fi
           fi
 
       - name: Trigger Render deployment
@@ -214,6 +235,7 @@ jobs:
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID_PROD }}
       RENDER_ENV_GROUP_ID: ${{ secrets.RENDER_ENV_GROUP_ID_PROD }}
+      DISPLAY_ENV: Production
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -286,6 +308,26 @@ jobs:
             echo "✅ Environment group associated successfully"
             echo "⏳ Waiting 10 seconds for configuration to propagate..."
             sleep 10
+
+            # Verify SECRET_KEY exists in the environment group
+            echo ""
+            echo "🔍 Verifying SECRET_KEY exists in environment group..."
+            group_response=$(curl -s \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/env-groups/$RENDER_ENV_GROUP_ID")
+
+            group_secret=$(echo "$group_response" | jq -r '.envVars[] | select(.key=="SECRET_KEY") | .value' 2>/dev/null)
+
+            if [ -z "$group_secret" ] || [ "$group_secret" = "null" ]; then
+              echo "⚠️  WARNING: SECRET_KEY not found in environment group!"
+              echo "   The group may not have SECRET_KEY configured."
+              echo "   Please add SECRET_KEY to Render Environment Group:"
+              echo "   Render → Environment Groups → $RENDER_ENV_GROUP_ID → Environment Variables"
+              echo "   Add: Key=SECRET_KEY, Value=<your-secret>"
+              # Don't fail here - let deployment proceed and app will provide clearer error
+            else
+              echo "✅ SECRET_KEY is present in environment group (value masked)"
+            fi
           fi
 
       - name: Trigger Render deployment
