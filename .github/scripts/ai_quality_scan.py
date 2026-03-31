@@ -230,6 +230,38 @@ def run_claude_analysis_openrouter(prompt: str, api_key: str, model: str = "anth
         }
 
 
+def compute_statistics(files: List[Dict[str, str]], issues: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """Compute statistics about the codebase from file contents and issues."""
+    total_lines = 0
+    files_with_issues_set = set()
+
+    for file_info in files:
+        content = file_info['content']
+        total_lines += len(content.splitlines())
+
+    # Count files that have at least one issue
+    for issue in issues:
+        files_with_issues_set.add(issue.get('file', ''))
+
+    # Rough estimates for type annotations and docstrings
+    # The AI should provide more accurate counts, but we use these as fallbacks
+    type_annotated = 0
+    docstrings = 0
+
+    all_content = "\n".join(f['content'] for f in files)
+    # Count function definitions with type hints (very rough)
+    type_annotated = all_content.count('->')
+    # Count docstrings (rough)
+    docstrings = all_content.count('"""') // 2 + all_content.count("'''") // 2
+
+    return {
+        "files_with_issues": len(files_with_issues_set),
+        "total_lines": total_lines,  # Match expected key name
+        "type_annotated_functions": type_annotated,
+        "functions_with_docstrings": docstrings
+    }
+
+
 def check_blocking_issues(result: Dict[str, Any]) -> bool:
     """
     Check if there are blocking issues that should fail the check.
@@ -257,19 +289,19 @@ def check_blocking_issues(result: Dict[str, Any]) -> bool:
 
 
 def main():
-    print("🚀 Starting AI-Powered Comprehensive Code Quality Scan...")
+    print("Starting AI-Powered Comprehensive Code Quality Scan...")
 
     # Check for OpenRouter API key
     openrouter_key = os.environ.get("OPENROUTER_API_KEY")
 
     if not openrouter_key:
-        print("⚠️  No OpenRouter API key set - cannot run AI quality scan")
-        print("Set OPENROUTER_API_KEY in GitHub: Settings → Secrets and variables → Actions")
+        print("No OpenRouter API key set - cannot run AI quality scan")
+        print("Set OPENROUTER_API_KEY in GitHub: Settings -> Secrets and variables -> Actions")
         sys.exit(0)
 
     # Collect files
     files = collect_python_files()
-    print(f"📁 Found {len(files)} Python files to analyze")
+    print(f"Found {len(files)} Python files to analyze")
 
     if not files:
         print("No Python files found to analyze")
@@ -284,11 +316,11 @@ def main():
         file_contents.append({"path": filepath, "content": content})
 
     # Build prompt
-    print("🧠 Building comprehensive quality analysis prompt...")
+    print("Building comprehensive quality analysis prompt...")
     prompt = build_comprehensive_quality_prompt(file_contents)
 
     # Run analysis
-    print("🤖 Querying Claude via OpenRouter for comprehensive analysis...")
+    print("Querying Claude via OpenRouter for comprehensive analysis...")
     model = os.environ.get("OPENROUTER_MODEL", "anthropic/claude-3-opus")
     print(f"   Model: {model}")
     result = run_claude_analysis_openrouter(prompt, openrouter_key, model)
@@ -299,25 +331,59 @@ def main():
     result["scan_metadata"]["files_scanned"] = len(files)
     result["scan_metadata"]["total_lines"] = total_lines
 
-    # Ensure summary exists
+    # Ensure summary exists and has required fields
     if "summary" not in result:
         result["summary"] = {}
 
+    summary = result["summary"]
+
+    # Compute total issues count if not provided
+    if "total_issues" not in summary:
+        summary["total_issues"] = len(result.get("issues", []))
+
+    # Also add files_scanned and total_lines to summary for convenience
+    summary["files_scanned"] = len(files)
+    summary["total_lines"] = total_lines
+
+    # Ensure by_severity has all severity levels
+    by_severity = summary.get("by_severity", {})
+    for severity in ["Critical", "High", "Medium", "Low", "Info"]:
+        if severity not in by_severity:
+            by_severity[severity] = 0
+    summary["by_severity"] = by_severity
+
+    # Ensure by_category has all categories
+    by_category = summary.get("by_category", {})
+    for category in ["style", "type", "formatting", "security", "quality", "bug"]:
+        if category not in by_category:
+            by_category[category] = 0
+    summary["by_category"] = by_category
+
     # Calculate has_blocking_issues
-    result["summary"]["has_blocking_issues"] = check_blocking_issues(result)
+    summary["has_blocking_issues"] = check_blocking_issues(result)
+
+    # Compute and set statistics
+    issues = result.get("issues", [])
+    computed_stats = compute_statistics(file_contents, issues)
+    result["statistics"] = computed_stats
 
     # Write report
     report_path = "ai-quality-report.json"
-    with open(report_path, 'w') as f:
-        json.dump(result, f, indent=2)
+    with open(report_path, 'w', encoding='utf-8') as f:
+        json.dump(result, f, indent=2, ensure_ascii=False)
 
-    print(f"✅ Quality report written to {report_path}")
+    print(f"Quality report written to {report_path}")
 
     # Print detailed summary
     if "summary" in result:
         summary = result["summary"]
-        print("\n📊 Quality Scan Summary:")
+        stats = result.get("statistics", {})
+        print("\nQuality Scan Summary:")
         print(f"   Total issues: {summary.get('total_issues', 0)}")
+        print(f"   Files scanned: {summary.get('files_scanned', len(files))}")
+        print(f"   Total lines: {stats.get('total_lines', total_lines)}")
+        print(f"   Functions with docstrings: {stats.get('functions_with_docstrings', 0)}")
+        print(f"   Type-annotated functions: {stats.get('type_annotated_functions', 0)}")
         print("\n   By Severity:")
         for severity in ["Critical", "High", "Medium", "Low", "Info"]:
             count = summary.get("by_severity", {}).get(severity, 0)
@@ -331,13 +397,13 @@ def main():
 
         # Show blocking status
         if summary.get("has_blocking_issues"):
-            print("\n❌ Blocking issues detected (Critical/High severity or Medium+ security)")
+            print("\nBlocking issues detected (Critical/High severity or Medium+ security)")
             sys.exit(1)
         else:
-            print("\n✅ No blocking issues found")
+            print("\nNo blocking issues found")
             sys.exit(0)
     else:
-        print("⚠️  No summary in report")
+        print("No summary in report")
         sys.exit(0)
 
 
