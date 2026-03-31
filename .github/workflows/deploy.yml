@@ -5,11 +5,92 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+concurrency:
+  group: deploy-${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+  cancel-in-progress: true
+
 jobs:
+  precheck:
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.check.outputs.environment }}
+    steps:
+      - name: Determine environment
+        id: check
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+            echo "✅ Environment: Production"
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+            echo "✅ Environment: Staging (develop branch)"
+          fi
+
+      - name: Validate mandatory secrets (PostgreSQL)
+        run: |
+          echo "🔍 Validating mandatory secrets..."
+
+          missing=()
+          for secret in PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE; do
+            if [ -z "${{ secrets.${secret} }}" ]; then
+              missing+=("$secret")
+            fi
+          done
+
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "❌ Missing required secrets: ${missing[*]}"
+            echo ""
+            echo "Please add these secrets in GitHub:"
+            echo "  Settings → Secrets and variables → Actions → New repository secret"
+            echo ""
+            echo "Required:"
+            echo "  - PGHOST (Render Postgres host)"
+            echo "  - PGPORT (usually 5432)"
+            echo "  - PGUSER (Postgres username)"
+            echo "  - PGPASSWORD (Postgres password)"
+            echo "  - PGDATABASE (Database name)"
+            echo "  - RENDER_API_KEY (Render API key)"
+            echo "  - RENDER_SERVICE_ID_TEST (Staging service ID)"
+            echo "  - RENDER_SERVICE_ID_PROD (Production service ID)"
+            exit 1
+          fi
+
+          echo "✅ All required PostgreSQL secrets present"
+
+      - name: Validate Render secrets
+        run: |
+          echo "🔍 Validating Render secrets..."
+
+          ENV="${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}"
+
+          if [ "$ENV" = "production" ]; then
+            for secret in RENDER_SERVICE_ID_PROD; do
+              if [ -z "${{ secrets.${secret} }}" ]; then
+                echo "❌ Missing required secret for production: $secret"
+                exit 1
+              fi
+            done
+          else
+            for secret in RENDER_SERVICE_ID_TEST; do
+              if [ -z "${{ secrets.${secret} }}" ]; then
+                echo "❌ Missing required secret for staging: $secret"
+                exit 1
+              fi
+            done
+          fi
+
+          if [ -z "${{ secrets.RENDER_API_KEY }}" ]; then
+            echo "❌ Missing RENDER_API_KEY"
+            exit 1
+          fi
+
+          echo "✅ All required Render secrets present"
+
   migrate-database:
+    needs: precheck
     uses: ./.github/workflows/flyway-migrate.yml
     with:
-      environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+      environment: ${{ needs.precheck.outputs.environment }}
     secrets:
       PGHOST: ${{ secrets.PGHOST }}
       PGPORT: ${{ secrets.PGPORT }}
