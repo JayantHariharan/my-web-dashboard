@@ -36,6 +36,59 @@ jobs:
             exit 1
           fi
           echo "✅ Configuration valid"
+          echo "   RENDER_ENV_GROUP_ID: ${RENDER_ENV_GROUP_ID:-Not set}"
+
+      - name: Associate Environment Group
+        if: env.RENDER_ENV_GROUP_ID != ''
+        env:
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
+          RENDER_ENV_GROUP_ID: ${{ env.RENDER_ENV_GROUP_ID }}
+        run: |
+          echo "🔗 Associating service with environment group: $RENDER_ENV_GROUP_ID"
+
+          # Get current service configuration
+          response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$RENDER_SERVICE_ID")
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [[ ! "$http_code" =~ ^(200|201)$ ]]; then
+            echo "❌ Failed to fetch service info (HTTP $http_code)"
+            echo "$body" | jq . 2>/dev/null || echo "$body"
+            exit 1
+          fi
+
+          # Check if already associated
+          current_groups=$(echo "$body" | jq -r '.envVarsIncludeFromGroup // []')
+          if echo "$current_groups" | grep -q "$RENDER_ENV_GROUP_ID"; then
+            echo "✅ Service already associated with environment group"
+          else
+            echo "📋 Current groups: $current_groups"
+            echo "🎯 Adding group: $RENDER_ENV_GROUP_ID"
+
+            # Add environment group association
+            patch_response=$(curl -s -w "\n%{http_code}" -X PATCH \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"envVarsIncludeFromGroup\":[\"$RENDER_ENV_GROUP_ID\"]}" \
+              "https://api.render.com/v1/services/$RENDER_SERVICE_ID")
+
+            patch_code=$(echo "$patch_response" | tail -n1)
+            patch_body=$(echo "$patch_response" | sed '$d')
+
+            if [[ ! "$patch_code" =~ ^(200|201|204)$ ]]; then
+              echo "❌ Association failed (HTTP $patch_code)"
+              echo "$patch_body" | jq . 2>/dev/null || echo "$patch_body"
+              exit 1
+            fi
+
+            echo "✅ Environment group associated successfully"
+            echo "⏳ Waiting 10 seconds for configuration to propagate..."
+            sleep 10
+          fi
 
       - name: Trigger Render deployment
         id: trigger
@@ -181,6 +234,59 @@ jobs:
             exit 1
           fi
           echo "✅ Configuration valid"
+          echo "   RENDER_ENV_GROUP_ID: ${RENDER_ENV_GROUP_ID:-Not set}"
+
+      - name: Associate Environment Group
+        if: env.RENDER_ENV_GROUP_ID != ''
+        env:
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
+          RENDER_ENV_GROUP_ID: ${{ env.RENDER_ENV_GROUP_ID }}
+        run: |
+          echo "🔗 Associating service with environment group: $RENDER_ENV_GROUP_ID"
+
+          # Get current service configuration
+          response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            "https://api.render.com/v1/services/$RENDER_SERVICE_ID")
+
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          if [[ ! "$http_code" =~ ^(200|201)$ ]]; then
+            echo "❌ Failed to fetch service info (HTTP $http_code)"
+            echo "$body" | jq . 2>/dev/null || echo "$body"
+            exit 1
+          fi
+
+          # Check if already associated
+          current_groups=$(echo "$body" | jq -r '.envVarsIncludeFromGroup // []')
+          if echo "$current_groups" | grep -q "$RENDER_ENV_GROUP_ID"; then
+            echo "✅ Service already associated with environment group"
+          else
+            echo "📋 Current groups: $current_groups"
+            echo "🎯 Adding group: $RENDER_ENV_GROUP_ID"
+
+            # Add environment group association
+            patch_response=$(curl -s -w "\n%{http_code}" -X PATCH \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"envVarsIncludeFromGroup\":[\"$RENDER_ENV_GROUP_ID\"]}" \
+              "https://api.render.com/v1/services/$RENDER_SERVICE_ID")
+
+            patch_code=$(echo "$patch_response" | tail -n1)
+            patch_body=$(echo "$patch_response" | sed '$d')
+
+            if [[ ! "$patch_code" =~ ^(200|201|204)$ ]]; then
+              echo "❌ Association failed (HTTP $patch_code)"
+              echo "$patch_body" | jq . 2>/dev/null || echo "$patch_body"
+              exit 1
+            fi
+
+            echo "✅ Environment group associated successfully"
+            echo "⏳ Waiting 10 seconds for configuration to propagate..."
+            sleep 10
+          fi
 
       - name: Trigger Render deployment
         id: trigger
