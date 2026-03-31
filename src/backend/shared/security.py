@@ -48,5 +48,3 @@ def verify_password(
 
     peppered_password = plain_password + pepper
     return pwd_context.verify(peppered_password, hashed_password)
-
-

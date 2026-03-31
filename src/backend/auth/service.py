@@ -56,5 +56,3 @@ def register_user(
     password_hash = hash_password(password)
     user_id = user_repo.create_user(username, password_hash, created_ip=created_ip)
     return user_id
-
-

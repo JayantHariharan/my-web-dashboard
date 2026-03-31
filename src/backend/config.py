@@ -60,7 +60,12 @@ class DatabaseConfig:
 
         if app_env == "prod" or app_env == "production":
             table_suffix = "_prod"
-        elif app_env == "test" or app_env == "staging" or app_env == "dev" or app_env == "development":
+        elif (
+            app_env == "test"
+            or app_env == "staging"
+            or app_env == "dev"
+            or app_env == "development"
+        ):
             table_suffix = "_test"
         else:
             table_suffix = ""  # Local dev or unknown env
