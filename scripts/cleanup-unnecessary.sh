@@ -75,19 +75,29 @@ PATTERNS=(
 
 # Find and delete only untracked files/directories
 FOUND=0
-while IFS= read -r -d '' path; do
+
+# Build find expression parts
+EXPRESSION=""
+for p in "${PATTERNS[@]}"; do
+    if [ -z "$EXPRESSION" ]; then
+        EXPRESSION="-name '$p'"
+    else
+        EXPRESSION="$EXPRESSION -o -name '$p'"
+    fi
+done
+
+# Use find to locate files matching patterns
+while IFS= read -r path; do
     # Skip if empty
     [ -z "$path" ] && continue
 
-    # Check if path is untracked
+    # Check if path is untracked (safety check)
     if git status --porcelain "$path" 2>/dev/null | grep -q '^??'; then
         echo "  Removing: $path"
         rm -rf "$path" 2>/dev/null || true
         FOUND=1
     fi
-done < <(find . \( -name ".git" -prune \) -o \( \
-    $(for p in "${PATTERNS[@]}"; do printf "-name '%s' -o " "$p"; done | sed 's/ -o $//') \
-    \) -print0 2>/dev/null)
+done < <(find . -type f -o -type d $EXPRESSION 2>/dev/null | while read -r line; do echo "$line"; done)
 
 if [ $FOUND -eq 0 ]; then
     echo "  No unnecessary untracked files found."
