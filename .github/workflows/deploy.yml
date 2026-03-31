@@ -48,6 +48,9 @@ jobs:
           RENDER_SERVICE_ID_TEST: ${{ secrets.RENDER_SERVICE_ID_TEST }}
         run: |
           echo "🔍 Validating mandatory secrets..."
+          echo "Debug: Listing all environment variables starting with PG or RENDER:"
+          env | grep -E '^(PG|RENDER)'
+          echo ""
 
           # Check PostgreSQL secrets
           missing=()
