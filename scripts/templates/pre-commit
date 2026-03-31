@@ -92,15 +92,15 @@ for wf_path in workflows:
                 continue
 
             jobs = data.get('jobs', {})
+            workflow_concurrency = data.get('concurrency', {})
             for job_name, job in jobs.items():
-                # Check concurrency
-                if 'concurrency' not in job:
-                    print(f"[FAIL] Job '{job_name}' in {wf_path} missing concurrency configuration")
-                    # Set global fail but continue checking other jobs
+                # Check concurrency: job can inherit from workflow level or have its own
+                job_concurrency = job.get('concurrency', workflow_concurrency)
+                if not job_concurrency:
+                    print(f"[FAIL] Job '{job_name}' in {wf_path} missing concurrency configuration (neither job-level nor workflow-level)")
                     globals()['VALIDATION_FAIL'] = 1
                 else:
-                    concurrency = job['concurrency']
-                    if 'cancel-in-progress' not in concurrency or not concurrency['cancel-in-progress']:
+                    if 'cancel-in-progress' not in job_concurrency or not job_concurrency['cancel-in-progress']:
                         print(f"[FAIL] Job '{job_name}' in {wf_path} concurrency must have cancel-in-progress: true")
                         globals()['VALIDATION_FAIL'] = 1
 
