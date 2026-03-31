@@ -30,8 +30,9 @@ Destructive operations should be **manual** (run by DBA/developer after explicit
 2. **Did NOT create a migration to drop these tables**
 
 3. **Kept only essential migrations**:
-   - V1: `users` table
-   - V2: `user_profiles` table + username index
+   - V1: Complete schema (users + user_profiles + all indexes) in a single file
+
+**Further simplification (v7.1)**: Merged V1, V2, V3 into single V1 migration for atomicity and simplicity.
 
 ### Why This Approach?
 
@@ -52,12 +53,13 @@ V<version>__<description>.sql
 ```
 
 Examples:
-- `V1__create_users.sql`
-- `V2__add_username_index.sql`
-- `V2__user_profiles.sql`
+- `V1__create_users.sql` (contains full schema)
+- `V2__create_user_sessions.sql` (next new feature)
+- `V3__add_user_email_column.sql` (next change)
 
 **Rules:**
-- Version numbers should be sequential but can have multiples (V2 can have two files - they run alphabetically)
+- Version numbers **must be unique** (no two files with same V<number>)
+- Use sequential numbers: V1, V2, V3, etc.
 - Description should be lowercase with underscores
 - Use `IF NOT EXISTS` for CREATE statements (idempotent)
 - Never use `DROP` in migrations (unless it's a very special case and documented)
@@ -66,14 +68,20 @@ Examples:
 
 ## How Migrations Are Applied
 
-The `migrator.py`:
-1. Scans `flyway/sql/` for `V*__*.sql` files
-2. Reads `schema_version` table to see which migrations already applied
-3. For each migration file NOT in `schema_version`:
-   - Executes the SQL
-   - Records filename in `schema_version`
+Migrations are applied via GitHub Actions using Flyway CLI:
 
-Once a migration is applied, its filename is recorded. Even if you later delete the file, the app won't try to re-apply it (it checks `schema_version` first).
+1. On push to `main` or `develop`, the `flyway-migrate` workflow runs
+2. Flyway CLI is installed and configured with `flyway/conf/flyway.conf`
+3. Flyway connects to the database using secrets (`PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`)
+4. Flyway scans `flyway/sql/` for `V*__*.sql` files
+5. For each unapplied migration, Flyway:
+   - Executes the SQL (with placeholder replacement)
+   - Records the migration in the `schema_version` table automatically
+6. If all migrations succeed, deployment continues; otherwise it fails
+
+**Note**: The application does not run migrations on startup. Local development uses SQLite which auto-creates the schema from the migration files on first run, or you can run Flyway manually.
+
+Flyway ensures migrations are applied exactly once and tracks their history in `schema_version`.
 
 ---
 
@@ -165,9 +173,11 @@ python src/backend/main.py  # Should apply all migrations cleanly
 
 ### 5. Keep migrations small and focused
 One logical change per file:
-- V1: create users table
-- V2: create user_profiles table
-- V3: add email column to users (separate)
+- V1: initial schema (users + user_profiles + indexes) - combined because they're interdependent
+- V2: add email column to users (separate version for future extension)
+- V3: create user_sessions table for JWT revocation (separate feature)
+
+**Exception**: The initial schema can be a single V1 migration if tables have foreign key dependencies (e.g., user_profiles references users). Group tightly coupled changes together.
 
 ---
 
@@ -175,30 +185,31 @@ One logical change per file:
 
 ### Adding a new column to users:
 ```sql
--- V4: Add email column to users
--- Date: 2026-03-30
+-- V2: Add email column to users
+-- Date: 2026-04-01
 -- Purpose: Allow users to have optional email addresses
 
-ALTER TABLE users ADD COLUMN IF NOT EXISTS email VARCHAR(255);
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
+-- Note: {table_suffix} is automatically replaced based on ENV (test/prod)
+ALTER TABLE users{table_suffix} ADD COLUMN IF NOT EXISTS email VARCHAR(255);
+CREATE INDEX IF NOT EXISTS idx_users_email{table_suffix} ON users{table_suffix}(email) WHERE email IS NOT NULL;
 ```
 
 ### Adding a new table:
 ```sql
--- V5: Create user_sessions table for session management
--- Date: 2026-03-30
+-- V3: Create user_sessions table for session management
+-- Date: 2026-04-01
 
-CREATE TABLE IF NOT EXISTS user_sessions (
+CREATE TABLE IF NOT EXISTS user_sessions{table_suffix} (
     id {AUTOINCREMENT},
     user_id INTEGER NOT NULL,
     session_token VARCHAR(255) UNIQUE NOT NULL,
     expires_at TIMESTAMP NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    FOREIGN KEY (user_id) REFERENCES users{table_suffix}(id) ON DELETE CASCADE
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_sessions_token ON user_sessions(session_token);
-CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_token{table_suffix} ON user_sessions{table_suffix}(session_token);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_user{table_suffix} ON user_sessions{table_suffix}(user_id);
 ```
 
 ---
@@ -262,4 +273,4 @@ ALTER TABLE users DROP COLUMN IF EXISTS email;
 
 ---
 
-**Last Updated**: 2026-03-30
+**Last Updated**: 2026-04-01

@@ -12,6 +12,8 @@ const PlayNexus = {
     runner: null,
     bodies: [],
     isGravityOn: true,
+    isActive: false, // Track if physics is actively running
+    animationFrameId: null,
 
     init() {
         console.log("💎 PlayNexus Crystal Hub Initialized");
@@ -21,9 +23,9 @@ const PlayNexus = {
 
     setupPhysics() {
         const { Engine, Render, Runner, Bodies, Composite } = Matter;
-        
+
         this.engine = Engine.create();
-        this.engine.gravity.y = 1; // Start with normal gravity
+        this.engine.gravity.y = 1;
 
         // Create a hidden renderer just for the world bounds
         this.render = Render.create({
@@ -36,8 +38,8 @@ const PlayNexus = {
                 background: 'transparent'
             }
         });
-        
-        // FIX: Prevent the physics canvas from blocking UI clicks
+
+        // Prevent the physics canvas from blocking UI clicks
         if (this.render && this.render.canvas) {
             this.render.canvas.style.pointerEvents = 'none';
             this.render.canvas.style.position = 'fixed';
@@ -53,72 +55,136 @@ const PlayNexus = {
 
         Composite.add(this.engine.world, [ground, leftWall, rightWall, ceiling]);
 
-        this.runner = Runner.create();
-        Runner.run(this.runner, this.engine);
+        // Don't start runner yet - wait for startPhysics()
     },
 
     /**
-     * Toggles the "Google Antigravity" effect
+     * Start the physics simulation (call when hub is active)
+     */
+    startPhysics() {
+        if (this.isActive) return; // Already running
+
+        this.isActive = true;
+        this.runner = Runner.create();
+        Runner.run(this.runner, this.engine);
+        console.log("🎮 Physics engine started");
+    },
+
+    /**
+     * Stop the physics simulation to save CPU (call when leaving hub)
+     */
+    stopPhysics() {
+        if (!this.isActive) return;
+
+        if (this.runner) {
+            Runner.stop(this.runner);
+            this.runner = null;
+        }
+        this.isActive = false;
+        console.log("⏸️ Physics engine stopped");
+    },
+
+    /**
+     * Toggle gravity on/off
      */
     toggleGravity() {
         this.isGravityOn = !this.isGravityOn;
         this.engine.gravity.y = this.isGravityOn ? 1 : 0;
-        
-        if (!this.isGravityOn) {
-            // Give everything a little kick when gravity turns off
+
+        if (!this.isGravityOn && this.bodies.length > 0) {
+            // Give elements a random push when gravity turns off
             this.bodies.forEach(body => {
                 Matter.Body.applyForce(body, body.position, {
-                    x: (Math.random() - 0.5) * 0.1,
-                    y: (Math.random() - 0.5) * 0.1
+                    x: (Math.random() - 0.5) * 0.05, // Reduced force for lighter effect
+                    y: (Math.random() - 0.5) * 0.05
                 });
             });
         }
-        
+
         console.log(`🛸 Gravity: ${this.isGravityOn ? 'ON' : 'OFF'}`);
         return this.isGravityOn;
     },
 
     /**
-     * Syncs a DOM element with a physics body
+     * Add physics to a DOM element
      */
     addPhysicsToElement(el) {
-        if (!el) return;
+        if (!el || !this.isActive) return;
+
         const rect = el.getBoundingClientRect();
         const { Bodies, Composite } = Matter;
+
+        // Skip if too small
+        if (rect.width < 20 || rect.height < 20) return;
 
         const body = Bodies.rectangle(
             rect.left + rect.width / 2,
             rect.top + rect.height / 2,
             rect.width,
             rect.height,
-            { restitution: 0.6, friction: 0.1 }
+            {
+                restitution: 0.4, // Reduced bounce for more stable
+                friction: 0.1,
+                frictionAir: 0.01, // Add air resistance for damping
+                density: 0.001 // Lightweight
+            }
         );
 
         this.bodies.push(body);
         Composite.add(this.engine.world, body);
 
-        // Sync loop
+        // Sync loop - only update if element still exists and physics is active
         const sync = () => {
-            if (!this.isGravityOn || body.speed > 0.1) {
-                el.style.transform = `translate(${body.position.x - rect.left - rect.width/2}px, ${body.position.y - rect.top - rect.height/2}px) rotate(${body.angle}rad)`;
+            if (!this.isActive) return;
+
+            try {
+                // Only update if moved significantly or rotating
+                if (body.speed > 0.05 || Math.abs(body.angle) > 0.01) {
+                    const newX = body.position.x - rect.left - rect.width/2;
+                    const newY = body.position.y - rect.top - rect.height/2;
+                    el.style.transform = `translate(${newX}px, ${newY}px) rotate(${body.angle}rad)`;
+                }
+
+                // Continue loop only if body still in world
+                if (Composite.get(this.engine.world, body.id, 'body')) {
+                    this.animationFrameId = requestAnimationFrame(sync);
+                }
+            } catch (e) {
+                // Element might have been removed, stop syncing
+                console.debug("Physics sync stopped for element");
             }
-            requestAnimationFrame(sync);
         };
-        sync();
+
+        // Start sync loop
+        if (this.isActive) {
+            this.animationFrameId = requestAnimationFrame(sync);
+        }
     },
 
     bindEvents() {
-        // Handle window resize
+        // Handle window resize - update walls
         window.addEventListener('resize', () => {
-            // Update walls logic here if needed
+            // Could rebuild walls here, but skip for performance
+        });
+
+        // Reduce physics when tab is not visible
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                this.stopPhysics();
+            } else if (document.querySelector('.crystal-card')) {
+                this.startPhysics();
+            }
         });
     }
 };
 
-// Global hook for the session manager
+// Global hooks
 window.startGravity = () => {
     const cards = document.querySelectorAll('.crystal-card');
     cards.forEach(card => PlayNexus.addPhysicsToElement(card));
 };
+
+// Expose for testing/debugging
+window.PlayNexus = PlayNexus;
 
 PlayNexus.init();

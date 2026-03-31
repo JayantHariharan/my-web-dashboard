@@ -16,6 +16,7 @@ class DatabaseConfig:
 
     url: str
     is_postgres: bool
+    table_suffix: str = ""  # Suffix for table names (e.g., "_test", "_prod")
 
     @classmethod
     def from_env(cls) -> "DatabaseConfig":
@@ -50,7 +51,21 @@ class DatabaseConfig:
             "postgres://"
         )
 
-        return cls(url=raw_url, is_postgres=is_postgres)
+        # Derive table suffix from ENV variable (test → _test, prod → _prod)
+        # Local dev: no ENV set → empty suffix
+        # Priority: ENV > APP_ENV > default
+        app_env = os.environ.get("ENV", "").lower()
+        if not app_env:
+            app_env = os.environ.get("APP_ENV", "").lower()
+
+        if app_env == "prod" or app_env == "production":
+            table_suffix = "_prod"
+        elif app_env == "test" or app_env == "staging" or app_env == "dev" or app_env == "development":
+            table_suffix = "_test"
+        else:
+            table_suffix = ""  # Local dev or unknown env
+
+        return cls(url=raw_url, is_postgres=is_postgres, table_suffix=table_suffix)
 
 
 @dataclass

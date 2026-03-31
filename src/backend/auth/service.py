@@ -58,28 +58,3 @@ def register_user(
     return user_id
 
 
-def change_password(user_id: int, old_password: str, new_password: str) -> bool:
-    """
-    Change user password after verifying old password.
-
-    Returns:
-        True if successful, False if old password incorrect
-    """
-    user = user_repo.get_user_by_id(user_id)
-    if not user:
-        return False
-
-    if not verify_password(old_password, user["password"]):
-        return False
-
-    new_hash = hash_password(new_password)
-    return user_repo.update_password(user["username"], new_hash)
-
-
-def deactivate_user(username: str, password: str) -> bool:
-    """
-    Deactivate a user account (soft delete by flagging in future).
-    For now, just deletes (placeholder for soft delete implementation).
-    """
-    # Future: implement soft delete (set is_active = false)
-    pass

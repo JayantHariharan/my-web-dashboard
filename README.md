@@ -26,7 +26,7 @@
 | Document | Description |
 |----------|-------------|
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, modular architecture, security |
-| [FLYWOW.md](docs/FLYWAY.md) | Database migrations guide |
+| [FLYWAY.md](docs/FLYWAY.md) | Database migrations guide |
 | [API-REFERENCE.html](docs/API-REFERENCE.html) | **Static HTML API reference** (offline-capable) |
 
 **Interactive API docs** (when server running):
@@ -184,18 +184,6 @@ The CI/CD pipeline (in `.github/workflows/deploy.yml`) automatically:
    - Runs smoke tests
    - Access production at: `https://your-prod-service.onrender.com`
 
-### Environment Groups (Optional)
-
-Render Environment Groups allow you to:
-- Share environment variables across multiple services
-- Have consistent staging/production configs
-- Switch services between groups easily
-
-**If using Environment Groups**:
-- Set `RENDER_ENV_GROUP_ID` (production) and `RENDER_ENV_GROUP_ID_TEST` (staging) secrets
-- The workflow auto-associates your service with the correct group
-- If not set, the workflow continues normally (no association)
-
 ### Render Service Setup
 
 You need **one or two Render services**:
@@ -246,12 +234,10 @@ Add these secrets in: **Settings** → **Secrets and variables** → **Actions**
 **Staging secrets**:
 - `RENDER_API_KEY_TEST` - Render API key (same key can be used for both)
 - `RENDER_SERVICE_ID_TEST` - Staging service ID (e.g., `srv-staging-xxx`)
-- `RENDER_ENV_GROUP_ID_TEST` - (Optional) Environment Group ID for staging
 
 **Production secrets**:
 - `RENDER_API_KEY` - Render API key
 - `RENDER_SERVICE_ID_PROD` - Production service ID (e.g., `srv-prod-xxx`)
-- `RENDER_ENV_GROUP_ID_PROD` - (Optional) Environment Group ID for production
 
 ### Option B: Single Service
 
@@ -260,7 +246,6 @@ If using the same Render service for both staging and production (switching only
 **Both branches use the same service**:
 - `RENDER_API_KEY` - Render API key
 - `RENDER_SERVICE_ID` - Service ID (same for staging and production)
-- `RENDER_ENV_GROUP_ID` - (Optional) Environment Group ID (if used)
 
 The workflow will:
 - On `develop`: Use `RENDER_SERVICE_ID` and set `APP_ENV=test`
@@ -316,7 +301,7 @@ The workflow will:
 
 ## 🐛 Troubleshooting
 
-See the full troubleshooting guide in `docs/CI-CD-SETUP.md`.
+See the full troubleshooting guide in `docs/TROUBLESHOOTING.md`.
 
 Common issues:
 - Missing GitHub secrets → Validate in workflow step "Validate secrets"
@@ -366,12 +351,10 @@ Production deployment is **fully automated** via GitHub Actions to Render.
    **For Production** (main branch):
    - `RENDER_API_KEY` (from Render Account → API Keys)
    - `RENDER_SERVICE_ID_PROD` (from Render service URL: srv-xxx)
-   - `RENDER_ENV_GROUP_ID_PROD` (from Render Environment Groups: evm-xxx)
 
    **For Test/Development** (develop branch):
    - `RENDER_API_KEY_TEST` (API key from a separate Render account or same account)
    - `RENDER_SERVICE_ID_TEST` (service ID for test service)
-   - `RENDER_ENV_GROUP_ID_TEST` (environment group ID for TEST group)
 
 5. **Disable Auto-Deploy on Render** (set to Manual)
    - GitHub Actions will trigger deploys manually
@@ -398,7 +381,7 @@ Rate limits are per IP address and vary by app category:
 - **Development**: SQLite (`sqlite:///./data/playnexus.db`) – no setup needed
 - **Production**: PostgreSQL (recommended: Supabase or Render PostgreSQL)
 
-Migrations are auto-applied on startup via `migrator.py` (also run in CI before deploy).
+Migrations are applied via GitHub Actions using Flyway CLI (see `flyway-migrate.yml`). Locally, SQLite auto-creates the schema; for PostgreSQL, run Flyway manually or deploy via CI.
 
 ### Environment Variables
 
@@ -436,18 +419,19 @@ my-web-dashboard/
 │   ├── backend/          # Auth-only FastAPI application
 │   │   ├── shared/       # Database, security, schemas, exceptions
 │   │   ├── auth/         # Authentication module
-│   │   ├── core/         # App factory, middlewares, migrator
+│   │   ├── core/         # App factory, middlewares
 │   │   └── main.py       # Entry point
 │   └── frontend/         # Static HTML/CSS/JS (served by backend)
 ├── docs/                 # Documentation
+│   ├── DEVELOPER.md      # Claude Code guidance, development workflow
 │   ├── ARCHITECTURE.md   # Architecture deep-dive
 │   ├── FLYWAY.md        # Migration guide
+│   ├── MIGRATIONS.md    # Migration philosophy & best practices
 │   └── API-REFERENCE.html  # Static API reference
 ├── flyway/sql/           # Database migrations (V1-V2)
 ├── tests/                # Smoke tests (Playwright)
 ├── .github/workflows/    # CI/CD pipeline
 ├── README.md             # This file
-├── CLAUDE.md             # Claude Code guidance
 ├── requirements.txt      # Python dependencies
 ├── runtime.txt          # Python version (3.12)
 └── .env.example         # Environment template
@@ -552,7 +536,7 @@ bandit -r src/backend/
 
 ## 🎮 Future: Re-adding Multi-App Support
 
-If multi-app functionality (apps, games) is needed later, refer to `CLAUDE.md` "Extending the System" section for migration guidance.
+If multi-app functionality (apps, games) is needed later, refer to `docs/DEVELOPER.md` "Extending the System" section for migration guidance.
 
 ---
 

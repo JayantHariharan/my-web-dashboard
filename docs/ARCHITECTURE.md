@@ -27,7 +27,7 @@ PlayNexus is a **full-stack web application** with a FastAPI backend serving a s
 │  │  • Authentication APIs: /api/login, /api/signup   │  │
 │  │  • Health check: /health                          │  │
 │  │  • Rate limiting (category-based)                 │  │
-│  │  • Migration engine (Flyway-style, auto-apply)   │  │
+│  │  • Database migrations via Flyway CLI (GitHub Actions) │  │
 │  └────────────────────────────────────────────────────┘  │
 └───────────────────────┬──────────────────────────────────┘
                         │
@@ -55,7 +55,7 @@ PlayNexus is a **full-stack web application** with a FastAPI backend serving a s
 - **Authentication**: bcrypt with pepper (passlib)
 - **Deployment**: Render.com (PaaS)
 - **CI/CD**: GitHub Actions
-- **Migrations**: Custom Flyway-style SQL migrator
+- **Migrations**: Flyway CLI via GitHub Actions
 
 ### Frontend
 - **Architecture**: Static HTML5 + CSS3 + ES6 JavaScript
@@ -270,7 +270,6 @@ my-web-dashboard/
 │   │   ├── config.py         # Settings
 │   │   ├── log_config.py     # Logging
 │   │   ├── main.py           # Entry point
-│   │   ├── migrator.py       # DB migrations
 │   │   ├── core/             # App factory, middleware
 │   │   ├── shared/           # Database, security, schemas, exceptions
 │   │   ├── auth/             # Auth module
@@ -288,12 +287,13 @@ my-web-dashboard/
 ├── flyway/
 │   └── sql/                  # Migration files (V1..V5)
 ├── docs/
+│   ├── DEVELOPER.md          # Claude Code guidance, dev workflow
 │   ├── ARCHITECTURE.md       # This file
 │   ├── FLYWAY.md            # Migration guide
+│   ├── MIGRATIONS.md        # Migration philosophy
 │   └── API-REFERENCE.html   # API docs (offline)
 ├── tests/
 ├── .github/workflows/
-├── CLAUDE.md                 # Claude Code guidance
 ├── README.md                 # Quick start
 ├── requirements.txt          # Dependencies
 ├── runtime.txt              # Python version

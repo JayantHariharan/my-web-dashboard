@@ -39,9 +39,9 @@ async def startup_event():
     db_type = "PostgreSQL" if settings.database.is_postgres else "SQLite"
     logger.info(f"Database: {db_type}")
 
-    # Database schema migrations are handled via Flyway in CI/CD (GitHub Actions)
-    # Local dev with SQLite: run flyway/sql migrations manually or use migrator script
     logger.info("Configuration: Using environment variables only")
+    logger.info("Note: Database migrations are applied via GitHub Actions (flyway-migrate workflow)")
+    logger.info("Local development: Use SQLite (auto-creates schema) or run Flyway manually")
 
     # Migrate any existing plain-text passwords to bcrypt (only runs if needed)
     try:

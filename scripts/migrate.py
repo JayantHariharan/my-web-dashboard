@@ -61,20 +61,21 @@ def find_migrations():
     return migrations
 
 
-def create_schema_version_table(conn, is_postgres):
+def create_schema_version_table(conn, is_postgres, table_suffix=""):
     """Create schema_version table if it doesn't exist."""
+    table_name = f"schema_version{table_suffix}"
     cursor = conn.cursor()
     if is_postgres:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS schema_version (
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS {table_name} (
                 version INTEGER PRIMARY KEY,
                 script TEXT NOT NULL,
                 installed_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
     else:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS schema_version (
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS {table_name} (
                 version INTEGER PRIMARY KEY,
                 script TEXT NOT NULL,
                 installed_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -83,11 +84,12 @@ def create_schema_version_table(conn, is_postgres):
     conn.commit()
 
 
-def get_applied_migrations(conn, is_postgres):
+def get_applied_migrations(conn, is_postgres, table_suffix=""):
     """Get list of already applied migrations."""
+    table_name = f"schema_version{table_suffix}"
     cursor = conn.cursor()
     try:
-        cursor.execute("SELECT script FROM schema_version")
+        cursor.execute(f"SELECT script FROM {table_name}")
         if is_postgres:
             return {row['script'] for row in cursor.fetchall()}
         else:
@@ -96,7 +98,7 @@ def get_applied_migrations(conn, is_postgres):
         return set()
 
 
-def apply_migration(conn, migration_file, is_postgres, dry_run=False):
+def apply_migration(conn, migration_file, is_postgres, dry_run=False, table_suffix=""):
     """Apply a single migration file."""
     script_name = migration_file.name
 
@@ -110,6 +112,8 @@ def apply_migration(conn, migration_file, is_postgres, dry_run=False):
     else:
         sql = sql.replace("{AUTOINCREMENT}", "INTEGER PRIMARY KEY AUTOINCREMENT")
         sql = sql.replace("{TEXT}", "TEXT")
+    # Replace table suffix placeholder
+    sql = sql.replace("{table_suffix}", table_suffix)
 
     if dry_run:
         print(f"  [DRY RUN] Would apply: {script_name}")
@@ -127,9 +131,10 @@ def apply_migration(conn, migration_file, is_postgres, dry_run=False):
                 if stmt:
                     cursor.execute(stmt)
 
-        # Record migration
+        # Record migration in suffixed schema_version table
+        schema_table = f"schema_version{table_suffix}"
         cursor.execute(
-            "INSERT INTO schema_version (script) VALUES (%s)" if is_postgres else "INSERT INTO schema_version (script) VALUES (?)",
+            f"INSERT INTO {schema_table} (script) VALUES (%s)" if is_postgres else f"INSERT INTO {schema_table} (script) VALUES (?)",
             (script_name,)
         )
         conn.commit()
@@ -171,8 +176,9 @@ def main():
         sys.exit(0)
 
     conn, is_postgres = get_connection()
-    create_schema_version_table(conn, is_postgres)
-    applied = get_applied_migrations(conn, is_postgres)
+    table_suffix = settings.database.table_suffix or ""
+    create_schema_version_table(conn, is_postgres, table_suffix)
+    applied = get_applied_migrations(conn, is_postgres, table_suffix)
 
     print(f"\n📊 Migrations status:")
     print(f"   Total: {len(migrations)}")
@@ -183,11 +189,12 @@ def main():
         if input("⚠️  This will drop schema_version table. Continue? (yes/no): ") != "yes":
             sys.exit(0)
         cursor = conn.cursor()
-        cursor.execute("DROP TABLE IF EXISTS schema_version")
+        schema_table = f"schema_version{table_suffix}"
+        cursor.execute(f"DROP TABLE IF EXISTS {schema_table}")
         conn.commit()
-        create_schema_version_table(conn, is_postgres)
+        create_schema_version_table(conn, is_postgres, table_suffix)
         applied = set()
-        print("✅ schema_version reset")
+        print(f"✅ {schema_table} reset")
 
     if args.dry_run:
         print("\n🧪 DRY RUN - no changes will be made\n")
@@ -205,7 +212,7 @@ def main():
             continue
 
         print(f"  ⏳ Applying: {script_name}")
-        if apply_migration(conn, migration, is_postgres, dry_run=args.dry_run):
+        if apply_migration(conn, migration, is_postgres, dry_run=args.dry_run, table_suffix=table_suffix):
             applied_count += 1
         else:
             failed = True

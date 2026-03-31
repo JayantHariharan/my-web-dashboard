@@ -26,6 +26,9 @@ concurrency:
 jobs:
   migrate:
     runs-on: ubuntu-latest
+    concurrency:
+      group: flyway-${{ inputs.environment }}
+      cancel-in-progress: true
     environment: ${{ inputs.environment }}
     outputs:
       success: ${{ steps.migrate.outputs.success }}
@@ -34,10 +37,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup environment
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install Flyway
         run: |
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client jq
+          wget -q https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/10.17.0/flyway-commandline-10.17.0-linux-x64.tar.gz
+          tar -xzf flyway-commandline-10.17.0-linux-x64.tar.gz
+          sudo mv flyway-10.17.0 /opt/flyway
+          echo "/opt/flyway" >> $GITHUB_PATH
 
       - name: Validate database configuration
         run: |
@@ -58,93 +69,37 @@ jobs:
         run: |
           set -e
 
-          MIGRATIONS_DIR="$GITHUB_WORKSPACE/flyway/sql"
-          echo "📁 Migrations directory: $MIGRATIONS_DIR"
+          echo "🚀 Running Flyway database migrations..."
 
-          if [ ! -d "$MIGRATIONS_DIR" ]; then
-            echo "❌ Migrations directory not found: $MIGRATIONS_DIR"
-            echo "success=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
+          # Build JDBC URL from parts
+          DATABASE_URL="jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}"
 
-          # Count migration files
-          migration_files=($(ls -1 "$MIGRATIONS_DIR"/V*__*.sql 2>/dev/null || true))
-          if [ ${#migration_files[@]} -eq 0 ]; then
-            echo "⚠️  No migration files found in $MIGRATIONS_DIR"
-            echo "✅ Nothing to migrate"
-            echo "success=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "📦 Found ${#migration_files[@]} migration(s)"
-
-          # Create schema_version table if it doesn't exist
-          echo "📋 Ensuring schema_version table exists..."
-          PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -c \
-            "CREATE TABLE IF NOT EXISTS schema_version (
-                version INTEGER PRIMARY KEY,
-                script TEXT NOT NULL,
-                installed_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )" 2>/dev/null || true
-
-          # Get already applied migrations
-          echo "📜 Checking already applied migrations..."
-          applied=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -t -c \
-            "SELECT script FROM schema_version" 2>/dev/null | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || echo "")
-
-          # Sort migrations by filename to apply in order
-          echo "🚀 Applying migrations..."
-          applied_count=0
-          skipped_count=0
-          failed=false
-
-          for migration in $(ls -1 "$MIGRATIONS_DIR"/V*__*.sql | sort); do
-            script_name=$(basename "$migration")
-
-            # Check if already applied
-            if echo "$applied" | grep -qx "$script_name"; then
-              echo "  ✅ Already applied: $script_name"
-              skipped_count=$((skipped_count + 1))
-              continue
-            fi
-
-            echo "  ⏳ Applying: $script_name"
-
-            # Read and process migration file
-            sql=$(cat "$migration")
-
-            # Replace Flyway placeholders for PostgreSQL
-            sql="${sql//\{AUTOINCREMENT\}/SERIAL PRIMARY KEY}"
-            sql="${sql//\{TEXT\}/TEXT}"
-
-            # Apply migration
-            if echo "$sql" | PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" > /dev/null 2>&1; then
-              # Record successful migration
-              PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -c \
-                "INSERT INTO schema_version (script) VALUES ('$script_name')" > /dev/null 2>&1
-              echo "    ✅ Applied successfully"
-              applied_count=$((applied_count + 1))
-            else
-              echo "    ❌ FAILED to apply migration"
-              echo "SQL content:"
-              echo "$sql"
-              failed=true
-              break
-            fi
-          done
-
-          echo ""
-          echo "📊 Migration Summary:"
-          echo "   Total migrations: ${#migration_files[@]}"
-          echo "   Applied: $applied_count"
-          echo "   Skipped (already applied): $skipped_count"
-          echo "   Failed: $([ "$failed" = true ] && echo "YES" || echo "NO")"
-
-          if [ "$failed" = true ]; then
-            echo "❌ Migration failed"
-            echo "success=false" >> $GITHUB_OUTPUT
-            exit 1
+          # Determine table suffix based on environment (matches app logic)
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            TABLE_SUFFIX="_prod"
           else
-            echo "✅ All migrations completed successfully"
+            TABLE_SUFFIX="_test"
+          fi
+
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Table suffix: $TABLE_SUFFIX"
+          echo "Schema history table: schema_version$TABLE_SUFFIX"
+
+          # Display configuration
+          flyway -configFiles=flyway/conf/flyway.conf info || true
+
+          # Run migrations with table suffix placeholder and custom schema history table
+          if flyway -configFiles=flyway/conf/flyway.conf \
+            -url="$DATABASE_URL" \
+            -user="$PGUSER" \
+            -password="$PGPASSWORD" \
+            -placeholder.table_suffix="$TABLE_SUFFIX" \
+            -table="schema_version$TABLE_SUFFIX" \
+            migrate; then
+            echo "✅ Flyway migrations completed successfully"
             echo "success=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Flyway migrations failed"
+            echo "success=false" >> $GITHUB_OUTPUT
+            exit 1
           fi

@@ -238,7 +238,9 @@ class UserRepository(BaseRepository):
     """Repository for user-specific operations."""
 
     def __init__(self):
-        super().__init__("users")
+        from ..config import settings
+        table_name = f"users{settings.database.table_suffix}"
+        super().__init__(table_name)
 
     def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
         """Get user by username."""
@@ -288,7 +290,7 @@ class UserRepository(BaseRepository):
             values.append(login_ip)
 
         values.append(username)
-        sql = f"UPDATE users SET {', '.join(sets)} WHERE username = {placeholder}"
+        sql = f"UPDATE {self.table_name} SET {', '.join(sets)} WHERE username = {placeholder}"
 
         with self.get_cursor() as cursor:
             cursor.execute(sql, tuple(values))
@@ -299,7 +301,7 @@ class UserRepository(BaseRepository):
         is_postgres = self._is_postgres
         placeholder = "%s" if is_postgres else "?"
         sql = (
-            f"UPDATE users SET password = {placeholder} WHERE username = {placeholder}"
+            f"UPDATE {self.table_name} SET password = {placeholder} WHERE username = {placeholder}"
         )
         with self.get_cursor() as cursor:
             cursor.execute(sql, (new_password_hash, username))
@@ -316,9 +318,9 @@ class UserRepository(BaseRepository):
             conn = self._get_connection()
             cursor = conn.cursor()
             placeholder = "%s" if self._is_postgres else "?"
-            query = """
+            query = f"""
                 SELECT id, username, password
-                FROM users
+                FROM {self.table_name}
                 WHERE password NOT LIKE '$2b$%'
                   AND password NOT LIKE '$2a$%'
                   AND password NOT LIKE '$2y$%'
@@ -339,7 +341,7 @@ class UserRepository(BaseRepository):
 
                 new_hash = hash_password(plain_password)
                 update_sql = (
-                    f"UPDATE users SET password = {placeholder} "
+                    f"UPDATE {self.table_name} SET password = {placeholder} "
                     f"WHERE id = {placeholder}"
                 )
                 cursor.execute(update_sql, (new_hash, user_id))
@@ -362,7 +364,9 @@ class UserProfileRepository(BaseRepository):
     """Repository for user profiles."""
 
     def __init__(self):
-        super().__init__("user_profiles")
+        from ..config import settings
+        table_name = f"user_profiles{settings.database.table_suffix}"
+        super().__init__(table_name)
 
     def get_profile_by_user_id(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Get user profile by user_id."""

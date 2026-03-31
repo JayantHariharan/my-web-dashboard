@@ -32,18 +32,6 @@ if (-not $env:RENDER_SERVICE_ID_PROD) {
     Write-Host "✅ RENDER_SERVICE_ID_PROD is set: $env:RENDER_SERVICE_ID_PROD" -ForegroundColor Green
 }
 
-if (-not $env:RENDER_ENV_GROUP_ID_TEST) {
-    Write-Host "⚠️  RENDER_ENV_GROUP_ID_TEST is not set (optional for staging)" -ForegroundColor Yellow
-} else {
-    Write-Host "✅ RENDER_ENV_GROUP_ID_TEST is set: $env:RENDER_ENV_GROUP_ID_TEST" -ForegroundColor Green
-}
-
-if (-not $env:RENDER_ENV_GROUP_ID_PROD) {
-    Write-Host "⚠️  RENDER_ENV_GROUP_ID_PROD is not set (optional for production)" -ForegroundColor Yellow
-} else {
-    Write-Host "✅ RENDER_ENV_GROUP_ID_PROD is set: $env:RENDER_ENV_GROUP_ID_PROD" -ForegroundColor Green
-}
-
 if ($missing -gt 0) {
     Write-Host ""
     Write-Host "❌ Missing $missing required environment variable(s)" -ForegroundColor Red

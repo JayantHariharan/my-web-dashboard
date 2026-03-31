@@ -1,0 +1,46 @@
+#!/bin/bash
+set -e
+
+echo "🚀 Running pre-push quality & security checks..."
+
+# Determine which branch is being pushed
+LOCAL_REF=$1
+LOCAL_SHA=$2
+REMOTE_REF=$3
+REMOTE_SHA=$4
+
+# Ensure we're at repository root
+cd "$(git rev-parse --show-toplevel)" 2>/dev/null || exit 1
+
+# Clean up unnecessary files before push
+echo ""
+echo "🧹 Cleaning up unnecessary files..."
+bash ./scripts/cleanup-unnecessary.sh
+
+# Only run full quality checks on main/develop branches (skip feature branches for speed)
+BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+if [[ ! "$BRANCH_NAME" =~ ^(main|develop|master)$ ]]; then
+    echo "⏭  Skipping pre-push on feature branch '$BRANCH_NAME'"
+    echo "   (Only main/develop branches run full security checks)"
+    echo "   For local testing, run: ./scripts/run-quality-checks.sh"
+    exit 0
+fi
+
+echo "📦 Branch: $BRANCH_NAME"
+echo ""
+
+# Run comprehensive quality checks
+if bash ./scripts/run-quality-checks.sh; then
+    echo ""
+    echo "✅ Pre-push checks passed!"
+    echo "   Your code is secure and meets quality standards."
+    exit 0
+else
+    echo ""
+    echo "❌ Pre-push checks failed!"
+    echo "   Fix the errors above before pushing."
+    echo ""
+    echo "💡 You can skip with 'git push --no-verify' but DON'T unless you have a good reason."
+    echo "   Skipping checks risks pushing vulnerable or broken code."
+    exit 1
+fi

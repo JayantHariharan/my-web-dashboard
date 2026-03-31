@@ -32,18 +32,6 @@ else
     echo "✅ RENDER_SERVICE_ID_PROD is set: $RENDER_SERVICE_ID_PROD"
 fi
 
-if [ -z "$RENDER_ENV_GROUP_ID_TEST" ]; then
-    echo "⚠️  RENDER_ENV_GROUP_ID_TEST is not set (optional for staging)"
-else
-    echo "✅ RENDER_ENV_GROUP_ID_TEST is set: $RENDER_ENV_GROUP_ID_TEST"
-fi
-
-if [ -z "$RENDER_ENV_GROUP_ID_PROD" ]; then
-    echo "⚠️  RENDER_ENV_GROUP_ID_PROD is not set (optional for production)"
-else
-    echo "✅ RENDER_ENV_GROUP_ID_PROD is set: $RENDER_ENV_GROUP_ID_PROD"
-fi
-
 if [ $missing -gt 0 ]; then
     echo ""
     echo "❌ Missing $missing required environment variable(s)"

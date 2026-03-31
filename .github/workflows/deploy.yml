@@ -10,8 +10,131 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  precheck:
+  quality:
     runs-on: ubuntu-latest
+    concurrency:
+      group: quality-${{ github.ref }}
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          pip install flake8 mypy black bandit anthropic openai
+
+      - name: Python syntax check
+        run: python -m py_compile src/backend/main.py
+
+      - name: Lint with flake8 (critical errors)
+        run: |
+          flake8 src/backend/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          echo "flake8_critical_count=$?" >> $GITHUB_OUTPUT
+
+      - name: Type check with mypy
+        run: |
+          mypy src/backend/main.py --ignore-missing-imports
+
+      - name: Format check with black
+        run: |
+          black --check src/backend/
+
+      - name: Security scan with bandit
+        run: |
+          bandit -r src/backend/ -f json -o bandit-report.json || true
+          echo "bandit_report=$PWD/bandit-report.json" >> $GITHUB_OUTPUT
+
+      - name: Claude Security Analysis (OpenRouter Free Tier)
+        if: secrets.OPENROUTER_API_KEY != ''
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct' }}
+        run: |
+          echo "Running AI-powered security analysis via OpenRouter..."
+          python .github/scripts/claude_security_scan.py
+          if [ -f "claude-security-report.json" ]; then
+            echo "claude_report=$PWD/claude-security-report.json" >> $GITHUB_OUTPUT
+            echo "report_generated=true" >> $GITHUB_OUTPUT
+          else
+            echo "report_generated=false" >> $GITHUB_OUTPUT
+          fi
+        id: claude-analysis
+
+      - name: Upload security reports
+        if: always()
+        run: |
+          mkdir -p reports
+          if [ -f "bandit-report.json" ]; then cp bandit-report.json reports/; fi
+          if [ -f "claude-security-report.json" ]; then cp claude-security-report.json reports/; fi
+
+      - name: Upload reports artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: reports/
+          retention-days: 7
+
+      - name: Check for blocking issues
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, sys
+          fail = 0
+
+          # Check bandit for high/critical
+          try:
+              with open('bandit-report.json') as f:
+                  bandit = json.load(f)
+              high_critical = [i for i in bandit if i.get('issue_severity') in ('High', 'Critical')]
+              if len(high_critical) > 0:
+                  print(f"❌ Found {len(high_critical)} High/Critical issues in bandit scan")
+                  fail = 1
+          except FileNotFoundError:
+              pass
+          except Exception as e:
+              print(f"⚠️  Error reading bandit report: {e}")
+
+          # Check Claude for critical/high (only if report was generated)
+          import os
+          report_generated = os.getenv('CLAUDE_REPORT_GENERATED', 'false') == 'true'
+          if report_generated:
+              try:
+                  with open('claude-security-report.json') as f:
+                      claude = json.load(f)
+                  by_sev = claude.get('summary', {}).get('by_severity', {})
+                  critical = by_sev.get('Critical', 0)
+                  high = by_sev.get('High', 0)
+                  if critical > 0 or high > 0:
+                      print(f"❌ Claude found {critical} Critical and {high} High severity issues")
+                      fail = 1
+              except FileNotFoundError:
+                  print("⚠️  Claude report not found though marked as generated")
+                  fail = 1
+              except Exception as e:
+                  print(f"⚠️  Error reading Claude report: {e}")
+                  fail = 1
+
+          if fail:
+              print("❌ Quality checks failed. See reports for details.")
+              sys.exit(1)
+          else:
+              print("✅ Quality checks passed")
+          PY
+        env:
+          CLAUDE_REPORT_GENERATED: ${{ steps.claude-analysis.outputs.report_generated }}
+
+  precheck:
+    needs: quality
+    runs-on: ubuntu-latest
+    concurrency:
+      group: precheck-${{ github.ref }}
+      cancel-in-progress: true
     outputs:
       environment: ${{ steps.check.outputs.environment }}
     steps:
@@ -80,6 +203,9 @@ jobs:
 
   migrate-database:
     needs: precheck
+    concurrency:
+      group: migrate-${{ needs.precheck.outputs.environment }}
+      cancel-in-progress: true
     uses: ./.github/workflows/flyway-migrate.yml
     with:
       environment: ${{ needs.precheck.outputs.environment }}
@@ -94,13 +220,16 @@ jobs:
     needs: migrate-database
     if: needs.migrate-database.outputs.success == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: deploy-${{ needs.precheck.outputs.environment }}
+      cancel-in-progress: true
     environment: ${{ needs.precheck.outputs.environment }}
     env:
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       RENDER_SERVICE_ID: ${{ needs.precheck.outputs.environment == 'production' && secrets.RENDER_SERVICE_ID_PROD || secrets.RENDER_SERVICE_ID_TEST }}
-      RENDER_ENV_GROUP_ID: ${{ needs.precheck.outputs.environment == 'production' && secrets.RENDER_ENV_GROUP_ID_PROD || secrets.RENDER_ENV_GROUP_ID_TEST }}
       DISPLAY_ENV: ${{ needs.precheck.outputs.environment == 'production' && 'Production' || 'Staging' }}
       APP_ENV: ${{ needs.precheck.outputs.environment == 'production' && 'production' || 'test' }}
+      ENV: ${{ needs.precheck.outputs.environment == 'production' && 'prod' || 'test' }}
 
     steps:
       - name: Checkout code
@@ -126,72 +255,6 @@ jobs:
           echo "✅ Render configuration validated"
           echo "   Environment: $DISPLAY_ENV"
           echo "   Service ID: $RENDER_SERVICE_ID"
-          echo "   RENDER_ENV_GROUP_ID: ${RENDER_ENV_GROUP_ID:-Not set}"
-
-      - name: Associate Environment Group
-        if: success() && env.RENDER_ENV_GROUP_ID != ''
-        env:
-          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
-          RENDER_ENV_GROUP_ID: ${{ env.RENDER_ENV_GROUP_ID }}
-        run: |
-          echo "🔗 Associating service with environment group: $RENDER_ENV_GROUP_ID"
-
-          response=$(curl -s -w "\n%{http_code}" \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services/$RENDER_SERVICE_ID")
-
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
-
-          if [[ ! "$http_code" =~ ^(200|201)$ ]]; then
-            echo "❌ Failed to fetch service info (HTTP $http_code)"
-            echo "$body" | jq . 2>/dev/null || echo "$body"
-            exit 1
-          fi
-
-          current_groups=$(echo "$body" | jq -r '.envVarsIncludeFromGroup // []')
-          if echo "$current_groups" | grep -q "$RENDER_ENV_GROUP_ID"; then
-            echo "✅ Service already associated with environment group"
-          else
-            echo "📋 Current groups: $current_groups"
-            echo "🎯 Adding group: $RENDER_ENV_GROUP_ID"
-
-            patch_response=$(curl -s -w "\n%{http_code}" -X PATCH \
-              -H "Authorization: Bearer $RENDER_API_KEY" \
-              -H "Content-Type: application/json" \
-              -d "{\"envVarsIncludeFromGroup\":[\"$RENDER_ENV_GROUP_ID\"]}" \
-              "https://api.render.com/v1/services/$RENDER_SERVICE_ID")
-
-            patch_code=$(echo "$patch_response" | tail -n1)
-            patch_body=$(echo "$patch_response" | sed '$d')
-
-            if [[ ! "$patch_code" =~ ^(200|201|204)$ ]]; then
-              echo "❌ Association failed (HTTP $patch_code)"
-              echo "$patch_body" | jq . 2>/dev/null || echo "$patch_body"
-              exit 1
-            fi
-
-            echo "✅ Environment group associated successfully"
-            echo "⏳ Waiting 10 seconds for configuration to propagate..."
-            sleep 10
-
-            echo ""
-            echo "🔍 Verifying SECRET_KEY exists in environment group..."
-            group_response=$(curl -s \
-              -H "Authorization: Bearer $RENDER_API_KEY" \
-              "https://api.render.com/v1/env-groups/$RENDER_ENV_GROUP_ID")
-
-            group_secret=$(echo "$group_response" | jq -r '.envVars[] | select(.key=="SECRET_KEY") | .value' 2>/dev/null)
-
-            if [ -z "$group_secret" ] || [ "$group_secret" = "null" ]; then
-              echo "⚠️  WARNING: SECRET_KEY not found in environment group!"
-              echo "   Please add SECRET_KEY to Render Environment Group:"
-              echo "   Render → Environment Groups → $RENDER_ENV_GROUP_ID → Environment Variables"
-            else
-              echo "✅ SECRET_KEY is present in environment group (value masked)"
-            fi
-          fi
 
       - name: Trigger Render deployment
         id: trigger

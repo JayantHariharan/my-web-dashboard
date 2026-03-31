@@ -1,27 +1,38 @@
 # Database Migrations (Flyway Style)
 
-This project uses Flyway-style versioned SQL migrations for database schema management.
+This project uses Flyway-style versioned SQL migrations for database schema management. Migrations are applied via **GitHub Actions** using the official Flyway CLI, not at application startup.
 
 ---
 
 ## How It Works
 
 1. **Migration files** are numbered `.sql` files in `flyway/sql/`
-2. **On application startup**, `src/backend/migrator.py`:
-   - Creates `schema_version` table if it doesn't exist
+2. **On deploy**, GitHub Actions workflow `flyway-migrate.yml` runs:
+   - Installs Flyway CLI
+   - Connects to the database using secrets
    - Scans `flyway/sql/` for files named `V<number>__<description>.sql`
    - Applies any migrations not yet recorded in `schema_version`
-   - Records each applied migration (by filename) in `schema_version`
-3. Migrations run in order; if one fails, the transaction rolls back and application startup fails (in production) or logs error (in development)
+   - Records each applied migration in Flyway's `schema_version` table
+3. Migrations run in order; if one fails, the deployment fails and the error is reported
+
+**Configuration**: `flyway/conf/flyway.conf` contains Flyway settings (locations, table name, placeholders, validation).
 
 ---
+
+## Development Workflow
 
 ## Current Migrations
 
 | Version | Description | File |
 |---------|-------------|------|
-| V1 | Create `users` table with audit fields | `flyway/sql/V1__create_users.sql` |
-| V2 | Add username index & create `user_profiles` table | `flyway/sql/V2__add_username_index.sql`, `flyway/sql/V2__user_profiles.sql` |
+| V1 | Complete schema: users, user_profiles, all indexes | `flyway/sql/V1__create_users.sql` |
+
+**Environment-based table suffixing**: Tables are created with a suffix based on the `ENV` variable:
+- `ENV=prod` or `production` → tables: `users_prod`, `user_profiles_prod`, `schema_version_prod`
+- `ENV=test` or `staging` → tables: `users_test`, `user_profiles_test`, `schema_version_test`
+- No `ENV` (local dev) → tables: `users`, `user_profiles`, `schema_version` (no suffix)
+
+The suffix is dynamically applied via the `{table_suffix}` placeholder in migrations and `TABLE_SUFFIX` config in the app.
 
 **Note:** The original multi-app migrations (V3-V6) that created `app_registry`, `user_app_activity`, `game_scores`, and `app_config` were removed in v7.0. Those tables are now obsolete but **not automatically dropped** to preserve any existing data. If you have those tables and want to remove them, manually execute:
 
@@ -40,25 +51,32 @@ DROP TABLE IF EXISTS app_config CASCADE;
 
 ### Step 1: Create SQL File
 
-Create a new file in `flyway/sql/` with the next version number:
+Create a new file in `flyway/sql/` with the next version number (e.g., V2, since we have V1 only):
 
 ```
 V2__create_games.sql
 ```
 
+**Note**: Our initial schema is all in V1. Add new versions incrementally.
+
 ### Step 2: Write Migration SQL
 
-Supported placeholders (automatically replaced by `migrator.py` based on database type):
+### Supported Placeholders
 
-| Placeholder | PostgreSQL | SQLite |
-|-------------|------------|--------|
-| `{AUTOINCREMENT}` | `SERIAL PRIMARY KEY` | `INTEGER PRIMARY KEY AUTOINCREMENT` |
-| `{TEXT}` | `TEXT` | `TEXT` |
+Flyway replaces these placeholders automatically:
+
+| Placeholder | PostgreSQL | SQLite | Purpose |
+|-------------|------------|--------|---------|
+| `{AUTOINCREMENT}` | `SERIAL PRIMARY KEY` | `INTEGER PRIMARY KEY AUTOINCREMENT` | Auto-incrementing PK |
+| `{TEXT}` | `TEXT` | `TEXT` | Text columns (works in both) |
+| `{table_suffix}` | `_prod` or `_test` | `_prod` or `_test` | Environment-based table suffix (set via `ENV` variable) |
+
+**Note**: Flyway uses `{placeholder}` syntax configured in `flyway/conf/flyway.conf` with `flyway.placeholderPrefix={` and `flyway.placeholderSuffix=}`.
 
 Example:
 
 ```sql
--- V2: Create games table
+-- V3: Create games table
 -- Placeholder {AUTOINCREMENT} expands to SERIAL (PostgreSQL) or INTEGER AUTOINCREMENT (SQLite)
 
 CREATE TABLE IF NOT EXISTS games (
@@ -79,20 +97,22 @@ CREATE TABLE IF NOT EXISTS games (
 ### Step 3: Commit and Push
 
 ```bash
-git add flyway/sql/V2__create_games.sql
-git commit -m "Add V2: create games table"
+git add flyway/sql/V3__create_games.sql
+git commit -m "feat(db): add games table (V3)"
 git push origin main
 ```
 
 ### Step 4: Automatic Deployment
 
-GitHub Actions deploys to Render → app starts → migration is applied automatically.
+GitHub Actions runs the `flyway-migrate` workflow → Flyway applies the migration → deployment proceeds.
 
-**Check Render logs** to confirm:
+**Check GitHub Actions logs** to confirm:
 ```
-migrator - INFO - Applying migration V2: V2__create_games.sql
-migrator - INFO - Migration V2 applied successfully
+🚀 Running Flyway database migrations...
+✅ Flyway migrations completed successfully
 ```
+
+---
 
 ---
 
@@ -109,7 +129,7 @@ Example output:
 | id | version | script | installed_on |
 |----|---------|--------|--------------|
 | 1 | V1__create_users.sql | 2025-03-29 21:00:01 |
-| 2 | V2__user_profiles.sql | 2025-03-29 21:05:23 |
+| 2 | V2__create_user_profiles.sql | 2025-03-29 21:05:23 |
 
 ---
 
@@ -119,10 +139,10 @@ Migrations are **forward-only**. To undo a change:
 
 1. Create a **new migration** that reverses it:
    ```sql
-   -- V3: Drop games table (undo V2)
+   -- V4: Drop games table (undo V3)
    DROP TABLE IF EXISTS games;
    ```
-2. Deploy → V3 applies → table removed
+2. Deploy → V4 applies → table removed
 
 Or manually revert via database console if needed (not recommended for production).
 
@@ -183,39 +203,44 @@ Examples:
 4. Restart app → migration will retry
 5. Push fix → redeploy if in production
 
-### Placeholders Not Replaced
+### Migrations Failed
 
-Check `src/backend/migrator.py` has substitution logic for both PostgreSQL and SQLite.
+**Symptom**: GitHub Actions workflow fails during the "Run Flyway migrations" step.
+
+**Fix**:
+1. Check logs for the exact SQL error
+2. Fix the SQL syntax in the migration file
+3. If migration partially applied, manually clean up:
+   - Connect to DB
+   - Rollback manually or delete from `schema_version` and drop objects
+4. Push fix → redeploy
 
 ### Migrations Not Running
 
-- Ensure `src/backend/migrator.py` exists and is imported by `main.py`
-- Verify `apply_migrations()` is called in `@app.on_event("startup")` in `main.py`
-- Check that `flyway/sql/` directory exists at project root (not inside `src/`)
-- Look for log line: `Found X migration(s) to apply`
+- Verify `flyway-migrate.yml` workflow exists and is triggered
+- Check that `flyway/sql/` directory exists at project root
+- Ensure database secrets (`PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`) are set in GitHub repository secrets
+- Look for log line: `📦 Found X migration(s)`
 
 ---
 
 ## Advanced: Custom Placeholders
 
-The migrator automatically replaces these placeholders:
+Flyway replaces placeholders defined in `flyway/conf/flyway.conf`.
 
-- `{AUTOINCREMENT}` → `SERIAL PRIMARY KEY` (PostgreSQL) / `INTEGER PRIMARY KEY AUTOINCREMENT` (SQLite)
+Default placeholders:
+- `{AUTOINCREMENT}` → `SERIAL PRIMARY KEY` (PostgreSQL)
 - `{TEXT}` → `TEXT` (both databases)
 
-If you need additional placeholders, edit `src/backend/migrator.py` in the `apply_migrations()` function where replacements are made:
+To add custom placeholders:
 
-```python
-# Replace placeholders based on database type
-if settings.database.is_postgres:
-    sql = sql.replace('{AUTOINCREMENT}', 'SERIAL PRIMARY KEY')
-    sql = sql.replace('{TEXT}', 'TEXT')
-else:
-    sql = sql.replace('{AUTOINCREMENT}', 'INTEGER PRIMARY KEY AUTOINCREMENT')
-    sql = sql.replace('{TEXT}', 'TEXT')
-```
+1. Edit `flyway/conf/flyway.conf`:
+   ```properties
+   flyway.placeholders.YOUR_PLACEHOLDER=replacement_value
+   ```
+2. Use in migration: `column_name {YOUR_PLACEHOLDER}`
 
-Then use your custom placeholder in migration SQL: `column_name {YOUR_PLACEHOLDER}`
+For database-specific replacements (e.g., different for PostgreSQL vs SQLite), maintain separate config files per environment or use Flyway callbacks for dynamic resolution.
 
 ---
 

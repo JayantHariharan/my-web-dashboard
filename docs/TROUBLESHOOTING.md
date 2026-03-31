@@ -71,24 +71,7 @@ Should return service details, not "Not found" or "Unauthorized".
 
 ---
 
-### 4. Environment Group Misconfiguration 🟡
-**Symptom:** "Environment group not found" or association step fails.
-
-**Cause:** Environment group ID is optional, but if provided it must be correct.
-
-**Check:**
-- If you set `RENDER_ENV_GROUP_ID_TEST/PROD`, verify they exist
-- From Render: Environment Groups → Copy ID (format: `evm-xxx`)
-
-**Fix:**
-- Either provide correct env group ID
-- Or remove these secrets if not using Environment Groups
-
-The workflow will skip association if the secret is empty.
-
----
-
-### 5. Service is Suspended 🟡
+### 4. Service is Suspended 🟡
 **Symptom:** Verification succeeds (HTTP 200) but no deployment happens.
 
 **Check:** Service state from verification response:
@@ -165,7 +148,6 @@ Check these secrets exist:
 - ✅ `RENDER_API_KEY`
 - ✅ `RENDER_SERVICE_ID_TEST`
 - ✅ `RENDER_SERVICE_ID_PROD`
-- Optional: `RENDER_ENV_GROUP_ID_TEST`, `RENDER_ENV_GROUP_ID_PROD`
 
 **Test if they're correctly passed:**
 The workflow logs will show truncated values. If they show as empty or masked incorrectly, that's the issue.
