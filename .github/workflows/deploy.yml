@@ -37,26 +37,35 @@ jobs:
           echo "   Service ID secret: $SERVICE_ID_SECRET"
 
       - name: Validate mandatory secrets
+        env:
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPORT: ${{ secrets.PGPORT }}
+          PGUSER: ${{ secrets.PGUSER }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          PGDATABASE: ${{ secrets.PGDATABASE }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID_PROD: ${{ secrets.RENDER_SERVICE_ID_PROD }}
+          RENDER_SERVICE_ID_TEST: ${{ secrets.RENDER_SERVICE_ID_TEST }}
         run: |
           echo "🔍 Validating mandatory secrets..."
 
           # Check PostgreSQL secrets
           missing=()
-          if [ -z "${{ secrets.PGHOST }}" ]; then missing+=("PGHOST"); fi
-          if [ -z "${{ secrets.PGPORT }}" ]; then missing+=("PGPORT"); fi
-          if [ -z "${{ secrets.PGUSER }}" ]; then missing+=("PGUSER"); fi
-          if [ -z "${{ secrets.PGPASSWORD }}" ]; then missing+=("PGPASSWORD"); fi
-          if [ -z "${{ secrets.PGDATABASE }}" ]; then missing+=("PGDATABASE"); fi
+          if [ -z "$PGHOST" ]; then missing+=("PGHOST"); fi
+          if [ -z "$PGPORT" ]; then missing+=("PGPORT"); fi
+          if [ -z "$PGUSER" ]; then missing+=("PGUSER"); fi
+          if [ -z "$PGPASSWORD" ]; then missing+=("PGPASSWORD"); fi
+          if [ -z "$PGDATABASE" ]; then missing+=("PGDATABASE"); fi
 
           # Check Render secrets
-          if [ -z "${{ secrets.RENDER_API_KEY }}" ]; then missing+=("RENDER_API_KEY"); fi
+          if [ -z "$RENDER_API_KEY" ]; then missing+=("RENDER_API_KEY"); fi
 
           # Check service ID based on environment from previous step
           ENV="${{ steps.check.outputs.environment }}"
           if [ "$ENV" = "production" ]; then
-            if [ -z "${{ secrets.RENDER_SERVICE_ID_PROD }}" ]; then missing+=("RENDER_SERVICE_ID_PROD"); fi
+            if [ -z "$RENDER_SERVICE_ID_PROD" ]; then missing+=("RENDER_SERVICE_ID_PROD"); fi
           else
-            if [ -z "${{ secrets.RENDER_SERVICE_ID_TEST }}" ]; then missing+=("RENDER_SERVICE_ID_TEST"); fi
+            if [ -z "$RENDER_SERVICE_ID_TEST" ]; then missing+=("RENDER_SERVICE_ID_TEST"); fi
           fi
 
           if [ ${#missing[@]} -gt 0 ]; then
