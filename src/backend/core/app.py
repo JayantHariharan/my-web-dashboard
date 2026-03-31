@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.status import (
-    HTTP_422_UNPROCESSABLE_CONTENT,
+    HTTP_422_UNPROCESSABLE_ENTITY,
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
 
@@ -155,7 +155,7 @@ Future: JWT tokens for persistent sessions.
     ):
         logger.warning(f"Validation error: {exc.errors()}")
         return JSONResponse(
-            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             content={"detail": exc.errors()},
         )
 
