@@ -50,7 +50,6 @@ jobs:
           echo "bandit_report=$PWD/bandit-report.json" >> $GITHUB_OUTPUT
 
       - name: Claude Security Analysis (OpenRouter Free Tier)
-        if: secrets.OPENROUTER_API_KEY != ''
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct' }}

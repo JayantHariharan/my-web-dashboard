@@ -239,6 +239,7 @@ class UserRepository(BaseRepository):
 
     def __init__(self):
         from ..config import settings
+
         table_name = f"users{settings.database.table_suffix}"
         super().__init__(table_name)
 
@@ -300,9 +301,7 @@ class UserRepository(BaseRepository):
         """Update user password."""
         is_postgres = self._is_postgres
         placeholder = "%s" if is_postgres else "?"
-        sql = (
-            f"UPDATE {self.table_name} SET password = {placeholder} WHERE username = {placeholder}"
-        )
+        sql = f"UPDATE {self.table_name} SET password = {placeholder} WHERE username = {placeholder}"
         with self.get_cursor() as cursor:
             cursor.execute(sql, (new_password_hash, username))
             return cursor.rowcount > 0
@@ -365,6 +364,7 @@ class UserProfileRepository(BaseRepository):
 
     def __init__(self):
         from ..config import settings
+
         table_name = f"user_profiles{settings.database.table_suffix}"
         super().__init__(table_name)
 
