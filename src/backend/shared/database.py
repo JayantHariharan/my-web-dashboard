@@ -402,8 +402,3 @@ class UserProfileRepository(BaseRepository):
 # Global repository instances (auth-related only)
 user_repo = UserRepository()
 user_profile_repo = UserProfileRepository()
-
-
-def init_database():
-    """Legacy function. Use migrator.apply_migrations() instead."""
-    logger.warning("init_database() is deprecated. Use migrator.apply_migrations().")

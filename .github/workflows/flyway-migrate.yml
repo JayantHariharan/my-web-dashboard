@@ -1,0 +1,146 @@
+name: Flyway Database Migrations
+
+on:
+  # This workflow is called by other workflows (deploy.yml)
+  workflow_call:
+    inputs:
+      environment:
+        required: true
+        type: string
+    secrets:
+      PGHOST:
+        required: true
+      PGPORT:
+        required: true
+      PGUSER:
+        required: true
+      PGPASSWORD:
+        required: true
+      PGDATABASE:
+        required: true
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    outputs:
+      success: ${{ steps.migrate.outputs.success }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client jq
+
+      - name: Validate database configuration
+        run: |
+          if [ -z "$PGHOST" ] || [ -z "$PGPORT" ] || [ -z "$PGUSER" ] || [ -z "$PGPASSWORD" ] || [ -z "$PGDATABASE" ]; then
+            echo "❌ ERROR: PostgreSQL environment variables not set"
+            echo "Required secrets: PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE"
+            exit 1
+          fi
+          echo "✅ Database configuration validated"
+          echo "   Host: $PGHOST"
+          echo "   Port: $PGPORT"
+          echo "   Database: $PGDATABASE"
+          echo "   User: $PGUSER"
+          echo "   Environment: ${{ inputs.environment }}"
+
+      - name: Run Flyway migrations
+        id: migrate
+        run: |
+          set -e
+
+          MIGRATIONS_DIR="$GITHUB_WORKSPACE/flyway/sql"
+          echo "📁 Migrations directory: $MIGRATIONS_DIR"
+
+          if [ ! -d "$MIGRATIONS_DIR" ]; then
+            echo "❌ Migrations directory not found: $MIGRATIONS_DIR"
+            echo "success=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # Count migration files
+          migration_files=($(ls -1 "$MIGRATIONS_DIR"/V*__*.sql 2>/dev/null || true))
+          if [ ${#migration_files[@]} -eq 0 ]; then
+            echo "⚠️  No migration files found in $MIGRATIONS_DIR"
+            echo "✅ Nothing to migrate"
+            echo "success=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "📦 Found ${#migration_files[@]} migration(s)"
+
+          # Create schema_version table if it doesn't exist
+          echo "📋 Ensuring schema_version table exists..."
+          PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -c \
+            "CREATE TABLE IF NOT EXISTS schema_version (
+                version INTEGER PRIMARY KEY,
+                script TEXT NOT NULL,
+                installed_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )" 2>/dev/null || true
+
+          # Get already applied migrations
+          echo "📜 Checking already applied migrations..."
+          applied=$(PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -t -c \
+            "SELECT script FROM schema_version" 2>/dev/null | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' || echo "")
+
+          # Sort migrations by filename to apply in order
+          echo "🚀 Applying migrations..."
+          applied_count=0
+          skipped_count=0
+          failed=false
+
+          for migration in $(ls -1 "$MIGRATIONS_DIR"/V*__*.sql | sort); do
+            script_name=$(basename "$migration")
+
+            # Check if already applied
+            if echo "$applied" | grep -qx "$script_name"; then
+              echo "  ✅ Already applied: $script_name"
+              skipped_count=$((skipped_count + 1))
+              continue
+            fi
+
+            echo "  ⏳ Applying: $script_name"
+
+            # Read and process migration file
+            sql=$(cat "$migration")
+
+            # Replace Flyway placeholders for PostgreSQL
+            sql="${sql//\{AUTOINCREMENT\}/SERIAL PRIMARY KEY}"
+            sql="${sql//\{TEXT\}/TEXT}"
+
+            # Apply migration
+            if echo "$sql" | PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" > /dev/null 2>&1; then
+              # Record successful migration
+              PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -c \
+                "INSERT INTO schema_version (script) VALUES ('$script_name')" > /dev/null 2>&1
+              echo "    ✅ Applied successfully"
+              applied_count=$((applied_count + 1))
+            else
+              echo "    ❌ FAILED to apply migration"
+              echo "SQL content:"
+              echo "$sql"
+              failed=true
+              break
+            fi
+          done
+
+          echo ""
+          echo "📊 Migration Summary:"
+          echo "   Total migrations: ${#migration_files[@]}"
+          echo "   Applied: $applied_count"
+          echo "   Skipped (already applied): $skipped_count"
+          echo "   Failed: $([ "$failed" = true ] && echo "YES" || echo "NO")"
+
+          if [ "$failed" = true ]; then
+            echo "❌ Migration failed"
+            echo "success=false" >> $GITHUB_OUTPUT
+            exit 1
+          else
+            echo "✅ All migrations completed successfully"
+            echo "success=true" >> $GITHUB_OUTPUT
+          fi

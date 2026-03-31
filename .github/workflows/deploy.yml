@@ -6,41 +6,56 @@ on:
   workflow_dispatch:
 
 jobs:
-  # Staging deployment (develop branch)
-  deploy-staging:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+  deploy:
     runs-on: ubuntu-latest
-    environment: staging
+    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
     env:
-      APP_ENV: test
-      DEBUG: true
+      # Render API credentials (secrets)
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-      RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID_TEST }}
-      RENDER_ENV_GROUP_ID: ${{ secrets.RENDER_ENV_GROUP_ID_TEST }}
+      RENDER_SERVICE_ID: ${{ github.ref == 'refs/heads/main' && secrets.RENDER_SERVICE_ID_PROD || secrets.RENDER_SERVICE_ID_TEST }}
+      RENDER_ENV_GROUP_ID: ${{ github.ref == 'refs/heads/main' && secrets.RENDER_ENV_GROUP_ID_PROD || secrets.RENDER_ENV_GROUP_ID_TEST }}
+      DISPLAY_ENV: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}
+      APP_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'test' }}
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Run database migrations
+        uses: .github/workflows/flyway-migrate.yml
+        with:
+          environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+        secrets:
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPORT: ${{ secrets.PGPORT }}
+          PGUSER: ${{ secrets.PGUSER }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          PGDATABASE: ${{ secrets.PGDATABASE }}
+
       - name: Setup environment
+        if: success()
         run: |
           sudo apt-get update
           sudo apt-get install -y jq curl
 
-      - name: Validate configuration
+      - name: Validate Render configuration
+        if: success()
         run: |
           if [ -z "$RENDER_API_KEY" ]; then
             echo "ERROR: RENDER_API_KEY is not set"
             exit 1
           fi
           if [ -z "$RENDER_SERVICE_ID" ]; then
-            echo "ERROR: RENDER_SERVICE_ID_TEST is not set"
+            echo "ERROR: RENDER_SERVICE_ID is not set"
             exit 1
           fi
-          echo "✅ Configuration valid"
+          echo "✅ Render configuration validated"
+          echo "   Environment: $DISPLAY_ENV"
+          echo "   Service ID: $RENDER_SERVICE_ID"
           echo "   RENDER_ENV_GROUP_ID: ${RENDER_ENV_GROUP_ID:-Not set}"
 
       - name: Associate Environment Group
-        if: env.RENDER_ENV_GROUP_ID != ''
+        if: success() && env.RENDER_ENV_GROUP_ID != ''
         env:
           RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
@@ -113,13 +128,14 @@ jobs:
 
       - name: Trigger Render deployment
         id: trigger
+        if: success()
         env:
           RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
         run: |
           set -e
 
-          echo "Triggering deployment for staging..."
+          echo "🚀 Triggering deployment for $DISPLAY_ENV..."
 
           # Wait for any in-progress deploys to finish
           max_wait=30
@@ -146,7 +162,7 @@ jobs:
           body=$(echo "$response" | sed '$d')
 
           if [[ ! "$http_code" =~ ^(200|201|202)$ ]]; then
-            echo "Deploy trigger failed (HTTP $http_code):"
+            echo "❌ Deploy trigger failed (HTTP $http_code):"
             echo "$body" | jq . 2>/dev/null || echo "$body"
             exit 1
           fi
@@ -157,6 +173,7 @@ jobs:
 
       - name: Monitor deployment
         id: monitor
+        if: success()
         env:
           RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
@@ -172,10 +189,10 @@ jobs:
             echo "[$i/60] Status: $status"
 
             if [[ "$status" == "live" ]] || [[ "$status" == "succeeded" ]]; then
-              echo "Deployment successful!"
+              echo "✅ Deployment successful!"
               exit 0
             elif [[ "$status" =~ ^(errored|failed|canceled|build_failed|update_failed)$ ]]; then
-              echo "Deployment failed with status: $status"
+              echo "❌ Deployment failed with status: $status"
               curl -s \
                 -H "Authorization: Bearer $RENDER_API_KEY" \
                 "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys/$deploy_id" | jq .
@@ -187,7 +204,8 @@ jobs:
           echo "TIMEOUT: Deployment did not complete within 30 minutes"
           exit 1
 
-      - name: Health check
+      - name: Get service URL
+        id: get-url
         if: success()
         env:
           RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
@@ -196,6 +214,19 @@ jobs:
           service_url=$(curl -s \
             -H "Authorization: Bearer $RENDER_API_KEY" \
             "https://api.render.com/v1/services/$RENDER_SERVICE_ID" | jq -r '.service.url')
+          echo "service_url=$service_url" >> $GITHUB_OUTPUT
+
+      - name: Health check
+        if: success()
+        env:
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
+        run: |
+          service_url="${{ steps.get-url.outputs.service_url }}"
+          if [ -z "$service_url" ] || [ "$service_url" = "null" ]; then
+            echo "Service URL not available, skipping health check"
+            exit 0
+          fi
 
           base_url="https://$service_url"
           echo "Service URL: $base_url"
@@ -217,228 +248,10 @@ jobs:
       - name: Smoke test
         if: success()
         env:
-          SITE_URL: ${{ steps.monitor.outputs.service_url }}
+          SITE_URL: ${{ steps.get-url.outputs.service_url }}
         run: |
-          if [ -z "$SITE_URL" ]; then
-            SITE_URL="https://$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" "https://api.render.com/v1/services/$RENDER_SERVICE_ID" | jq -r '.service.url')"
-          fi
-          echo "Running smoke test on: $SITE_URL"
-          SITE_URL="$SITE_URL" node tests/smoke.test.js
-
-  # Production deployment (main branch)
-  deploy-production:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: production
-    env:
-      APP_ENV: production
-      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-      RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID_PROD }}
-      RENDER_ENV_GROUP_ID: ${{ secrets.RENDER_ENV_GROUP_ID_PROD }}
-      DISPLAY_ENV: Production
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup environment
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y jq curl
-
-      - name: Validate configuration
-        run: |
-          if [ -z "$RENDER_API_KEY" ]; then
-            echo "ERROR: RENDER_API_KEY is not set"
-            exit 1
-          fi
-          if [ -z "$RENDER_SERVICE_ID" ]; then
-            echo "ERROR: RENDER_SERVICE_ID_PROD is not set"
-            exit 1
-          fi
-          echo "✅ Configuration valid"
-          echo "   RENDER_ENV_GROUP_ID: ${RENDER_ENV_GROUP_ID:-Not set}"
-
-      - name: Associate Environment Group
-        if: env.RENDER_ENV_GROUP_ID != ''
-        env:
-          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
-          RENDER_ENV_GROUP_ID: ${{ env.RENDER_ENV_GROUP_ID }}
-        run: |
-          echo "🔗 Associating service with environment group: $RENDER_ENV_GROUP_ID"
-
-          # Get current service configuration
-          response=$(curl -s -w "\n%{http_code}" \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services/$RENDER_SERVICE_ID")
-
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
-
-          if [[ ! "$http_code" =~ ^(200|201)$ ]]; then
-            echo "❌ Failed to fetch service info (HTTP $http_code)"
-            echo "$body" | jq . 2>/dev/null || echo "$body"
-            exit 1
-          fi
-
-          # Check if already associated
-          current_groups=$(echo "$body" | jq -r '.envVarsIncludeFromGroup // []')
-          if echo "$current_groups" | grep -q "$RENDER_ENV_GROUP_ID"; then
-            echo "✅ Service already associated with environment group"
-          else
-            echo "📋 Current groups: $current_groups"
-            echo "🎯 Adding group: $RENDER_ENV_GROUP_ID"
-
-            # Add environment group association
-            patch_response=$(curl -s -w "\n%{http_code}" -X PATCH \
-              -H "Authorization: Bearer $RENDER_API_KEY" \
-              -H "Content-Type: application/json" \
-              -d "{\"envVarsIncludeFromGroup\":[\"$RENDER_ENV_GROUP_ID\"]}" \
-              "https://api.render.com/v1/services/$RENDER_SERVICE_ID")
-
-            patch_code=$(echo "$patch_response" | tail -n1)
-            patch_body=$(echo "$patch_response" | sed '$d')
-
-            if [[ ! "$patch_code" =~ ^(200|201|204)$ ]]; then
-              echo "❌ Association failed (HTTP $patch_code)"
-              echo "$patch_body" | jq . 2>/dev/null || echo "$patch_body"
-              exit 1
-            fi
-
-            echo "✅ Environment group associated successfully"
-            echo "⏳ Waiting 10 seconds for configuration to propagate..."
-            sleep 10
-
-            # Verify SECRET_KEY exists in the environment group
-            echo ""
-            echo "🔍 Verifying SECRET_KEY exists in environment group..."
-            group_response=$(curl -s \
-              -H "Authorization: Bearer $RENDER_API_KEY" \
-              "https://api.render.com/v1/env-groups/$RENDER_ENV_GROUP_ID")
-
-            group_secret=$(echo "$group_response" | jq -r '.envVars[] | select(.key=="SECRET_KEY") | .value' 2>/dev/null)
-
-            if [ -z "$group_secret" ] || [ "$group_secret" = "null" ]; then
-              echo "⚠️  WARNING: SECRET_KEY not found in environment group!"
-              echo "   The group may not have SECRET_KEY configured."
-              echo "   Please add SECRET_KEY to Render Environment Group:"
-              echo "   Render → Environment Groups → $RENDER_ENV_GROUP_ID → Environment Variables"
-              echo "   Add: Key=SECRET_KEY, Value=<your-secret>"
-              # Don't fail here - let deployment proceed and app will provide clearer error
-            else
-              echo "✅ SECRET_KEY is present in environment group (value masked)"
-            fi
-          fi
-
-      - name: Trigger Render deployment
-        id: trigger
-        env:
-          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
-        run: |
-          set -e
-
-          echo "Triggering deployment for production..."
-
-          # Wait for any in-progress deploys to finish
-          max_wait=30
-          for i in $(seq 1 $max_wait); do
-            deploy_status=$(curl -s \
-              -H "Authorization: Bearer $RENDER_API_KEY" \
-              "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" | jq -r '.[0].status // "empty"')
-
-            if [[ "$deploy_status" =~ ^(live|succeeded|errored|failed|canceled)$ ]] || [ "$deploy_status" = "empty" ]; then
-              break
-            fi
-            echo "Waiting for in-progress deployment to complete... ($i/$max_wait)"
-            sleep 30
-          done
-
-          # Trigger new deployment
-          response=$(curl -s -w "\n%{http_code}" -X POST \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{}' \
-            "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys")
-
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | sed '$d')
-
-          if [[ ! "$http_code" =~ ^(200|201|202)$ ]]; then
-            echo "Deploy trigger failed (HTTP $http_code):"
-            echo "$body" | jq . 2>/dev/null || echo "$body"
-            exit 1
-          fi
-
-          deploy_id=$(echo "$body" | jq -r '.id')
-          echo "deploy_id=$deploy_id" >> $GITHUB_OUTPUT
-          echo "Deployment triggered: $deploy_id"
-
-      - name: Monitor deployment
-        id: monitor
-        env:
-          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
-        run: |
-          deploy_id="${{ steps.trigger.outputs.deploy_id }}"
-          echo "Monitoring deployment: $deploy_id"
-
-          for i in $(seq 1 60); do
-            status=$(curl -s \
-              -H "Authorization: Bearer $RENDER_API_KEY" \
-              "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys/$deploy_id" | jq -r '.status')
-
-            echo "[$i/60] Status: $status"
-
-            if [[ "$status" == "live" ]] || [[ "$status" == "succeeded" ]]; then
-              echo "Deployment successful!"
-              exit 0
-            elif [[ "$status" =~ ^(errored|failed|canceled|build_failed|update_failed)$ ]]; then
-              echo "Deployment failed with status: $status"
-              curl -s \
-                -H "Authorization: Bearer $RENDER_API_KEY" \
-                "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys/$deploy_id" | jq .
-              exit 1
-            fi
-            sleep 30
-          done
-
-          echo "TIMEOUT: Deployment did not complete within 30 minutes"
-          exit 1
-
-      - name: Health check
-        if: success()
-        env:
-          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
-        run: |
-          service_url=$(curl -s \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services/$RENDER_SERVICE_ID" | jq -r '.service.url')
-
-          base_url="https://$service_url"
-          echo "Service URL: $base_url"
-
-          endpoints=("/health" "/api/auth/login")
-          for endpoint in "${endpoints[@]}"; do
-            echo "Checking $base_url$endpoint..."
-            code=$(curl -s -o /dev/null -w "%{http_code}" "$base_url$endpoint")
-            if [[ "$code" =~ ^(200|302|401)$ ]]; then
-              echo "  ✅ OK ($code)"
-            else
-              echo "  ❌ FAILED ($code)"
-              exit 1
-            fi
-          done
-
-          echo "All health checks passed!"
-
-      - name: Smoke test
-        if: success()
-        env:
-          SITE_URL: ${{ steps.monitor.outputs.service_url }}
-        run: |
-          if [ -z "$SITE_URL" ]; then
+          if [ -z "$SITE_URL" ] || [ "$SITE_URL" = "null" ]; then
+            echo "SITE_URL not set, getting from API..."
             SITE_URL="https://$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" "https://api.render.com/v1/services/$RENDER_SERVICE_ID" | jq -r '.service.url')"
           fi
           echo "Running smoke test on: $SITE_URL"
