@@ -160,7 +160,7 @@ jobs:
           echo "🔍 Validating mandatory secrets..."
 
           # Check PostgreSQL secrets
-          local missing=()
+          missing=()
           if [ -z "${{ secrets.PGHOST }}" ]; then missing+=("PGHOST"); fi
           if [ -z "${{ secrets.PGPORT }}" ]; then missing+=("PGPORT"); fi
           if [ -z "${{ secrets.PGUSER }}" ]; then missing+=("PGUSER"); fi
