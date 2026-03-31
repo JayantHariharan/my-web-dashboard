@@ -15,27 +15,46 @@ jobs:
     outputs:
       environment: ${{ steps.check.outputs.environment }}
     steps:
-      - name: Determine environment
+      - name: Determine environment and validate secrets
         id: check
         run: |
+          # Determine environment
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "environment=production" >> $GITHUB_OUTPUT
-            echo "✅ Environment: Production"
+            ENV="production"
+            SERVICE_ID_SECRET="RENDER_SERVICE_ID_PROD"
           else
-            echo "environment=staging" >> $GITHUB_OUTPUT
-            echo "✅ Environment: Staging (develop branch)"
+            ENV="staging"
+            SERVICE_ID_SECRET="RENDER_SERVICE_ID_TEST"
           fi
 
-      - name: Validate mandatory secrets (PostgreSQL)
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "service_id_secret=$SERVICE_ID_SECRET" >> $GITHUB_OUTPUT
+
+          echo "✅ Environment: $ENV"
+          echo "   Service ID secret: $SERVICE_ID_SECRET"
+
+      - name: Validate mandatory secrets
         run: |
           echo "🔍 Validating mandatory secrets..."
 
-          missing=()
-          for secret in PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE; do
-            if [ -z "${{ secrets.${secret} }}" ]; then
-              missing+=("$secret")
-            fi
-          done
+          # Check PostgreSQL secrets
+          local missing=()
+          if [ -z "${{ secrets.PGHOST }}" ]; then missing+=("PGHOST"); fi
+          if [ -z "${{ secrets.PGPORT }}" ]; then missing+=("PGPORT"); fi
+          if [ -z "${{ secrets.PGUSER }}" ]; then missing+=("PGUSER"); fi
+          if [ -z "${{ secrets.PGPASSWORD }}" ]; then missing+=("PGPASSWORD"); fi
+          if [ -z "${{ secrets.PGDATABASE }}" ]; then missing+=("PGDATABASE"); fi
+
+          # Check Render secrets
+          if [ -z "${{ secrets.RENDER_API_KEY }}" ]; then missing+=("RENDER_API_KEY"); fi
+
+          # Check service ID based on environment from previous step
+          ENV="${{ steps.check.outputs.environment }}"
+          if [ "$ENV" = "production" ]; then
+            if [ -z "${{ secrets.RENDER_SERVICE_ID_PROD }}" ]; then missing+=("RENDER_SERVICE_ID_PROD"); fi
+          else
+            if [ -z "${{ secrets.RENDER_SERVICE_ID_TEST }}" ]; then missing+=("RENDER_SERVICE_ID_TEST"); fi
+          fi
 
           if [ ${#missing[@]} -gt 0 ]; then
             echo "❌ Missing required secrets: ${missing[*]}"
@@ -43,48 +62,21 @@ jobs:
             echo "Please add these secrets in GitHub:"
             echo "  Settings → Secrets and variables → Actions → New repository secret"
             echo ""
-            echo "Required:"
-            echo "  - PGHOST (Render Postgres host)"
+            echo "Required (PostgreSQL):"
+            echo "  - PGHOST"
             echo "  - PGPORT (usually 5432)"
-            echo "  - PGUSER (Postgres username)"
-            echo "  - PGPASSWORD (Postgres password)"
-            echo "  - PGDATABASE (Database name)"
-            echo "  - RENDER_API_KEY (Render API key)"
-            echo "  - RENDER_SERVICE_ID_TEST (Staging service ID)"
-            echo "  - RENDER_SERVICE_ID_PROD (Production service ID)"
+            echo "  - PGUSER"
+            echo "  - PGPASSWORD"
+            echo "  - PGDATABASE"
+            echo ""
+            echo "Required (Render):"
+            echo "  - RENDER_API_KEY"
+            echo "  - RENDER_SERVICE_ID_TEST (for staging)"
+            echo "  - RENDER_SERVICE_ID_PROD (for production)"
             exit 1
           fi
 
-          echo "✅ All required PostgreSQL secrets present"
-
-      - name: Validate Render secrets
-        run: |
-          echo "🔍 Validating Render secrets..."
-
-          ENV="${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}"
-
-          if [ "$ENV" = "production" ]; then
-            for secret in RENDER_SERVICE_ID_PROD; do
-              if [ -z "${{ secrets.${secret} }}" ]; then
-                echo "❌ Missing required secret for production: $secret"
-                exit 1
-              fi
-            done
-          else
-            for secret in RENDER_SERVICE_ID_TEST; do
-              if [ -z "${{ secrets.${secret} }}" ]; then
-                echo "❌ Missing required secret for staging: $secret"
-                exit 1
-              fi
-            done
-          fi
-
-          if [ -z "${{ secrets.RENDER_API_KEY }}" ]; then
-            echo "❌ Missing RENDER_API_KEY"
-            exit 1
-          fi
-
-          echo "✅ All required Render secrets present"
+          echo "✅ All required secrets present"
 
   migrate-database:
     needs: precheck
@@ -102,13 +94,13 @@ jobs:
     needs: migrate-database
     if: needs.migrate-database.outputs.success == 'true'
     runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+    environment: ${{ needs.precheck.outputs.environment }}
     env:
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-      RENDER_SERVICE_ID: ${{ github.ref == 'refs/heads/main' && secrets.RENDER_SERVICE_ID_PROD || secrets.RENDER_SERVICE_ID_TEST }}
-      RENDER_ENV_GROUP_ID: ${{ github.ref == 'refs/heads/main' && secrets.RENDER_ENV_GROUP_ID_PROD || secrets.RENDER_ENV_GROUP_ID_TEST }}
-      DISPLAY_ENV: ${{ github.ref == 'refs/heads/main' && 'Production' || 'Staging' }}
-      APP_ENV: ${{ github.ref == 'refs/heads/main' && 'production' || 'test' }}
+      RENDER_SERVICE_ID: ${{ needs.precheck.outputs.environment == 'production' && secrets.RENDER_SERVICE_ID_PROD || secrets.RENDER_SERVICE_ID_TEST }}
+      RENDER_ENV_GROUP_ID: ${{ needs.precheck.outputs.environment == 'production' && secrets.RENDER_ENV_GROUP_ID_PROD || secrets.RENDER_ENV_GROUP_ID_TEST }}
+      DISPLAY_ENV: ${{ needs.precheck.outputs.environment == 'production' && 'Production' || 'Staging' }}
+      APP_ENV: ${{ needs.precheck.outputs.environment == 'production' && 'production' || 'test' }}
 
     steps:
       - name: Checkout code
