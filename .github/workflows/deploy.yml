@@ -71,7 +71,7 @@ jobs:
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
 
-          if [[ ! "$http_code" =~ ^(200|201)$ ]]; then
+          if [[ ! "$http_code" =~ ^(200|201|202)$ ]]; then
             echo "Deploy trigger failed (HTTP $http_code):"
             echo "$body" | jq . 2>/dev/null || echo "$body"
             exit 1
@@ -216,7 +216,7 @@ jobs:
           http_code=$(echo "$response" | tail -n1)
           body=$(echo "$response" | sed '$d')
 
-          if [[ ! "$http_code" =~ ^(200|201)$ ]]; then
+          if [[ ! "$http_code" =~ ^(200|201|202)$ ]]; then
             echo "Deploy trigger failed (HTTP $http_code):"
             echo "$body" | jq . 2>/dev/null || echo "$body"
             exit 1
