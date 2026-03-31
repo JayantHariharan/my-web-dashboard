@@ -10,7 +10,6 @@ jobs:
     runs-on: ubuntu-latest
     environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
     env:
-      # Render API credentials (secrets)
       RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
       RENDER_SERVICE_ID: ${{ github.ref == 'refs/heads/main' && secrets.RENDER_SERVICE_ID_PROD || secrets.RENDER_SERVICE_ID_TEST }}
       RENDER_ENV_GROUP_ID: ${{ github.ref == 'refs/heads/main' && secrets.RENDER_ENV_GROUP_ID_PROD || secrets.RENDER_ENV_GROUP_ID_TEST }}
@@ -22,7 +21,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Run database migrations
-        uses: .github/workflows/flyway-migrate.yml
+        uses: ./.github/workflows/flyway-migrate.yml
         with:
           environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
         secrets:
@@ -63,7 +62,6 @@ jobs:
         run: |
           echo "🔗 Associating service with environment group: $RENDER_ENV_GROUP_ID"
 
-          # Get current service configuration
           response=$(curl -s -w "\n%{http_code}" \
             -H "Authorization: Bearer $RENDER_API_KEY" \
             "https://api.render.com/v1/services/$RENDER_SERVICE_ID")
@@ -77,7 +75,6 @@ jobs:
             exit 1
           fi
 
-          # Check if already associated
           current_groups=$(echo "$body" | jq -r '.envVarsIncludeFromGroup // []')
           if echo "$current_groups" | grep -q "$RENDER_ENV_GROUP_ID"; then
             echo "✅ Service already associated with environment group"
@@ -85,7 +82,6 @@ jobs:
             echo "📋 Current groups: $current_groups"
             echo "🎯 Adding group: $RENDER_ENV_GROUP_ID"
 
-            # Add environment group association
             patch_response=$(curl -s -w "\n%{http_code}" -X PATCH \
               -H "Authorization: Bearer $RENDER_API_KEY" \
               -H "Content-Type: application/json" \
@@ -105,7 +101,6 @@ jobs:
             echo "⏳ Waiting 10 seconds for configuration to propagate..."
             sleep 10
 
-            # Verify SECRET_KEY exists in the environment group
             echo ""
             echo "🔍 Verifying SECRET_KEY exists in environment group..."
             group_response=$(curl -s \
@@ -116,11 +111,8 @@ jobs:
 
             if [ -z "$group_secret" ] || [ "$group_secret" = "null" ]; then
               echo "⚠️  WARNING: SECRET_KEY not found in environment group!"
-              echo "   The group may not have SECRET_KEY configured."
               echo "   Please add SECRET_KEY to Render Environment Group:"
               echo "   Render → Environment Groups → $RENDER_ENV_GROUP_ID → Environment Variables"
-              echo "   Add: Key=SECRET_KEY, Value=<your-secret>"
-              # Don't fail here - let deployment proceed and app will provide clearer error
             else
               echo "✅ SECRET_KEY is present in environment group (value masked)"
             fi
@@ -137,7 +129,6 @@ jobs:
 
           echo "🚀 Triggering deployment for $DISPLAY_ENV..."
 
-          # Wait for any in-progress deploys to finish
           max_wait=30
           for i in $(seq 1 $max_wait); do
             deploy_status=$(curl -s \
@@ -151,7 +142,6 @@ jobs:
             sleep 30
           done
 
-          # Trigger new deployment
           response=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Authorization: Bearer $RENDER_API_KEY" \
             -H "Content-Type: application/json" \
@@ -251,7 +241,6 @@ jobs:
           SITE_URL: ${{ steps.get-url.outputs.service_url }}
         run: |
           if [ -z "$SITE_URL" ] || [ "$SITE_URL" = "null" ]; then
-            echo "SITE_URL not set, getting from API..."
             SITE_URL="https://$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" "https://api.render.com/v1/services/$RENDER_SERVICE_ID" | jq -r '.service.url')"
           fi
           echo "Running smoke test on: $SITE_URL"
