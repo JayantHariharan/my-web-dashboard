@@ -100,7 +100,7 @@ jobs:
             if [[ "$status" == "live" ]] || [[ "$status" == "succeeded" ]]; then
               echo "Deployment successful!"
               exit 0
-            elif [[ "$status" =~ ^(errored|failed|canceled|build_failed)$ ]]; then
+            elif [[ "$status" =~ ^(errored|failed|canceled|build_failed|update_failed)$ ]]; then
               echo "Deployment failed with status: $status"
               curl -s \
                 -H "Authorization: Bearer $RENDER_API_KEY" \
@@ -245,7 +245,7 @@ jobs:
             if [[ "$status" == "live" ]] || [[ "$status" == "succeeded" ]]; then
               echo "Deployment successful!"
               exit 0
-            elif [[ "$status" =~ ^(errored|failed|canceled|build_failed)$ ]]; then
+            elif [[ "$status" =~ ^(errored|failed|canceled|build_failed|update_failed)$ ]]; then
               echo "Deployment failed with status: $status"
               curl -s \
                 -H "Authorization: Bearer $RENDER_API_KEY" \
