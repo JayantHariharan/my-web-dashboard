@@ -155,19 +155,6 @@ Your job is to find REAL issues that impact security, correctness, performance, 
       "evidence": "PASSWORD = 'supersecret123'",
       "recommendation": "Remove the hardcoded password and load it from environment variables using os.environ.get('DB_PASSWORD') or a configuration manager. Example:\\n\\nimport os\\nPASSWORD = os.environ.get('DB_PASSWORD')\\nif not PASSWORD:\\n    raise ValueError('DB_PASSWORD environment variable not set')",
       "auto_fixable": false
-    },
-    {
-      "file": "src/backend/main.py",
-      "line": 15,
-      "column": 1,
-      "severity": "High",
-      "category": "type",
-      "subcategory": "missing-type-hint",
-      "title": "Missing type hints for public function",
-      "description": "The function 'create_user' is part of the public API but lacks type annotations. This makes the code harder to understand, maintain, and can lead to type-related bugs.",
-      "evidence": "def create_user(username, email):",
-      "recommendation": "Add proper type hints. Example:\\n\\ndef create_user(username: str, email: str) -> dict:\\n    ...",
-      "auto_fixable": true
     }
   ],
   "statistics": {
@@ -416,11 +403,25 @@ def main():
     if "scan_metadata" not in result:
         result["scan_metadata"] = {}
 
-    # If API call failed after retries, skip (no report generated)
-    if result is None:
-        print("⚠️  OpenRouter API unavailable after retries. Skipping AI quality scan.")
-        print("   This does not block the PR; treat as skipped.")
-        sys.exit(0)
+    # Configurations: (max_files, max_content_per_file)
+    configs = [(8, 6000), (4, 4000), (2, 2000)]
+    result = None
+
+    for i, (max_files, max_content) in enumerate(configs):
+        print(f"\n📊 Attempt {i+1}: Analyzing up to {max_files} files (max {max_content} chars each)...")
+        prompt = build_comprehensive_quality_prompt(file_contents, max_files=max_files, max_content_per_file=max_content)
+        result = run_claude_analysis_openrouter(prompt, openrouter_key, model)
+
+        if result is not None:
+            print(f"✅ Analysis succeeded with {max_files} files")
+            break
+        else:
+            if i < len(configs) - 1:
+                print(f"⚠️  Analysis failed. Retrying with fewer files ({max_files} → {configs[i+1][0]})...")
+            else:
+                print("❌ All analysis attempts failed. Skipping AI quality scan.")
+                print("   This does not block the PR; treat as skipped.")
+                sys.exit(0)
 
     # Ensure scan_metadata exists
     if "scan_metadata" not in result:
