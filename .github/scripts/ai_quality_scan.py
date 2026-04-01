@@ -239,9 +239,9 @@ def run_claude_analysis_openrouter(prompt: str, api_key: str, model: str = "step
                     {"role": "system", "content": "You are an expert Python code reviewer. Always respond with valid JSON matching the requested schema."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=4000,
+                max_tokens=2000,
                 temperature=0.0,
-                timeout=300,
+                timeout=60,
             )
 
             response_text = response.choices[0].message.content
@@ -375,12 +375,13 @@ def main():
         total_lines += len(content.splitlines())
         file_contents.append({"path": filepath, "content": content})
 
-    # Adaptive analysis: try with decreasing file limits if we hit context/rate limits
+    # Adaptive analysis: try with decreasing file limits to stay within 1 minute
     model = os.environ.get("OPENROUTER_MODEL", "stepfun/step-3.5-flash:free")
     print(f"   Model: {model}")
 
-    # Configurations: (max_files, max_content_per_file)
-    configs = [(8, 6000), (4, 4000), (2, 2000)]
+    # Aggressive configurations for ~1 minute total runtime
+    # Start with 4 files @ 4KB, then 2 files @ 2KB
+    configs = [(4, 4000), (2, 2000)]
     result = None
 
     for i, (max_files, max_content) in enumerate(configs):
