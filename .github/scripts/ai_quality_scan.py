@@ -40,7 +40,7 @@ def read_file_content(filepath: str) -> str:
         return f"ERROR: Could not read file: {e}"
 
 
-def build_comprehensive_quality_prompt(files: List[Dict[str, str]]) -> str:
+def build_comprehensive_quality_prompt(files: List[Dict[str, str]], max_files: int = 8, max_content_per_file: int = 6000) -> str:
     """Build the comprehensive code quality analysis prompt for Claude."""
 
     prompt = """You are an expert Python code reviewer performing a comprehensive quality audit for a FastAPI backend project.
@@ -155,19 +155,6 @@ Your job is to find REAL issues that impact security, correctness, performance, 
       "evidence": "PASSWORD = 'supersecret123'",
       "recommendation": "Remove the hardcoded password and load it from environment variables using os.environ.get('DB_PASSWORD') or a configuration manager. Example:\\n\\nimport os\\nPASSWORD = os.environ.get('DB_PASSWORD')\\nif not PASSWORD:\\n    raise ValueError('DB_PASSWORD environment variable not set')",
       "auto_fixable": false
-    },
-    {
-      "file": "src/backend/main.py",
-      "line": 15,
-      "column": 1,
-      "severity": "High",
-      "category": "type",
-      "subcategory": "missing-type-hint",
-      "title": "Missing type hints for public function",
-      "description": "The function 'create_user' is part of the public API but lacks type annotations. This makes the code harder to understand, maintain, and can lead to type-related bugs.",
-      "evidence": "def create_user(username, email):",
-      "recommendation": "Add proper type hints. Example:\\n\\ndef create_user(username: str, email: str) -> dict:\\n    ...",
-      "auto_fixable": true
     }
   ],
   "statistics": {
@@ -193,9 +180,9 @@ Your job is to find REAL issues that impact security, correctness, performance, 
 6. **Category assignment**: Use ONE primary category. Precedence: security > bug > type > quality > style > formatting
 7. **Blocking issues**: Set "has_blocking_issues": true if ANY Critical/High severity exists, OR Medium+ security issues exist.
 8. **Statistics**: Accurately count:
-   - functions_withocstrings: Count def statements that have triple-quoted strings immediately after
+   - functions_with_docstrings: Count def statements that have triple-quoted strings immediately after
    - type_annotated_functions: Count functions with -> return type annotation AND parameter type hints
-   - lines_of_code: Total non-empty, non-comment lines ( rough estimate ok )
+   - lines_of_code: Total non-empty, non-comment lines (rough estimate ok)
 
 ## PROJECT CONTEXT
 - FastAPI backend with PostgreSQL
@@ -204,7 +191,16 @@ Your job is to find REAL issues that impact security, correctness, performance, 
 - Code should be production-ready, secure, and maintainable
 
 Now analyze these files and output ONLY valid JSON:
+
 """
+    files_to_analyze = files[:max_files]
+    for file_info in files_to_analyze:
+        prompt += f"\n--- File: {file_info['path']} (lines: {len(file_info['content'].splitlines())}) ---\n"
+        prompt += file_info['content'][:max_content_per_file]
+        if len(file_info['content']) > max_content_per_file:
+            prompt += "\n... [TRUNCATED] ..."
+
+    return prompt
 
     for file_info in files[:8]:  # Limit to 8 files to keep runtime reasonable
         prompt += f"\n--- File: {file_info['path']} (lines: {len(file_info['content'].splitlines())}) ---\n"
@@ -222,7 +218,7 @@ Provide your analysis in valid JSON matching the schema above. Be thorough but c
 
 
 def run_claude_analysis_openrouter(prompt: str, api_key: str, model: str = "stepfun/step-3.5-flash:free") -> Dict[str, Any]:
-    """Send prompt to OpenRouter (supports various models) with retry logic for rate limits."""
+    """Send prompt to OpenRouter with retry logic for rate limits and context errors."""
     if not OPENAI_AVAILABLE:
         print("Error: openai package not installed. Run: pip install openai")
         sys.exit(1)
@@ -243,9 +239,9 @@ def run_claude_analysis_openrouter(prompt: str, api_key: str, model: str = "step
                     {"role": "system", "content": "You are an expert Python code reviewer. Always respond with valid JSON matching the requested schema."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=4000,  # Reduced for faster response
+                max_tokens=4000,
                 temperature=0.0,
-                timeout=300,  # 5 minute timeout per attempt
+                timeout=300,
             )
 
             response_text = response.choices[0].message.content
@@ -261,16 +257,29 @@ def run_claude_analysis_openrouter(prompt: str, api_key: str, model: str = "step
                 return json.loads(response_text)
 
         except Exception as e:
-            error_str = str(e)
+            error_str = str(e).lower()
+
             # Check for rate limit (429) or server errors (5xx)
-            if "429" in error_str or "rate-limited" in error_str or "502" in error_str or "503" in error_str or attempt < max_retries - 1:
-                print(f"Attempt {attempt + 1} failed (rate limit/server error). Retrying in {retry_delay}s...")
+            is_retryable = (
+                "429" in error_str or
+                "rate-limited" in error_str or
+                "rate limit" in error_str or
+                "502" in error_str or
+                "503" in error_str or
+                "context length" in error_str or
+                "context_limit" in error_str or
+                "too many tokens" in error_str or
+                "maximum context" in error_str
+            )
+
+            if is_retryable and attempt < max_retries - 1:
+                print(f"Attempt {attempt + 1} failed ({type(e).__name__}). Retrying in {retry_delay}s...")
                 import time
                 time.sleep(retry_delay)
                 retry_delay *= 2  # Exponential backoff
                 continue
             else:
-                print(f"Error calling OpenRouter API after {max_retries} attempts: {e}")
+                print(f"Error calling OpenRouter API: {e}")
                 return None  # Signal failure
 
 
@@ -366,21 +375,29 @@ def main():
         total_lines += len(content.splitlines())
         file_contents.append({"path": filepath, "content": content})
 
-    # Build prompt
-    print("Building comprehensive quality analysis prompt...")
-    prompt = build_comprehensive_quality_prompt(file_contents)
-
-    # Run analysis
-    print("Querying Claude via OpenRouter for comprehensive analysis...")
+    # Adaptive analysis: try with decreasing file limits if we hit context/rate limits
     model = os.environ.get("OPENROUTER_MODEL", "stepfun/step-3.5-flash:free")
     print(f"   Model: {model}")
-    result = run_claude_analysis_openrouter(prompt, openrouter_key, model)
 
-    # If API call failed after retries, skip (no report generated)
-    if result is None:
-        print("⚠️  OpenRouter API unavailable after retries. Skipping AI quality scan.")
-        print("   This does not block the PR; treat as skipped.")
-        sys.exit(0)
+    # Configurations: (max_files, max_content_per_file)
+    configs = [(8, 6000), (4, 4000), (2, 2000)]
+    result = None
+
+    for i, (max_files, max_content) in enumerate(configs):
+        print(f"\n📊 Attempt {i+1}: Analyzing up to {max_files} files (max {max_content} chars each)...")
+        prompt = build_comprehensive_quality_prompt(file_contents, max_files=max_files, max_content_per_file=max_content)
+        result = run_claude_analysis_openrouter(prompt, openrouter_key, model)
+
+        if result is not None:
+            print(f"✅ Analysis succeeded with {max_files} files")
+            break
+        else:
+            if i < len(configs) - 1:
+                print(f"⚠️  Analysis failed. Retrying with fewer files ({max_files} → {configs[i+1][0]})...")
+            else:
+                print("❌ All analysis attempts failed. Skipping AI quality scan.")
+                print("   This does not block the PR; treat as skipped.")
+                sys.exit(0)
 
     # Ensure scan_metadata exists
     if "scan_metadata" not in result:
