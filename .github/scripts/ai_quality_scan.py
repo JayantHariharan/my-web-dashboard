@@ -321,7 +321,7 @@ def main():
 
     # Run analysis
     print("Querying Claude via OpenRouter for comprehensive analysis...")
-    model = os.environ.get("OPENROUTER_MODEL", "anthropic/claude-3-opus")
+    model = os.environ.get("OPENROUTER_MODEL", "nvidia/llama-3.3-nemotron-super-49b-v1")
     print(f"   Model: {model}")
     result = run_claude_analysis_openrouter(prompt, openrouter_key, model)
 
