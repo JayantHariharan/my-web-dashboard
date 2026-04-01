@@ -185,8 +185,8 @@ Provide your analysis in valid JSON matching the schema above. Be thorough but c
     return prompt
 
 
-def run_claude_analysis_openrouter(prompt: str, api_key: str, model: str = "anthropic/claude-3-opus") -> Dict[str, Any]:
-    """Send prompt to OpenRouter (supports various models)."""
+def run_claude_analysis_openrouter(prompt: str, api_key: str, model: str = "stepfun/step-3.5-flash:free") -> Dict[str, Any]:
+    """Send prompt to OpenRouter (supports various models) with retry logic for rate limits."""
     if not OPENAI_AVAILABLE:
         print("Error: openai package not installed. Run: pip install openai")
         sys.exit(1)
@@ -196,38 +196,46 @@ def run_claude_analysis_openrouter(prompt: str, api_key: str, model: str = "anth
         api_key=api_key,
     )
 
-    try:
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": "You are an expert Python code reviewer. Always respond with valid JSON matching the requested schema."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=8000,
-            temperature=0.0,
-        )
+    max_retries = 3
+    retry_delay = 10  # seconds
 
-        response_text = response.choices[0].message.content
+    for attempt in range(max_retries):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": "You are an expert Python code reviewer. Always respond with valid JSON matching the requested schema."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=8000,
+                temperature=0.0,
+            )
 
-        # Extract JSON from response
-        json_start = response_text.find('{')
-        json_end = response_text.rfind('}') + 1
+            response_text = response.choices[0].message.content
 
-        if json_start != -1 and json_end != -1:
-            json_str = response_text[json_start:json_end]
-            return json.loads(json_str)
-        else:
-            return json.loads(response_text)
+            # Extract JSON from response
+            json_start = response_text.find('{')
+            json_end = response_text.rfind('}') + 1
 
-    except Exception as e:
-        print(f"Error calling OpenRouter API: {e}")
-        return {
-            "error": str(e),
-            "scan_metadata": {
-                "scanner": "AI Code Quality Scanner",
-                "status": "failed"
-            }
-        }
+            if json_start != -1 and json_end != -1:
+                json_str = response_text[json_start:json_end]
+                return json.loads(json_str)
+            else:
+                return json.loads(response_text)
+
+        except Exception as e:
+            error_str = str(e)
+            # Check for rate limit (429) or server errors (5xx)
+            if "429" in error_str or "rate-limited" in error_str or "502" in error_str or "503" in error_str or attempt < max_retries - 1:
+                print(f"Attempt {attempt + 1} failed (rate limit/server error). Retrying in {retry_delay}s...")
+                import time
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+                continue
+            else:
+                print(f"Error calling OpenRouter API after {max_retries} attempts: {e}")
+                return None  # Signal failure
+
 
 
 def compute_statistics(files: List[Dict[str, str]], issues: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -321,9 +329,19 @@ def main():
 
     # Run analysis
     print("Querying Claude via OpenRouter for comprehensive analysis...")
-    model = os.environ.get("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")
+    model = os.environ.get("OPENROUTER_MODEL", "stepfun/step-3.5-flash:free")
     print(f"   Model: {model}")
     result = run_claude_analysis_openrouter(prompt, openrouter_key, model)
+
+    # If API call failed after retries, skip (no report generated)
+    if result is None:
+        print("⚠️  OpenRouter API unavailable after retries. Skipping AI quality scan.")
+        print("   This does not block the PR; treat as skipped.")
+        sys.exit(0)
+
+    # Ensure scan_metadata exists
+    if "scan_metadata" not in result:
+        result["scan_metadata"] = {}
 
     # Add metadata
     from datetime import datetime
