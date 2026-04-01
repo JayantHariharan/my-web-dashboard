@@ -12,55 +12,71 @@ REMOTE_SHA=$4
 # Ensure we're at repository root
 cd "$(git rev-parse --show-toplevel)" 2>/dev/null || exit 1
 
+# Check environment variable configurations (for developer convenience)
+if [ -n "$HOOKS_SKIP_PRE_PUSH" ]; then
+  echo "⏭  Skipping pre-push hook (HOOKS_SKIP_PRE_PUSH is set)"
+  exit 0
+fi
+
+if [ -n "$HOOKS_QUICK" ]; then
+  echo "⚡ Running quick checks only (HOOKS_QUICK=1)"
+  python -m py_compile src/backend/main.py || exit 1
+  echo "✅ Quick syntax check passed"
+  exit 0
+fi
+
 # Clean up unnecessary files before push
 echo ""
 echo "🧹 Cleaning up unnecessary files..."
 bash ./scripts/cleanup-unnecessary.sh
 
 # For feature branches, check if they're up-to-date with origin/develop to avoid merge conflicts
-BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
-if [[ "$BRANCH_NAME" =~ ^(main|develop|master)$ ]]; then
-    # Main branches get full checks below
-    :
-elif [[ "$BRANCH_NAME" =~ ^(fmt|feat|fix|chore)/ ]]; then
+if [ -z "$HOOKS_SKIP_BRANCH_CHECK" ]; then
+  BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+  if [[ "$BRANCH_NAME" =~ ^(fmt|feat|fix|chore)/ ]]; then
     echo "🔍 Checking if feature branch is up-to-date with origin/develop..."
     git fetch origin develop >/dev/null 2>&1
 
     # Check if origin/develop is an ancestor of current HEAD
     if git merge-base --is-ancestor origin/develop HEAD 2>/dev/null; then
-        echo "✅ Feature branch includes latest develop changes"
+      echo "✅ Feature branch includes latest develop changes"
     else
-        echo "❌ ERROR: Your feature branch is OUT OF DATE with origin/develop"
-        echo "   This will cause merge conflicts in a PR."
-        echo ""
-        echo "To fix this, run:"
-        echo "   git fetch origin"
-        echo "   git rebase origin/develop"
-        echo ""
-        echo "Push blocked. Please rebase and try again."
-        echo ""
-        exit 1
+      echo "❌ ERROR: Your feature branch is OUT OF DATE with origin/develop"
+      echo "   This will cause merge conflicts in a PR."
+      echo ""
+      echo "To fix this, run:"
+      echo "   git fetch origin"
+      echo "   git rebase origin/develop"
+      echo ""
+      echo "Push blocked. Please rebase and try again."
+      echo ""
+      exit 1
     fi
+  fi
 else
-    # Not a recognized branch pattern, just continue
-    :
+  echo "⏭  Skipping branch up-to-date check (HOOKS_SKIP_BRANCH_CHECK is set)"
 fi
 
-echo "📦 Branch: $BRANCH_NAME"
+echo "📦 Branch: $(git rev-parse --abbrev-ref HEAD)"
 echo ""
+
+# If quick mode, skip full quality checks (only syntax already done above if HOOKS_QUICK)
+if [ -n "$HOOKS_QUICK" ]; then
+  exit 0
+fi
 
 # Run comprehensive quality checks
 if bash ./scripts/run-quality-checks.sh; then
-    echo ""
-    echo "✅ Pre-push checks passed!"
-    echo "   Your code is secure and meets quality standards."
-    exit 0
+  echo ""
+  echo "✅ Pre-push checks passed!"
+  echo "   Your code is secure and meets quality standards."
+  exit 0
 else
-    echo ""
-    echo "❌ Pre-push checks failed!"
-    echo "   Fix the errors above before pushing."
-    echo ""
-    echo "💡 You can skip with 'git push --no-verify' but DON'T unless you have a good reason."
-    echo "   Skipping checks risks pushing vulnerable or broken code."
-    exit 1
+  echo ""
+  echo "❌ Pre-push checks failed!"
+  echo "   Fix the errors above before pushing."
+  echo ""
+  echo "💡 You can skip with 'git push --no-verify' but DON'T unless you have a good reason."
+  echo "   Skipping checks risks pushing vulnerable or broken code."
+  exit 1
 fi
