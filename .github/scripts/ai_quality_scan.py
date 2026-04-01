@@ -170,10 +170,10 @@ IMPORTANT:
 Files to analyze:
 """
 
-    for file_info in files[:15]:  # Limit to 15 files for context window
+    for file_info in files[:8]:  # Limit to 8 files to keep runtime reasonable
         prompt += f"\n--- File: {file_info['path']} (lines: {len(file_info['content'].splitlines())}) ---\n"
-        prompt += file_info['content'][:12000]  # Truncate very long files
-        if len(file_info['content']) > 12000:
+        prompt += file_info['content'][:6000]  # Truncate very long files
+        if len(file_info['content']) > 6000:
             prompt += "\n... [TRUNCATED] ..."
 
     prompt += """
@@ -207,8 +207,9 @@ def run_claude_analysis_openrouter(prompt: str, api_key: str, model: str = "step
                     {"role": "system", "content": "You are an expert Python code reviewer. Always respond with valid JSON matching the requested schema."},
                     {"role": "user", "content": prompt}
                 ],
-                max_tokens=8000,
+                max_tokens=4000,  # Reduced for faster response
                 temperature=0.0,
+                timeout=300,  # 5 minute timeout per attempt
             )
 
             response_text = response.choices[0].message.content
