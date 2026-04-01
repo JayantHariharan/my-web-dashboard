@@ -14,7 +14,6 @@ jobs:
       passed: ${{ steps.syntax.outputs.passed }}
     steps:
       - name: Checkout code
-        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -22,7 +21,7 @@ jobs:
       - name: Check if PR is up-to-date with base branch
         run: |
           echo "🔍 Checking if this PR is up-to-date with ${{ github.base_ref }}..."
-          git fetch origin ${{ github.base_ref }}:${{ github.base_ref }}
+          git fetch origin ${{ github.base_ref }}
           if git merge-base --is-ancestor origin/${{ github.base_ref }} HEAD 2>/dev/null; then
             echo "✅ PR is up-to-date with ${{ github.base_ref }}"
           else
@@ -41,7 +40,6 @@ jobs:
           fi
 
       - name: Cache pip dependencies
-        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/cache@v4
         with:
           path: |
@@ -52,7 +50,6 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Setup Python
-        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
