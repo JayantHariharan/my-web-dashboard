@@ -40,17 +40,26 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Cache Flyway
+        uses: actions/cache@v4
+        with:
+          path: /opt/flyway
+          key: ${{ runner.os }}-flyway-10.17.0
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install Flyway
+      - name: Install Flyway (if not cached)
         run: |
-          wget -q https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/10.17.0/flyway-commandline-10.17.0-linux-x64.tar.gz
-          tar -xzf flyway-commandline-10.17.0-linux-x64.tar.gz
-          sudo mv flyway-10.17.0 /opt/flyway
+          if [ ! -d "/opt/flyway" ]; then
+            echo "📥 Downloading Flyway (cache miss)..."
+            wget -q https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/10.17.0/flyway-commandline-10.17.0-linux-x64.tar.gz
+            tar -xzf flyway-commandline-10.17.0-linux-x64.tar.gz
+            sudo mv flyway-10.17.0 /opt/flyway
+          fi
           echo "/opt/flyway" >> $GITHUB_PATH
 
       - name: Validate database configuration

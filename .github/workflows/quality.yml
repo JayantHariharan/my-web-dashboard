@@ -16,6 +16,16 @@ jobs:
         with:
           fetch-depth: 0  # Fetch all history to check branch relationship
 
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            .venv
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Check if PR is up-to-date with base branch
         run: |
           echo "🔍 Checking if this PR is up-to-date with ${{ github.base_ref }}..."
