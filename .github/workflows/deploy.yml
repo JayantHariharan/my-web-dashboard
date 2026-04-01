@@ -46,16 +46,33 @@ jobs:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID_PROD: ${{ secrets.RENDER_SERVICE_ID_PROD }}
           RENDER_SERVICE_ID_TEST: ${{ secrets.RENDER_SERVICE_ID_TEST }}
+          ALL_SECRETS_JSON: ${{ toJSON(secrets) }}
         run: |
-          echo "🔍 Checking which secrets are available..."
-          echo "Secrets context:"
-          echo "  All secret keys (safe method):"
-          echo '${{ toJSON(secrets) }}' | jq -r 'keys[]' | sed 's/^/    - /'
+          echo "🔍 Checking which secrets are available in GitHub Actions context..."
           echo ""
-          echo "Environment variables passed to this step:"
+
+          # Method 1: List all secret keys via toJSON
+          echo "=== All secret keys available (via toJSON(secrets)) ==="
+          echo "$ALL_SECRETS_JSON" | jq -r 'keys[]' 2>/dev/null || echo "  (jq not available or no secrets)"
+          echo ""
+
+          # Method 2: Check environment variables that were passed to this step
+          echo "=== Environment variables actually passed to this step ==="
+          for var in PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE RENDER_API_KEY RENDER_SERVICE_ID_PROD RENDER_SERVICE_ID_TEST; do
+            value="${!var}"
+            if [ -n "$value" ]; then
+              echo "  ✅ $var is set (length: ${#value}, value: ***)"
+            else
+              echo "  ❌ $var is NOT set or empty"
+            fi
+          done
+          echo ""
+
+          echo "=== Raw env dump (PG and RENDER variables only) ==="
           env | grep -E '^(PG|RENDER)' || echo "  (none found)"
           echo ""
-          echo "Now validating mandatory secrets with actual values (masked):"
+
+          echo "=== Now validating mandatory secrets ==="
 
           # Check PostgreSQL secrets
           missing=()
