@@ -1,4 +1,4 @@
-name: AI-Powered Quality & Security Checks
+name: Code Quality Checks
 
 on:
   pull_request:
@@ -10,8 +10,6 @@ jobs:
     concurrency:
       group: quality-syntax-${{ github.ref }}
       cancel-in-progress: true
-    outputs:
-      passed: ${{ steps.syntax.outputs.passed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -55,123 +53,5 @@ jobs:
           python-version: '3.12'
 
       - name: Python syntax check
-        id: syntax
         run: |
           python -m py_compile src/backend/main.py
-          echo "passed=true" >> $GITHUB_OUTPUT
-
-  ai-quality-scan:
-    runs-on: ubuntu-latest
-    concurrency:
-      group: quality-ai-${{ github.ref }}
-      cancel-in-progress: true
-    needs: syntax-check
-    env:
-      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-    steps:
-      - name: Check if AI scan should run
-        id: check-ai
-        run: |
-          if [ -z "$OPENROUTER_API_KEY" ]; then
-            echo "⚠️ OPENROUTER_API_KEY not set, skipping AI quality scan"
-            echo "skipped=true" >> $GITHUB_OUTPUT
-          else
-            echo "✅ OPENROUTER_API_KEY found, running AI scan"
-            echo "skipped=false" >> $GITHUB_OUTPUT
-          fi
-      - name: Checkout code
-        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Cache pip dependencies
-        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cache/pip
-            .venv
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements*.txt', '**/pyproject.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
-
-      - name: Setup Python
-        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-
-      - name: Install dependencies
-        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
-        run: pip install openai
-
-      - name: AI-Powered Comprehensive Quality Scan
-        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
-        env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'stepfun/step-3.5-flash:free' }}
-        run: |
-          echo "🚀 Running AI-powered comprehensive code quality scan..."
-          python .github/scripts/ai_quality_scan.py
-          if [ -f "ai-quality-report.json" ]; then
-            echo "📊 Quality report generated"
-            echo "report_path=ai-quality-report.json" >> $GITHUB_OUTPUT
-          else
-            echo "⚠️  No quality report generated"
-            echo "report_path=" >> $GITHUB_OUTPUT
-          fi
-        id: ai-scan
-
-      - name: Upload AI quality report
-        if: always() && steps.ai-scan.outputs.report_path != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: ai-quality-report
-          path: ${{ steps.ai-scan.outputs.report_path }}
-          retention-days: 7
-
-      - name: Generate Quality Summary
-        if: always()
-        run: |
-          echo "## 🤖 AI Code Quality Scan Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          if [ -f "ai-quality-report.json" ]; then
-            python .github/scripts/generate_quality_summary.py
-          else
-            echo "⚠️ AI quality scan skipped (OPENROUTER_API_KEY not set) or no report generated." >> $GITHUB_STEP_SUMMARY
-          fi
-
-      - name: Set quality result
-        if: always()
-        run: |
-          if [ -f "ai-quality-report.json" ]; then
-            echo "quality_passed=true" >> $GITHUB_OUTPUT
-          else
-            echo "quality_passed=skipped" >> $GITHUB_OUTPUT
-          fi
-        id: quality-result
-
-  final-check:
-    runs-on: ubuntu-latest
-    concurrency:
-      group: quality-final-${{ github.ref }}
-      cancel-in-progress: true
-    needs: [syntax-check, ai-quality-scan]
-    steps:
-      - name: Check results
-        run: |
-          echo "📊 Final check results:"
-          echo "Syntax check: ${{ needs.syntax-check.outputs.passed }}"
-          echo "Quality scan: ${{ needs.ai-quality-scan.outputs.quality_passed || 'not run' }}"
-          if [ "${{ needs.syntax-check.outputs.passed }}" != "true" ]; then
-            echo "❌ Syntax check failed"
-            exit 1
-          fi
-          quality_status="${{ needs.ai-quality-scan.outputs.quality_passed }}"
-          if [ "$quality_status" = "false" ]; then
-            echo "❌ Quality scan failed"
-            exit 1
-          fi
-          echo "✅ All required checks passed!"
-          echo "   (AI quality scan: $quality_status)"

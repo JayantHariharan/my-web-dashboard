@@ -42,7 +42,7 @@ cd "$(dirname "$0")/.." 2>/dev/null || true
 check "YAML syntax (workflows)"
 if command -v python3 &> /dev/null; then
     YAML_FAIL=0
-    # Check all workflow files (not just staged) to catch any syntax errors
+    # Check all workflow files to catch any syntax errors
     for wf in .github/workflows/*.yml; do
         if [ -f "$wf" ]; then
             if ! python3 -c "import yaml; yaml.safe_load(open('$wf', encoding='utf-8'))" 2>/dev/null; then
@@ -69,70 +69,7 @@ else
 fi
 echo ""
 
-# 2. AI-Powered Comprehensive Quality Scan (replaces black, flake8, mypy, bandit)
-check "AI Quality Scan"
-if [ -n "$OPENROUTER_API_KEY" ]; then
-    if python - <<'PY' 2>/dev/null
-import os, sys
-sys.path.insert(0, '.github/scripts')
-from ai_quality_scan import main
-sys.exit(main())
-PY
-    then
-        if [ -f "ai-quality-report.json" ]; then
-            # Parse summary
-            CRITICAL=$(python -c "import json; print(json.load(open('ai-quality-report.json')).get('summary',{}).get('by_severity',{}).get('Critical',0))" 2>/dev/null || echo "0")
-            HIGH=$(python -c "import json; print(json.load(open('ai-quality-report.json')).get('summary',{}).get('by_severity',{}).get('High',0))" 2>/dev/null || echo "0")
-            TOTAL=$(python -c "import json; print(json.load(open('ai-quality-report.json')).get('summary',{}).get('total_issues',0))" 2>/dev/null || echo "0")
-            STYLE=$(python -c "import json; print(json.load(open('ai-quality-report.json')).get('summary',{}).get('by_category',{}).get('style',0))" 2>/dev/null || echo "0")
-            TYPE=$(python -c "import json; print(json.load(open('ai-quality-report.json')).get('summary',{}).get('by_category',{}).get('type',0))" 2>/dev/null || echo "0")
-            FORMATTING=$(python -c "import json; print(json.load(open('ai-quality-report.json')).get('summary',{}).get('by_category',{}).get('formatting',0))" 2>/dev/null || echo "0")
-
-            if [ "$CRITICAL" -eq "0" ] && [ "$HIGH" -eq "0" ]; then
-                pass "No Critical/High issues (Total: $TOTAL, Style: $STYLE, Type: $TYPE, Format: $FORMATTING)"
-            else
-                fail "$CRITICAL Critical and $HIGH High issues found (Total: $TOTAL)"
-                echo "  Top issues:"
-                python -c "import json; issues=sorted(json.load(open('ai-quality-report.json')).get('issues',[]), key=lambda x: {'Critical':4,'High':3,'Medium':2,'Low':1,'Info':0}.get(x.get('severity',''),0), reverse=True); [print(f\"  {i['file']}:{i['line']} - {i['title']}\") for i in issues[:5]]" 2>/dev/null || true
-            fi
-        else
-            warn "No report generated"
-        fi
-    else
-        warn "AI quality scan failed"
-    fi
-else
-    warn "OPENROUTER_API_KEY not set (skipping AI quality scan)"
-fi
-echo ""
-
-# 6. AI Security Analysis (if OpenRouter key available)
-check "AI Security Analysis (OpenRouter)"
-if [ -n "$OPENROUTER_API_KEY" ]; then
-    if python .github/scripts/claude_security_scan.py 2>/dev/null; then
-        if [ -f "claude-security-report.json" ]; then
-            CRITICAL=$(python -c "import json; print(json.load(open('claude-security-report.json')).get('summary',{}).get('by_severity',{}).get('Critical',0))" 2>/dev/null || echo "0")
-            HIGH=$(python -c "import json; print(json.load(open('claude-security-report.json')).get('summary',{}).get('by_severity',{}).get('High',0))" 2>/dev/null || echo "0")
-            TOTAL=$(python -c "import json; print(json.load(open('claude-security-report.json')).get('summary',{}).get('total_issues',0))" 2>/dev/null || echo "0")
-            if [ "$CRITICAL" -eq "0" ] && [ "$HIGH" -eq "0" ]; then
-                pass "No Critical/High issues (Total: $TOTAL)"
-            else
-                fail "$CRITICAL Critical and $HIGH High issues found"
-                echo "  See claude-security-report.json for details"
-            fi
-        else
-            warn "No report generated"
-        fi
-    else
-        warn "Analysis failed"
-    fi
-else
-    warn "OPENROUTER_API_KEY not set (skipping AI analysis)"
-    echo "  Set env var or add secret to enable this check."
-fi
-echo ""
-
-# 7. Check for secrets in code
+# 3. Hardcoded secrets check
 check "Hardcoded secrets"
 SECRET_PATTERNS=(
     "SECRET_KEY\s*="
@@ -158,15 +95,31 @@ else
 fi
 echo ""
 
-# 8. Verify documentation timestamps are current
+# 4. Check for TODO/FIXME in committed files
+check "No TODO/FIXME in commits"
+STAGED_PY_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
+if [ -n "$STAGED_PY_FILES" ]; then
+    if echo "$STAGED_PY_FILES" | xargs grep -lw -E "TODO|FIXME|BUG|HACK" 2>/dev/null > /dev/null; then
+        warn "TODO/FIXME found"
+        echo "$STAGED_PY_FILES" | xargs grep -nw -E "TODO|FIXME|BUG|HACK" || true
+        echo "  Consider addressing or create issue for tracking."
+    else
+        pass "No problematic comments found"
+    fi
+else
+    pass "No Python files staged"
+fi
+echo ""
+
+# 5. Verify documentation timestamps are current
 check "Documentation timestamps"
 TODAY=$(date +%Y-%m-%d)
 OLD_DATES=0
-for doc in docs/DEVELOPER.md docs/ARCHITECTURE.md docs/FLYWAY.md docs/MIGRATIONS.md; do
+for doc in docs/DEVELOPER.md docs/ARCHITECTURE.md docs/FLYWAY.md docs/MIGRATIONS.md docs/TROUBLESHOOTING.md; do
     if [ -f "$doc" ]; then
         LAST_UPDATED=$(grep -oE 'Last (?:updated|Updated): [0-9]{4}-[0-9]{2}-[0-9]{2}' "$doc" | head -1 || echo "")
         if [ -n "$LAST_UPDATED" ] && [[ ! "$LAST_UPDATED" =~ $TODAY ]]; then
-            echo -e "${YELLOW}  ⚠ $doc: $LAST_UPDATED${NC}"
+            warn "$doc outdated: $LAST_UPDATED"
             OLD_DATES=1
         fi
     fi
@@ -174,11 +127,11 @@ done
 if [ $OLD_DATES -eq 0 ]; then
     pass "Documentation dates are current"
 else
-    warn "Some documentation dates may need updating"
+    warn "Some documentation dates need updating (run pre-commit hook)"
 fi
 echo ""
 
-# 9. Database migration check
+# 6. Database migration check
 check "Database migrations"
 if ls flyway/sql/V*.sql > /dev/null 2>&1; then
     pass "Migrations exist ($(ls flyway/sql/V*.sql | wc -l) files)"
