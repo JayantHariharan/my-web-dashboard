@@ -403,6 +403,16 @@ def main():
     if "scan_metadata" not in result:
         result["scan_metadata"] = {}
 
+    # If API call failed after retries, skip (no report generated)
+    if result is None:
+        print("⚠️  OpenRouter API unavailable after retries. Skipping AI quality scan.")
+        print("   This does not block the PR; treat as skipped.")
+        sys.exit(0)
+
+    # Ensure scan_metadata exists
+    if "scan_metadata" not in result:
+        result["scan_metadata"] = {}
+
     # Add metadata
     from datetime import datetime
     result["scan_metadata"]["timestamp"] = datetime.utcnow().isoformat() + "Z"
