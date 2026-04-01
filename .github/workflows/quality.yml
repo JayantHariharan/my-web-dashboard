@@ -14,6 +14,7 @@ jobs:
       passed: ${{ steps.syntax.outputs.passed }}
     steps:
       - name: Checkout code
+        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -40,6 +41,7 @@ jobs:
           fi
 
       - name: Cache pip dependencies
+        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/cache@v4
         with:
           path: |
@@ -50,6 +52,7 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Setup Python
+        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -66,14 +69,27 @@ jobs:
       group: quality-ai-${{ github.ref }}
       cancel-in-progress: true
     needs: syntax-check
-    if: ${{ needs.syntax-check.outputs.passed == 'true' && secrets.OPENROUTER_API_KEY != '' }}
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
     steps:
+      - name: Check if AI scan should run
+        id: check-ai
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "⚠️ OPENROUTER_API_KEY not set, skipping AI quality scan"
+            echo "skipped=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ OPENROUTER_API_KEY found, running AI scan"
+            echo "skipped=false" >> $GITHUB_OUTPUT
+          fi
       - name: Checkout code
+        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Cache pip dependencies
+        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/cache@v4
         with:
           path: |
@@ -84,14 +100,17 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Setup Python
+        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Install dependencies
+        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         run: pip install openai
 
       - name: AI-Powered Comprehensive Quality Scan
+        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'anthropic/claude-3-opus' }}
