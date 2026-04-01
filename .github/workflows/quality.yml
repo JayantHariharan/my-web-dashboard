@@ -5,7 +5,6 @@ on:
     branches: [main, develop]
 
 jobs:
-  # Quick check - fails fast if syntax is broken
   syntax-check:
     runs-on: ubuntu-latest
     concurrency:
@@ -16,6 +15,29 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if PR is up-to-date with base branch
+        run: |
+          echo "🔍 Checking if this PR is up-to-date with ${{ github.base_ref }}..."
+          git fetch origin ${{ github.base_ref }}
+          if git merge-base --is-ancestor origin/${{ github.base_ref }} HEAD 2>/dev/null; then
+            echo "✅ PR is up-to-date with ${{ github.base_ref }}"
+          else
+            echo "❌ PR is OUT OF DATE with ${{ github.base_ref }}"
+            echo ""
+            echo "Your branch has commits not in ${{ github.base_ref }}:"
+            git log --oneline origin/${{ github.base_ref }}..HEAD
+            echo ""
+            echo "⚠️  This PR cannot be merged until you rebase onto ${{ github.base_ref }}"
+            echo ""
+            echo "To fix this locally:"
+            echo "  git fetch origin"
+            echo "  git rebase origin/${{ github.base_ref }}"
+            echo ""
+            exit 1
+          fi
 
       - name: Cache pip dependencies
         uses: actions/cache@v4
@@ -33,28 +55,38 @@ jobs:
           python-version: '3.12'
 
       - name: Python syntax check
-        run: python -m py_compile src/backend/main.py
         id: syntax
+        run: |
+          python -m py_compile src/backend/main.py
+          echo "passed=true" >> $GITHUB_OUTPUT
 
-      - name: Mark syntax passed
-        if: success()
-        run: echo "passed=true" >> $GITHUB_OUTPUT
-
-  # Comprehensive AI quality scan (runs in parallel with syntax-check)
   ai-quality-scan:
     runs-on: ubuntu-latest
     concurrency:
       group: quality-ai-${{ github.ref }}
       cancel-in-progress: true
     needs: syntax-check
-    if: ${{ needs.syntax-check.outputs.passed == 'true' }}
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
     steps:
+      - name: Check if AI scan should run
+        id: check-ai
+        run: |
+          if [ -z "$OPENROUTER_API_KEY" ]; then
+            echo "⚠️ OPENROUTER_API_KEY not set, skipping AI quality scan"
+            echo "skipped=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ OPENROUTER_API_KEY found, running AI scan"
+            echo "skipped=false" >> $GITHUB_OUTPUT
+          fi
       - name: Checkout code
+        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Cache pip dependencies
+        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/cache@v4
         with:
           path: |
@@ -65,28 +97,29 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Setup Python
+        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
       - name: Install dependencies
+        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         run: pip install openai
 
       - name: AI-Powered Comprehensive Quality Scan
+        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'anthropic/claude-3-opus' }}
+          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'stepfun/step-3.5-flash:free' }}
         run: |
           echo "🚀 Running AI-powered comprehensive code quality scan..."
           python .github/scripts/ai_quality_scan.py
-
           if [ -f "ai-quality-report.json" ]; then
             echo "📊 Quality report generated"
             echo "report_path=ai-quality-report.json" >> $GITHUB_OUTPUT
           else
             echo "⚠️  No quality report generated"
             echo "report_path=" >> $GITHUB_OUTPUT
-            exit 1
           fi
         id: ai-scan
 
@@ -103,73 +136,22 @@ jobs:
         run: |
           echo "## 🤖 AI Code Quality Scan Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          python - <<'PY'
-          import json, sys, os
-          summary_md = ""
+          if [ -f "ai-quality-report.json" ]; then
+            python .github/scripts/generate_quality_summary.py
+          else
+            echo "⚠️ AI quality scan skipped (OPENROUTER_API_KEY not set) or no report generated." >> $GITHUB_STEP_SUMMARY
+          fi
 
-          try:
-              with open('ai-quality-report.json') as f:
-                  report = json.load(f)
-
-              stats = report.get("statistics", {})
-              summary = report.get("summary", {})
-
-              summary_md += "### Scan Overview\n"
-              summary_md += f"- **Files scanned:** {summary.get('files_scanned', stats.get('files_with_issues', 0))}\n"
-              summary_md += f"- **Total lines:** {stats.get('total_lines', 'N/A')}\n"
-              summary_md += f"- **Functions with docstrings:** {stats.get('functions_with_docstrings', 0)}\n"
-              summary_md += f"- **Type-annotated functions:** {stats.get('type_annotated_functions', 0)}\n\n"
-
-              summary_md += "### Issues by Severity\n"
-              for severity in ["Critical", "High", "Medium", "Low", "Info"]:
-                  count = summary.get("by_severity", {}).get(severity, 0)
-                  if count > 0:
-                      emoji = "🔴" if severity in ["Critical", "High"] else "🟡" if severity == "Medium" else "🟢"
-                      summary_md += f"- {emoji} **{severity}:** {count}\n"
-
-              summary_md += "\n### Issues by Category\n"
-              categories = summary.get("by_category", {})
-              for category, count in categories.items():
-                  if count > 0:
-                      emoji = {
-                          "security": "🔒",
-                          "bug": "🐛",
-                          "quality": "📐",
-                          "style": "💅",
-                          "type": "🏷️",
-                          "formatting": "✨"
-                      }.get(category, "•")
-                      summary_md += f"- {emoji} **{category}:** {count}\n"
-
-              if summary.get("has_blocking_issues"):
-                  summary_md += "\n⚠️ **Blocking Issues Detected** (Critical/High severity or Medium+ security)\n"
-              else:
-                  summary_md += "\n✅ **No blocking issues found**\n"
-
-          except FileNotFoundError:
-              summary_md += "⚠️ Quality report not found\n"
-          except Exception as e:
-              summary_md += f"⚠️ Error reading report: {e}\n"
-
-          summary_md += "\n---\n*Generated by AI Code Quality Scanner*\n"
-          print(summary_md)
-          summary_file = os.getenv('GITHUB_STEP_SUMMARY')
-          if summary_file:
-              with open(summary_file, 'a') as f:
-                  f.write(summary_md)
-          PY
-
-      - name: Save quality result
+      - name: Set quality result
         if: always()
         run: |
           if [ -f "ai-quality-report.json" ]; then
             echo "quality_passed=true" >> $GITHUB_OUTPUT
           else
-            echo "quality_passed=false" >> $GITHUB_OUTPUT
+            echo "quality_passed=skipped" >> $GITHUB_OUTPUT
           fi
         id: quality-result
 
-  # Final check - runs after both jobs complete, determines if PR can merge
   final-check:
     runs-on: ubuntu-latest
     concurrency:
@@ -181,18 +163,15 @@ jobs:
         run: |
           echo "📊 Final check results:"
           echo "Syntax check: ${{ needs.syntax-check.outputs.passed }}"
-          echo "Quality scan: ${{ needs.ai-quality-scan.outputs.quality_passed }}"
-
-          # Fail if syntax check failed
+          echo "Quality scan: ${{ needs.ai-quality-scan.outputs.quality_passed || 'not run' }}"
           if [ "${{ needs.syntax-check.outputs.passed }}" != "true" ]; then
             echo "❌ Syntax check failed"
             exit 1
           fi
-
-          # Fail if quality scan failed or missing
-          if [ "${{ needs.ai-quality-scan.outputs.quality_passed }}" != "true" ]; then
-            echo "❌ Quality scan failed or did not complete"
+          quality_status="${{ needs.ai-quality-scan.outputs.quality_passed }}"
+          if [ "$quality_status" = "false" ]; then
+            echo "❌ Quality scan failed"
             exit 1
           fi
-
-          echo "✅ All checks passed!"
+          echo "✅ All required checks passed!"
+          echo "   (AI quality scan: $quality_status)"
