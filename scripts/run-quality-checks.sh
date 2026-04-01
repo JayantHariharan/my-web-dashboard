@@ -38,7 +38,28 @@ warn() {
 # Ensure we're in project root
 cd "$(dirname "$0")/.." 2>/dev/null || true
 
-# 1. Python syntax
+# 1. YAML syntax validation for workflows
+check "YAML syntax (workflows)"
+if command -v python3 &> /dev/null; then
+    YAML_FAIL=0
+    # Check all workflow files (not just staged) to catch any syntax errors
+    for wf in .github/workflows/*.yml; do
+        if [ -f "$wf" ]; then
+            if ! python3 -c "import yaml; yaml.safe_load(open('$wf', encoding='utf-8'))" 2>/dev/null; then
+                fail "Invalid YAML: $wf"
+                YAML_FAIL=1
+            fi
+        fi
+    done
+    if [ $YAML_FAIL -eq 0 ]; then
+        pass "All workflow YAML files valid"
+    fi
+else
+    warn "python3 not available, skipping YAML validation"
+fi
+echo ""
+
+# 2. Python syntax
 check "Python syntax check"
 if python -m py_compile src/backend/main.py 2>/dev/null; then
     pass "Syntax valid"
