@@ -30,15 +30,16 @@ elif [[ "$BRANCH_NAME" =~ ^(fmt|feat|fix|chore)/ ]]; then
     if git merge-base --is-ancestor origin/develop HEAD 2>/dev/null; then
         echo "✅ Feature branch includes latest develop changes"
     else
-        echo "⚠️  Warning: Your feature branch does NOT include latest changes from develop"
-        echo "   This will likely cause merge conflicts when you create a PR."
+        echo "❌ ERROR: Your feature branch is OUT OF DATE with origin/develop"
+        echo "   This will cause merge conflicts in a PR."
         echo ""
         echo "To fix this, run:"
         echo "   git fetch origin"
         echo "   git rebase origin/develop"
         echo ""
-        echo "Continuing push anyway (you have been warned)..."
+        echo "Push blocked. Please rebase and try again."
         echo ""
+        exit 1
     fi
 else
     # Not a recognized branch pattern, just continue
