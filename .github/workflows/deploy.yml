@@ -36,7 +36,7 @@ jobs:
           echo "✅ Environment: $ENV"
           echo "   Service ID secret: $SERVICE_ID_SECRET"
 
-      - name: Validate mandatory secrets
+      - name: Debug secrets availability
         env:
           PGHOST: ${{ secrets.PGHOST }}
           PGPORT: ${{ secrets.PGPORT }}
@@ -47,10 +47,18 @@ jobs:
           RENDER_SERVICE_ID_PROD: ${{ secrets.RENDER_SERVICE_ID_PROD }}
           RENDER_SERVICE_ID_TEST: ${{ secrets.RENDER_SERVICE_ID_TEST }}
         run: |
-          echo "🔍 Validating mandatory secrets..."
-          echo "Debug: Listing all environment variables starting with PG or RENDER:"
-          env | grep -E '^(PG|RENDER)'
+          echo "🔍 Checking which secrets are available..."
+          echo "Secrets context:"
+          echo "  secrets length: ${{ toJSON(secrets) | length }}"
+          echo "  All secret keys (safe method):"
+          for secret in $(echo '${{ toJSON(secrets) }}' | jq -r 'keys[]'); do
+            echo "    - $secret"
+          done
           echo ""
+          echo "Environment variables passed to this step:"
+          env | grep -E '^(PG|RENDER)' || echo "  (none found)"
+          echo ""
+          echo "Now validating mandatory secrets with actual values (masked):"
 
           # Check PostgreSQL secrets
           missing=()
