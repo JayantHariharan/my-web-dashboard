@@ -110,7 +110,7 @@ jobs:
         if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'meta-llama/llama-3.3-70b-instruct:free' }}
+          OPENROUTER_MODEL: ${{ secrets.OPENROUTER_MODEL || 'stepfun/step-3.5-flash:free' }}
         run: |
           echo "🚀 Running AI-powered comprehensive code quality scan..."
           python .github/scripts/ai_quality_scan.py
