@@ -155,6 +155,19 @@ Your job is to find REAL issues that impact security, correctness, performance, 
       "evidence": "PASSWORD = 'supersecret123'",
       "recommendation": "Remove the hardcoded password and load it from environment variables using os.environ.get('DB_PASSWORD') or a configuration manager. Example:\\n\\nimport os\\nPASSWORD = os.environ.get('DB_PASSWORD')\\nif not PASSWORD:\\n    raise ValueError('DB_PASSWORD environment variable not set')",
       "auto_fixable": false
+    },
+    {
+      "file": "src/backend/main.py",
+      "line": 15,
+      "column": 1,
+      "severity": "High",
+      "category": "type",
+      "subcategory": "missing-type-hint",
+      "title": "Missing type hints for public function",
+      "description": "The function 'create_user' is part of the public API but lacks type annotations. This makes the code harder to understand, maintain, and can lead to type-related bugs.",
+      "evidence": "def create_user(username, email):",
+      "recommendation": "Add proper type hints. Example:\\n\\ndef create_user(username: str, email: str) -> dict:\\n    ...",
+      "auto_fixable": true
     }
   ],
   "statistics": {
