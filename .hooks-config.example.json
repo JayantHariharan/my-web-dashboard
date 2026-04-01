@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/JayantHariharan/my-web-dashboard/refs/heads/fmt/ai-quality-scanner/.hooks-config.schema.json",
+  "$comment": "Configure Git hooks behavior. See CLAUDE.md for details.",
+  "pre-commit": {
+    "enabled": true,
+    "skipChecks": [],
+    "onlyOnChanged": true,
+    "aiQuality": {
+      "enabled": true,
+      "skipOnLargeFiles": true,
+      "maxFiles": 50
+    }
+  },
+  "pre-push": {
+    "enabled": true,
+    "runFullChecks": false,
+    "runSmokeTests": false,
+    "checkBranchUpToDate": true
+  },
+  "commit-msg": {
+    "enabled": true,
+    "enforceConventionalCommits": true,
+    "allowWip": true
+  }
+}
