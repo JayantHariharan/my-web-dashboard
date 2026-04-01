@@ -14,7 +14,6 @@ jobs:
       passed: ${{ steps.syntax.outputs.passed }}
     steps:
       - name: Checkout code
-        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -41,7 +40,6 @@ jobs:
           fi
 
       - name: Cache pip dependencies
-        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/cache@v4
         with:
           path: |
@@ -52,7 +50,6 @@ jobs:
             ${{ runner.os }}-pip-
 
       - name: Setup Python
-        if: ${{ steps.check-ai.outputs.skipped == 'false' }}
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
