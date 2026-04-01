@@ -74,8 +74,8 @@ jobs:
 
           echo "🚀 Running Flyway database migrations..."
 
-          # Build JDBC URL from parts
-          DATABASE_URL="jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}"
+          # Build JDBC URL from parts (Supabase requires SSL)
+          DATABASE_URL="jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}?sslmode=require"
 
           # Determine table suffix based on environment (matches app logic)
           if [ "${{ inputs.environment }}" = "production" ]; then
@@ -87,6 +87,7 @@ jobs:
           echo "Environment: ${{ inputs.environment }}"
           echo "Table suffix: $TABLE_SUFFIX"
           echo "Schema history table: schema_version$TABLE_SUFFIX"
+          echo "Database URL: $DATABASE_URL"
 
           # Display configuration
           flyway -configFiles=flyway/conf/flyway.conf info || true
@@ -96,7 +97,7 @@ jobs:
             -url="$DATABASE_URL" \
             -user="$PGUSER" \
             -password="$PGPASSWORD" \
-            -placeholder.table_suffix="$TABLE_SUFFIX" \
+            -placeholders.table_suffix="$TABLE_SUFFIX" \
             -table="schema_version$TABLE_SUFFIX" \
             migrate; then
             echo "✅ Flyway migrations completed successfully"
