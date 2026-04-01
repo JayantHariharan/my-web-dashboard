@@ -49,11 +49,8 @@ jobs:
         run: |
           echo "🔍 Checking which secrets are available..."
           echo "Secrets context:"
-          echo "  secrets length: ${{ toJSON(secrets) | length }}"
           echo "  All secret keys (safe method):"
-          for secret in $(echo '${{ toJSON(secrets) }}' | jq -r 'keys[]'); do
-            echo "    - $secret"
-          done
+          echo '${{ toJSON(secrets) }}' | jq -r 'keys[]' | sed 's/^/    - /'
           echo ""
           echo "Environment variables passed to this step:"
           env | grep -E '^(PG|RENDER)' || echo "  (none found)"
