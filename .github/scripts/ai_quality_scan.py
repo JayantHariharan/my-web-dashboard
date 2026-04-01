@@ -43,131 +43,167 @@ def read_file_content(filepath: str) -> str:
 def build_comprehensive_quality_prompt(files: List[Dict[str, str]]) -> str:
     """Build the comprehensive code quality analysis prompt for Claude."""
 
-    prompt = """You are an expert Python code reviewer performing a comprehensive quality audit.
+    prompt = """You are an expert Python code reviewer performing a comprehensive quality audit for a FastAPI backend project.
 
-Analyze the following Python files and detect issues across these categories:
+Your job is to find REAL issues that impact security, correctness, performance, or maintainability. Be thorough but practical.
 
-## 1. STYLE & LINTING (replaces flake8)
-- PEP 8 violations (line length, naming conventions, whitespace)
-- Unused imports or variables
-- Too complex functions (cyclomatic complexity)
-- Missing docstrings (for public functions/classes)
-- Too many arguments/locals/returns
-- Global statements
-- Bare except clauses
-- Mutable default arguments
+## ANALYSIS CATEGORIES
 
-## 2. TYPE ISSUES (replaces mypy)
-- Type inconsistencies
-- Missing type hints for function parameters/returns (especially public APIs)
-- Incorrect type usage
-- Possible None/optional errors
-- Wrong return types
-- incompatible collections
-
-## 3. FORMATTING (replaces black/isort)
-- Inconsistent indentation
-- Missing/extra blank lines
-- Improper quotes (mixed single/double)
-- Trailing whitespace
-- Import ordering issues
-- Long lines (>100 chars)
-
-## 4. SECURITY & BEST PRACTICES (replaces bandit + more)
-- Hardcoded secrets (passwords, tokens, API keys)
-- SQL injection (string concatenation in queries)
+### 1. SECURITY (Highest Priority)
+- Hardcoded secrets (passwords, tokens, API keys, database URLs)
+- SQL injection (string concatenation, f-strings in SQL queries)
 - Command injection (subprocess, os.system with user input)
-- Path traversal vulnerabilities
-- Insecure deserialization (pickle, yaml.load without safe loader)
+- Path traversal (unsanitized user input in file paths)
+- Insecure deserialization (pickle, yaml.load without SafeLoader)
 - Use of eval() or exec()
-- Weak cryptography (MD5, SHA1)
-- Missing input validation
-- Excessive logging of sensitive data
-- Insecure default values
+- Weak cryptography (MD5, SHA1, weak random)
+- Missing input validation on user-facing endpoints
+- Sensitive data in logs (passwords, tokens, PII)
+- Insecure CORS configuration
+- Missing authentication/authorization checks
+- Debug mode in production
 
-## 5. CODE QUALITY & MAINTAINABILITY
-- Code smells (long methods, large classes, feature envy)
-- Duplicate code
-- Magic numbers/strings
-- Overly nested conditionals
-- Deep inheritance hierarchies
-- Tight coupling
-- God classes/modules
-- Dead code
-- Overly complex logic
-- Inefficient algorithms/data structures
-
-## 6. POTENTIAL BUGS
-- Unreachable code
-- Infinite loops
+### 2. CRITICAL BUGS & RUNTIME ERRORS
 - Division by zero
-- Index out of bounds risks
-- Mutation during iteration
-- Resource leaks (unclosed files/connections)
-- Race conditions
-- Incorrect boolean logic
+- Index out of bounds / KeyError risks
+- None type errors (missing None checks)
+- Unhandled exceptions (bare except, missing try-except)
+- Infinite loops
+- Unreachable code
+- Resource leaks (files, DB connections, sessions not closed)
+- Race conditions (async issues, shared state)
+- Mutating collections during iteration
 - Off-by-one errors
 
-## Output Format (Strict JSON):
+### 3. TYPE SAFETY & CORRECTNESS (mypy replacement)
+- Missing type hints for function parameters/returns (public APIs must be typed)
+- Type inconsistencies (wrong return type, wrong argument type)
+- Optional/None not properly handled (missing Optional, None checks)
+- Wrong collection types (list vs set, wrong generic)
+- Incorrect type annotations
+- Mutable default arguments
+
+### 4. CODE QUALITY & MAINTAINABILITY
+- Long functions (>50 lines) or complex functions (cyclomatic complexity >10)
+- Large classes (>300 lines) or too many methods
+- Duplicate code blocks
+- Magic numbers/strings (use constants)
+- Overly nested conditionals (>3 levels)
+- God modules (doing too many things)
+- Dead code (unused functions, variables, imports)
+- Overly complex logic that's hard to understand
+- Inefficient algorithms (O(n²) when O(n) possible)
+- Tight coupling, lack of abstraction
+
+### 5. STYLE & FORMATTING (flake8/black/isort replacement)
+- PEP 8 violations:
+  - Line length > 100 characters (break appropriately)
+  - Naming conventions (snake_case for functions/variables, PascalCase for classes)
+  - Missing/extra blank lines (2 before class/function, 1 between methods)
+  - Trailing whitespace
+  - Inconsistent indentation (use 4 spaces, not tabs)
+- Import ordering:
+  - Standard library first
+  - Third-party packages second
+  - Local application imports third
+  - Blank line between each group
+- Missing docstrings:
+  - All public functions/classes must have docstrings
+  - Docstring should explain purpose, args, returns, raises
+- Bare `except:` clauses (catch specific exceptions)
+- Mutable default arguments (use None instead)
+- Global statements
+
+## OUTPUT FORMAT (Strict JSON)
 
 {
   "scan_metadata": {
     "scanner": "AI Code Quality Scanner",
     "timestamp": "ISO8601",
-    "files_scanned": N,
-    "total_lines": N
+    "files_scanned": 0,
+    "total_lines": 0
   },
   "summary": {
-    "total_issues": N,
+    "total_issues": 0,
     "by_severity": {
-      "Critical": N,
-      "High": N,
-      "Medium": N,
-      "Low": N,
-      "Info": N
+      "Critical": 0,
+      "High": 0,
+      "Medium": 0,
+      "Low": 0,
+      "Info": 0
     },
     "by_category": {
-      "style": N,
-      "type": N,
-      "formatting": N,
-      "security": N,
-      "quality": N,
-      "bug": N
+      "security": 0,
+      "bug": 0,
+      "type": 0,
+      "quality": 0,
+      "style": 0,
+      "formatting": 0
     },
     "has_blocking_issues": false
   },
   "issues": [
     {
-      "file": "path/to/file.py",
-      "line": N,
-      "column": N,
-      "severity": "Critical|High|Medium|Low|Info",
-      "category": "style|type|formatting|security|quality|bug",
-      "subcategory": "pep8|unused-import|missing-type-hint|hardcoded-secret|...",
-      "title": "Brief title",
-      "description": "Detailed explanation of the issue",
-      "evidence": "Code snippet showing the problem",
-      "recommendation": "How to fix it with code example if helpful",
+      "file": "src/backend/auth/service.py",
+      "line": 42,
+      "column": 15,
+      "severity": "Critical",
+      "category": "security",
+      "subcategory": "hardcoded-secret",
+      "title": "Hardcoded database password in source code",
+      "description": "The database password is hardcoded as a string literal. This is a major security risk as the password will be exposed in version control, logs, and to anyone with code access.",
+      "evidence": "PASSWORD = 'supersecret123'",
+      "recommendation": "Remove the hardcoded password and load it from environment variables using os.environ.get('DB_PASSWORD') or a configuration manager. Example:\\n\\nimport os\\nPASSWORD = os.environ.get('DB_PASSWORD')\\nif not PASSWORD:\\n    raise ValueError('DB_PASSWORD environment variable not set')",
       "auto_fixable": false
+    },
+    {
+      "file": "src/backend/main.py",
+      "line": 15,
+      "column": 1,
+      "severity": "High",
+      "category": "type",
+      "subcategory": "missing-type-hint",
+      "title": "Missing type hints for public function",
+      "description": "The function 'create_user' is part of the public API but lacks type annotations. This makes the code harder to understand, maintain, and can lead to type-related bugs.",
+      "evidence": "def create_user(username, email):",
+      "recommendation": "Add proper type hints. Example:\\n\\ndef create_user(username: str, email: str) -> dict:\\n    ...",
+      "auto_fixable": true
     }
   ],
   "statistics": {
-    "files_with_issues": N,
-    "lines_of_code": N,
-    "type_annotated_functions": N,
-    "functions_with_docstrings": N
+    "files_with_issues": 0,
+    "lines_of_code": 0,
+    "type_annotated_functions": 0,
+    "functions_with_docstrings": 0
   }
 }
 
-IMPORTANT:
-- Be precise and actionable. Focus on real issues, not style preferences.
-- Prioritize critical security and correctness issues.
-- If an issue has a clear automatic fix, mark "auto_fixable": true.
-- For formatting issues, be specific about line/column.
-- For type issues, infer the likely correct type.
-- Consider the project context (FastAPI backend, security-focused).
+## CRITICAL RULES FOR ISSUE SUBMISSION
 
-Files to analyze:
+1. **Accuracy**: Only report real issues. If you're unsure, omit it rather than report a false positive.
+2. **Line/Column accuracy**: Pinpoint EXACT line and column numbers. Double-check before reporting.
+3. **Evidence**: Quote the EXACT code snippet that demonstrates the issue.
+4. **Recommendation**: Provide a clear, actionable fix WITH CODE EXAMPLE whenever possible.
+5. **Severity grading**:
+   - Critical: Security vulnerability, data loss, crash, infinite loop
+   - High: Major bug, incorrect behavior, missing error handling
+   - Medium: Code smell, missing type hints/docstrings, moderate complexity
+   - Low: Minor style issues, whitespace, naming that violates PEP8
+   - Info: Suggestions, improvements, best practices
+6. **Category assignment**: Use ONE primary category. Precedence: security > bug > type > quality > style > formatting
+7. **Blocking issues**: Set "has_blocking_issues": true if ANY Critical/High severity exists, OR Medium+ security issues exist.
+8. **Statistics**: Accurately count:
+   - functions_withocstrings: Count def statements that have triple-quoted strings immediately after
+   - type_annotated_functions: Count functions with -> return type annotation AND parameter type hints
+   - lines_of_code: Total non-empty, non-comment lines ( rough estimate ok )
+
+## PROJECT CONTEXT
+- FastAPI backend with PostgreSQL
+- Security-focused application (user authentication, profiles)
+- Python 3.12
+- Code should be production-ready, secure, and maintainable
+
+Now analyze these files and output ONLY valid JSON:
 """
 
     for file_info in files[:8]:  # Limit to 8 files to keep runtime reasonable
@@ -252,20 +288,26 @@ def compute_statistics(files: List[Dict[str, str]], issues: List[Dict[str, Any]]
     for issue in issues:
         files_with_issues_set.add(issue.get('file', ''))
 
-    # Rough estimates for type annotations and docstrings
-    # The AI should provide more accurate counts, but we use these as fallbacks
+    # Better estimates for type annotations and docstrings using regex
+    import re
     type_annotated = 0
     docstrings = 0
 
     all_content = "\n".join(f['content'] for f in files)
-    # Count function definitions with type hints (very rough)
-    type_annotated = all_content.count('->')
-    # Count docstrings (rough)
-    docstrings = all_content.count('"""') // 2 + all_content.count("'''") // 2
+
+    # Count function definitions with return type annotation (->)
+    # Pattern: def func(...) -> type:
+    type_annotated = len(re.findall(r'def\s+\w+\s*\([^)]*\)\s*->', all_content))
+
+    # Count docstrings more accurately (triple quotes at function/class start)
+    # This is still approximate but better than simple division
+    docstrings = len(re.findall(r'""".*?"""', all_content, re.DOTALL))
+    # For single quotes
+    docstrings += len(re.findall(r"'''.*?'''", all_content, re.DOTALL))
 
     return {
         "files_with_issues": len(files_with_issues_set),
-        "total_lines": total_lines,  # Match expected key name
+        "total_lines": total_lines,
         "type_annotated_functions": type_annotated,
         "functions_with_docstrings": docstrings
     }
