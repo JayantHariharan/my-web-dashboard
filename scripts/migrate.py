@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-Manual Flyway migration runner for local development (SQLite or PostgreSQL).
-Use this when working locally to apply database schema changes.
+Lightweight database migration runner.
+Uses Supabase connection directly via environment variables.
+No Java dependency - pure Python.
 
 Usage:
-  python scripts/migrate.py                     # Auto-detect from .env
+  python scripts/migrate.py                     # Apply migrations
   python scripts/migrate.py --dry-run           # Show what would be applied
-  python scripts/migrate.py --reset             # Apply fresh (drops schema_version)
-  DATABASE_URL=sqlite:///./data/playnexus.db python scripts/migrate.py
+  python scripts/migrate.py --reset             # Reset schema_version table
+  python scripts/migrate.py --list              # List available migrations
 """
 
 import os
@@ -22,26 +23,80 @@ try:
 except ImportError:
     POSTGRES_AVAILABLE = False
 
-# Add project root to path
+try:
+    from dotenv import load_dotenv
+    DOTENV_AVAILABLE = True
+except ImportError:
+    DOTENV_AVAILABLE = False
+
 BASE_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE_DIR / "src"))
 
-from backend.config import settings
+
+def get_database_config():
+    """Load database configuration from environment variables."""
+    # Load .env file if present (only for local dev, CI sets env vars directly)
+    env_file = BASE_DIR / ".env"
+    is_ci = os.getenv("CI", "").lower() in ("true", "1", "yes")
+    if DOTENV_AVAILABLE and env_file.exists() and not is_ci:
+        load_dotenv(env_file)
+
+    # Get DATABASE_URL or construct from PG* variables
+    raw_url = os.environ.get("DATABASE_URL", "")
+
+    if not raw_url:
+        pg_host = os.environ.get("PGHOST", "")
+        pg_user = os.environ.get("PGUSER", "")
+        pg_password = os.environ.get("PGPASSWORD", "")
+        pg_database = os.environ.get("PGDATABASE", "")
+        pg_port = os.environ.get("PGPORT", "5432")
+
+        if all([pg_host, pg_user, pg_password, pg_database]):
+            raw_url = (
+                f"postgresql://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_database}"
+            )
+        else:
+            # Fallback to local SQLite
+            data_dir = BASE_DIR / "data"
+            data_dir.mkdir(exist_ok=True)
+            db_path = data_dir / "playnexus.db"
+            raw_url = f"sqlite:///{db_path.as_posix()}"
+
+    is_postgres = raw_url.startswith("postgresql://") or raw_url.startswith("postgres://")
+
+    # Determine table suffix from ENV/APP_ENV
+    app_env = os.environ.get("ENV", "").lower()
+    if not app_env:
+        app_env = os.environ.get("APP_ENV", "").lower()
+
+    if app_env in ("prod", "production"):
+        table_suffix = "_prod"
+    elif app_env in ("test", "staging", "dev", "development"):
+        table_suffix = "_test"
+    else:
+        table_suffix = ""
+
+    # Get custom schema (PostgreSQL only). Default: 'public'
+    db_schema = os.environ.get("DB_SCHEMA", "public")
+
+    return raw_url, is_postgres, table_suffix, db_schema
 
 
-def get_connection():
-    """Get database connection based on settings."""
-    db_url = settings.database.url
-
-    if settings.database.is_postgres:
+def get_connection(db_url, is_postgres, db_schema="public"):
+    """Create database connection."""
+    if is_postgres:
         if not POSTGRES_AVAILABLE:
-            print("❌ psycopg2 not installed. Install with: pip install psycopg2-binary")
+            print("[ERR]  psycopg2-binary not installed. Install with: pip install psycopg2-binary")
             sys.exit(1)
         conn = psycopg2.connect(db_url)
         conn.cursor_factory = RealDictCursor
+        # Set search_path to use custom schema (falls back to public)
+        try:
+            conn.cursor().execute(f"SET search_path TO {db_schema}, public")
+        except Exception as e:
+            print(f"[WARN] Failed to set search_path to '{db_schema}': {e}")
         return conn, True
     else:
-        # SQLite
         db_path = db_url.replace("sqlite:///", "")
         conn = sqlite3.connect(db_path)
         return conn, False
@@ -51,7 +106,7 @@ def find_migrations():
     """Find all SQL migration files in order."""
     migrations_dir = BASE_DIR / "flyway" / "sql"
     if not migrations_dir.exists():
-        print(f"❌ Migrations directory not found: {migrations_dir}")
+        print(f"[ERR]  Migrations directory not found: {migrations_dir}")
         return []
 
     migrations = []
@@ -85,7 +140,7 @@ def create_schema_version_table(conn, is_postgres, table_suffix=""):
 
 
 def get_applied_migrations(conn, is_postgres, table_suffix=""):
-    """Get list of already applied migrations."""
+    """Get set of already applied migration script names."""
     table_name = f"schema_version{table_suffix}"
     cursor = conn.cursor()
     try:
@@ -112,7 +167,6 @@ def apply_migration(conn, migration_file, is_postgres, dry_run=False, table_suff
     else:
         sql = sql.replace("{AUTOINCREMENT}", "INTEGER PRIMARY KEY AUTOINCREMENT")
         sql = sql.replace("{TEXT}", "TEXT")
-    # Replace table suffix placeholder
     sql = sql.replace("{table_suffix}", table_suffix)
 
     if dry_run:
@@ -131,38 +185,49 @@ def apply_migration(conn, migration_file, is_postgres, dry_run=False, table_suff
                 if stmt:
                     cursor.execute(stmt)
 
-        # Record migration in suffixed schema_version table
+        # Record migration
         schema_table = f"schema_version{table_suffix}"
+        placeholder = "%s" if is_postgres else "?"
         cursor.execute(
-            f"INSERT INTO {schema_table} (script) VALUES (%s)" if is_postgres else f"INSERT INTO {schema_table} (script) VALUES (?)",
+            f"INSERT INTO {schema_table} (script) VALUES ({placeholder})",
             (script_name,)
         )
         conn.commit()
         return True
     except Exception as e:
         conn.rollback()
-        print(f"  ❌ Failed to apply {script_name}: {e}")
+        print(f"  [ERR]  Failed to apply {script_name}: {e}")
         return False
 
 
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="Flyway migration runner for local development")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would be applied without making changes")
-    parser.add_argument("--reset", action="store_true", help="Reset schema_version (dangerous, only for fresh DBs)")
+    parser = argparse.ArgumentParser(description="Lightweight database migrations")
+    parser.add_argument("--dry-run", action="store_true", help="Show what would be applied")
+    parser.add_argument("--reset", action="store_true", help="Reset schema_version table (fresh DB)")
     parser.add_argument("--list", action="store_true", help="List available migrations")
     args = parser.parse_args()
 
-    # Load settings from .env if available
-    env_file = BASE_DIR / ".env"
-    if env_file.exists():
-        from backend.config import Settings
-        global settings
-        settings = Settings(_env_file=env_file)
+    # Get database config
+    db_url, is_postgres, table_suffix, db_schema = get_database_config()
 
-    print(f"📦 Database: {'PostgreSQL' if settings.database.is_postgres else 'SQLite'}")
-    print(f"   URL: {settings.database.url.replace(settings.database.password, '***') if settings.database.password else settings.database.url}")
+    print(f"[DB] Database: {'PostgreSQL' if is_postgres else 'SQLite'}")
+    # Mask password in URL for logging
+    if '://' in db_url and '@' in db_url:
+        parts = db_url.split('://', 1)
+        auth_part, rest = parts[1].split('@', 1) if '@' in parts[1] else (parts[1], '')
+        if ':' in auth_part:
+            user, pwd = auth_part.split(':', 1)
+            display_url = f"{parts[0]}://{user}:***@{rest}" if rest else f"{parts[0]}://{user}:***"
+        else:
+            display_url = db_url
+    else:
+        display_url = db_url
+    print(f"   URL: {display_url}")
+    print(f"   Table suffix: '{table_suffix}'" if table_suffix else "   Table suffix: (none)")
+    if is_postgres and db_schema != "public":
+        print(f"   Schema: '{db_schema}'")
 
     migrations = find_migrations()
     if not migrations:
@@ -170,23 +235,22 @@ def main():
         sys.exit(0)
 
     if args.list:
-        print(f"\n📁 Available migrations ({len(migrations)}):")
+        print(f"\n[..] Available migrations ({len(migrations)}):")
         for m in migrations:
             print(f"   {m.name}")
         sys.exit(0)
 
-    conn, is_postgres = get_connection()
-    table_suffix = settings.database.table_suffix or ""
+    conn, is_postgres = get_connection(db_url, is_postgres, db_schema)
     create_schema_version_table(conn, is_postgres, table_suffix)
     applied = get_applied_migrations(conn, is_postgres, table_suffix)
 
-    print(f"\n📊 Migrations status:")
+    print(f"\n[..] Migrations status:")
     print(f"   Total: {len(migrations)}")
     print(f"   Already applied: {len([m for m in migrations if m.name in applied])}")
     print(f"   To apply: {len([m for m in migrations if m.name not in applied])}")
 
     if args.reset and not args.dry_run:
-        if input("⚠️  This will drop schema_version table. Continue? (yes/no): ") != "yes":
+        if input("[WARN]   This will drop schema_version table. Continue? (yes/no): ") != "yes":
             sys.exit(0)
         cursor = conn.cursor()
         schema_table = f"schema_version{table_suffix}"
@@ -194,10 +258,10 @@ def main():
         conn.commit()
         create_schema_version_table(conn, is_postgres, table_suffix)
         applied = set()
-        print(f"✅ {schema_table} reset")
+        print(f"[OK]  {schema_table} reset")
 
     if args.dry_run:
-        print("\n🧪 DRY RUN - no changes will be made\n")
+        print("\n[TEST] DRY RUN - no changes will be made\n")
 
     applied_count = 0
     skipped_count = 0
@@ -207,18 +271,18 @@ def main():
         script_name = migration.name
 
         if script_name in applied:
-            print(f"  ✅ Already applied: {script_name}")
+            print(f"  [OK]  Already applied: {script_name}")
             skipped_count += 1
             continue
 
-        print(f"  ⏳ Applying: {script_name}")
+        print(f"  [..]  Applying: {script_name}")
         if apply_migration(conn, migration, is_postgres, dry_run=args.dry_run, table_suffix=table_suffix):
             applied_count += 1
         else:
             failed = True
             break
 
-    print(f"\n📈 Summary:")
+    print(f"\n[..] Summary:")
     print(f"   Applied: {applied_count}")
     print(f"   Skipped: {skipped_count}")
     print(f"   Failed: {1 if failed else 0}")
@@ -226,15 +290,15 @@ def main():
     conn.close()
 
     if failed:
-        print("\n❌ Migration failed!")
+        print("\n[ERR]  Migration failed!")
         sys.exit(1)
     elif applied_count == 0 and not args.dry_run:
-        print("\n✅ All migrations are already applied!")
+        print("\n[OK]  All migrations are already applied!")
     elif args.dry_run:
-        print("\n✅ Dry run complete (no changes made)")
+        print("\n[OK]  Dry run complete (no changes made)")
     else:
-        print("\n✅ All migrations applied successfully!")
-        print("\n💡 Next steps:")
+        print("\n[OK]  All migrations applied successfully!")
+        print("\n[..] Next steps:")
         print("   1. Run your FastAPI app: python src/backend/main.py")
         print("   2. Test the endpoints: http://localhost:8000/docs")
 

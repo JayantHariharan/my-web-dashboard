@@ -383,7 +383,7 @@ The system is now focused solely on authentication.
 **Core authentication tables:**
 - `users` - Core authentication (id, username, password_hash, created_at, last_login_at, created_ip, last_login_ip)
 - `user_profiles` - Extended profile (user_id, display_name, bio, preferences, avatar_url, created_at, updated_at)
-- `schema_version` - Tracks applied migrations (Flyway-style)
+- `schema_version` - Tracks applied migrations (with environment suffix)
 
 ### Removed Tables (v7.0 simplification)
 
@@ -395,7 +395,7 @@ The following non-authentication tables were removed to streamline the backend:
 
 All configuration is now via environment variables only (no database-based config).
 
-**Migrations**: Flyway-style in `flyway/sql/` (V1..V2). Applied via GitHub Actions using Flyway CLI during deployment (not on application startup). Locally, use SQLite which auto-creates schema, or run Flyway manually if needed.
+**Migrations**: Versioned SQL in `flyway/sql/` (V1 only currently). Applied via GitHub Actions using Python script (`scripts/migrate.py`) during deployment (not on application startup). Locally, use SQLite which auto-creates schema, or run `python scripts/migrate.py` manually if needed.
 
 **Database location**: Development uses SQLite in `data/playnexus.db`. Production uses PostgreSQL via environment variables.
 

@@ -27,7 +27,7 @@ PlayNexus is a **full-stack web application** with a FastAPI backend serving a s
 │  │  • Authentication APIs: /api/login, /api/signup   │  │
 │  │  • Health check: /health                          │  │
 │  │  • Rate limiting (category-based)                 │  │
-│  │  • Database migrations via Flyway CLI (GitHub Actions) │  │
+│  │  • Database migrations via Python script (GitHub Actions) │  │
 │  └────────────────────────────────────────────────────┘  │
 └───────────────────────┬──────────────────────────────────┘
                         │
@@ -37,9 +37,6 @@ PlayNexus is a **full-stack web application** with a FastAPI backend serving a s
 │  ┌────────────────────────────────────────────────────┐  │
 │  │  • users table (with audit fields)                │  │
 │  │  • user_profiles table                            │  │
-│  │  • app_registry table                             │  │
-│  │  • user_app_activity table                        │  │
-│  │  • game_scores table                              │  │
 │  │  • schema_version table (migration tracking)      │  │
 │  └────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────┘
@@ -55,7 +52,7 @@ PlayNexus is a **full-stack web application** with a FastAPI backend serving a s
 - **Authentication**: bcrypt with pepper (passlib)
 - **Deployment**: Render.com (PaaS)
 - **CI/CD**: GitHub Actions
-- **Migrations**: Flyway CLI via GitHub Actions
+- **Migrations**: Python script via GitHub Actions
 
 ### Frontend
 - **Architecture**: Static HTML5 + CSS3 + ES6 JavaScript
@@ -66,7 +63,7 @@ PlayNexus is a **full-stack web application** with a FastAPI backend serving a s
 ### Database
 - **Production**: PostgreSQL (Render-managed)
 - **Development**: SQLite (local file: `./data/playnexus.db`)
-- **Migrations**: Flyway-style versioned SQL scripts in `flyway/sql/`
+- **Migrations**: Versioned SQL scripts in `flyway/sql/`
 - **Schema tracking**: `schema_version` table
 
 ---

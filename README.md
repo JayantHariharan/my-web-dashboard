@@ -14,7 +14,7 @@
 
 - 🔐 **Secure authentication** – bcrypt + pepper, rate limiting, IP audit logging
 - 🚀 **Automated CI/CD** – GitHub Actions → Render deployment (staging + production)
-- 🗄️ **Versioned migrations** – Flyway-style SQL scripts (auto-applied)
+- 🗄️ **Versioned migrations** – SQL-based migration scripts (auto-applied)
 - 📱 **Static frontend** – Cinematic UI with Matter.js physics (served by backend)
 - ⚡ **Simplified architecture** – Auth-only, no unnecessary complexity
 - 🔒 **Production-ready** – Branch protection, smoke tests, health checks
@@ -381,7 +381,7 @@ Rate limits are per IP address and vary by app category:
 - **Development**: SQLite (`sqlite:///./data/playnexus.db`) – no setup needed
 - **Production**: PostgreSQL (recommended: Supabase or Render PostgreSQL)
 
-Migrations are applied via GitHub Actions using Flyway CLI (see `flyway-migrate.yml`). Locally, SQLite auto-creates the schema; for PostgreSQL, run Flyway manually or deploy via CI.
+Migrations are applied via GitHub Actions using Python script (see `flyway-migrate.yml` workflow). Locally, SQLite auto-creates the schema; for PostgreSQL, run `python scripts/migrate.py` manually or deploy via CI.
 
 ### Environment Variables
 
@@ -397,6 +397,7 @@ All configuration is via environment variables (set in Render environment groups
 | `PGPASSWORD` | Yes* | Database password |
 | `PGDATABASE` | Yes* | Database name |
 | `DATABASE_URL` | Alternative | Full connection string (overrides PG*) |
+| `DB_SCHEMA` | No | PostgreSQL schema name (default: `public`). Useful for custom schemas like `playnexus`. |
 
 #### Application
 

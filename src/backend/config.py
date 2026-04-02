@@ -17,6 +17,7 @@ class DatabaseConfig:
     url: str
     is_postgres: bool
     table_suffix: str = ""  # Suffix for table names (e.g., "_test", "_prod")
+    db_schema: str = "public"  # PostgreSQL schema (default: public). Ignored for SQLite.
 
     @classmethod
     def from_env(cls) -> "DatabaseConfig":
@@ -70,7 +71,15 @@ class DatabaseConfig:
         else:
             table_suffix = ""  # Local dev or unknown env
 
-        return cls(url=raw_url, is_postgres=is_postgres, table_suffix=table_suffix)
+        # Get custom schema (PostgreSQL only). Default: 'public'
+        db_schema = os.environ.get("DB_SCHEMA", "public")
+
+        return cls(
+            url=raw_url,
+            is_postgres=is_postgres,
+            table_suffix=table_suffix,
+            db_schema=db_schema,
+        )
 
 
 @dataclass
