@@ -220,10 +220,12 @@ def apply_migration(conn, migration_file, is_postgres, dry_run=False, table_suff
             end_time = time.time()
             execution_time = int((end_time - start_time) * 1000)  # milliseconds
 
+            # Insert in the exact column order of Flyway's schema_version table
+            # Columns: installed_rank (auto), version, description, type, script, checksum (can be NULL), installed_by, installed_on, execution_time, success
             cursor.execute(
                 f"""INSERT INTO {schema_table}
-                    (version, description, type, script, installed_by, installed_on, execution_time, success)
-                    VALUES (%s, %s, 'SQL', %s, %s, CURRENT_TIMESTAMP, %s, %s)""",
+                    (version, description, type, script, checksum, installed_by, installed_on, execution_time, success)
+                    VALUES (%s, %s, 'SQL', %s, NULL, %s, CURRENT_TIMESTAMP, %s, %s)""",
                 (version, description, script_name, installed_by, execution_time, True)
             )
         else:
