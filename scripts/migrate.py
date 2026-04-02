@@ -121,14 +121,23 @@ def create_schema_version_table(conn, is_postgres, table_suffix=""):
     table_name = f"schema_version{table_suffix}"
     cursor = conn.cursor()
     if is_postgres:
+        # Use Flyway-compatible schema for PostgreSQL
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS {table_name} (
-                version INTEGER PRIMARY KEY,
-                script TEXT NOT NULL,
-                installed_on TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                installed_rank SERIAL PRIMARY KEY,
+                version VARCHAR(50),
+                description VARCHAR(200) NOT NULL,
+                type VARCHAR(20) NOT NULL,
+                script VARCHAR(1000) NOT NULL,
+                checksum INT,
+                installed_by VARCHAR(100) NOT NULL,
+                installed_on TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                execution_time INT NOT NULL,
+                success BOOLEAN NOT NULL
             )
         """)
     else:
+        # Simple schema for SQLite
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS {table_name} (
                 version INTEGER PRIMARY KEY,
@@ -176,6 +185,9 @@ def apply_migration(conn, migration_file, is_postgres, dry_run=False, table_suff
 
     cursor = conn.cursor()
     try:
+        import time
+        start_time = time.time()
+
         if is_postgres:
             cursor.execute(sql)
         else:
@@ -185,13 +197,41 @@ def apply_migration(conn, migration_file, is_postgres, dry_run=False, table_suff
                 if stmt:
                     cursor.execute(stmt)
 
-        # Record migration
+        # Record migration - use Flyway-compatible schema for PostgreSQL
         schema_table = f"schema_version{table_suffix}"
-        placeholder = "%s" if is_postgres else "?"
-        cursor.execute(
-            f"INSERT INTO {schema_table} (script) VALUES ({placeholder})",
-            (script_name,)
-        )
+
+        if is_postgres:
+            # Parse version and description from filename: V1__create_users.sql -> version='1', description='create users'
+            import re
+            match = re.match(r'V(\d+)__(.+)\.sql', script_name)
+            if match:
+                version = match.group(1)
+                # Replace underscores with spaces for description
+                description = match.group(2).replace('_', ' ')
+            else:
+                version = None
+                description = script_name
+
+            # Get the database user who executed the migration
+            cursor.execute("SELECT current_user")
+            installed_by = cursor.fetchone()[0]
+
+            end_time = time.time()
+            execution_time = int((end_time - start_time) * 1000)  # milliseconds
+
+            cursor.execute(
+                f"""INSERT INTO {schema_table}
+                    (version, description, type, script, installed_by, installed_on, execution_time, success)
+                    VALUES (%s, %s, 'SQL', %s, %s, CURRENT_TIMESTAMP, %s, %s)""",
+                (version, description, script_name, installed_by, execution_time, True)
+            )
+        else:
+            # SQLite: simple schema
+            cursor.execute(
+                f"INSERT INTO {schema_table} (script) VALUES (?)",
+                (script_name,)
+            )
+
         conn.commit()
         return True
     except Exception as e:
