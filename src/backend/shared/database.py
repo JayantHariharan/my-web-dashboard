@@ -26,12 +26,13 @@ class ConnectionError(DatabaseError):
     pass
 
 
-def get_connection(is_postgres: bool, db_url: str):
+def get_connection(is_postgres: bool, db_url: str, schema: str = "public"):
     """
     Get a raw database connection.
     Args:
         is_postgres: Whether to use PostgreSQL driver
         db_url: Database connection URL
+        schema: PostgreSQL schema to use (sets search_path). Ignored for SQLite.
     Returns:
         DB-API connection object
     """
@@ -43,6 +44,8 @@ def get_connection(is_postgres: bool, db_url: str):
 
             conn = psycopg2.connect(db_url)
             conn.cursor_factory = RealDictCursor
+            # Set search_path to use custom schema (falls back to public)
+            conn.cursor().execute(f"SET search_path TO {schema}, public")
             return conn
         else:
             # SQLite connection
@@ -60,10 +63,11 @@ class BaseRepository:
         self.table_name = table_name
         self._is_postgres = settings.database.is_postgres
         self._db_url = settings.database.url
+        self._db_schema = settings.database.db_schema
 
     def _get_connection(self):
         """Get a database connection."""
-        return get_connection(self._is_postgres, self._db_url)
+        return get_connection(self._is_postgres, self._db_url, self._db_schema)
 
     @contextmanager
     def get_cursor(self):

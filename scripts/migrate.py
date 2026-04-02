@@ -76,10 +76,13 @@ def get_database_config():
     else:
         table_suffix = ""
 
-    return raw_url, is_postgres, table_suffix
+    # Get custom schema (PostgreSQL only). Default: 'public'
+    db_schema = os.environ.get("DB_SCHEMA", "public")
+
+    return raw_url, is_postgres, table_suffix, db_schema
 
 
-def get_connection(db_url, is_postgres):
+def get_connection(db_url, is_postgres, db_schema="public"):
     """Create database connection."""
     if is_postgres:
         if not POSTGRES_AVAILABLE:
@@ -87,6 +90,11 @@ def get_connection(db_url, is_postgres):
             sys.exit(1)
         conn = psycopg2.connect(db_url)
         conn.cursor_factory = RealDictCursor
+        # Set search_path to use custom schema (falls back to public)
+        try:
+            conn.cursor().execute(f"SET search_path TO {db_schema}, public")
+        except Exception as e:
+            print(f"[WARN] Failed to set search_path to '{db_schema}': {e}")
         return conn, True
     else:
         db_path = db_url.replace("sqlite:///", "")
@@ -202,7 +210,7 @@ def main():
     args = parser.parse_args()
 
     # Get database config
-    db_url, is_postgres, table_suffix = get_database_config()
+    db_url, is_postgres, table_suffix, db_schema = get_database_config()
 
     print(f"[DB] Database: {'PostgreSQL' if is_postgres else 'SQLite'}")
     # Mask password in URL for logging
@@ -218,6 +226,8 @@ def main():
         display_url = db_url
     print(f"   URL: {display_url}")
     print(f"   Table suffix: '{table_suffix}'" if table_suffix else "   Table suffix: (none)")
+    if is_postgres and db_schema != "public":
+        print(f"   Schema: '{db_schema}'")
 
     migrations = find_migrations()
     if not migrations:
@@ -230,7 +240,7 @@ def main():
             print(f"   {m.name}")
         sys.exit(0)
 
-    conn, is_postgres = get_connection(db_url, is_postgres)
+    conn, is_postgres = get_connection(db_url, is_postgres, db_schema)
     create_schema_version_table(conn, is_postgres, table_suffix)
     applied = get_applied_migrations(conn, is_postgres, table_suffix)
 

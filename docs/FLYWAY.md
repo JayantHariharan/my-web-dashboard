@@ -88,6 +88,17 @@ CREATE TABLE IF NOT EXISTS games (
 );
 ```
 
+**Custom PostgreSQL Schema**
+
+By default, tables are created in the `public` schema. To use a custom schema (e.g., `playnexus`):
+
+1. Set environment variable `DB_SCHEMA=playnexus` (optional; defaults to `public`)
+2. The migration script automatically runs: `SET search_path TO playnexus, public`
+3. Keep table names unqualified (`users`, not `playnexus.users`) – `search_path` resolves them
+4. Ensure the schema exists before running migrations (create manually: `CREATE SCHEMA playnexus;`)
+
+This is useful for multi-tenancy or organized production setups. SQLite does not use schemas.
+
 **Rules**:
 - Use `IF NOT EXISTS` to make migrations idempotent (safe to re-run)
 - Use `{AUTOINCREMENT}` for auto-incrementing primary key

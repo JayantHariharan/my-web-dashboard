@@ -397,6 +397,7 @@ All configuration is via environment variables (set in Render environment groups
 | `PGPASSWORD` | Yes* | Database password |
 | `PGDATABASE` | Yes* | Database name |
 | `DATABASE_URL` | Alternative | Full connection string (overrides PG*) |
+| `DB_SCHEMA` | No | PostgreSQL schema name (default: `public`). Useful for custom schemas like `playnexus`. |
 
 #### Application
 
