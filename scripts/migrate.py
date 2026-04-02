@@ -214,7 +214,8 @@ def apply_migration(conn, migration_file, is_postgres, dry_run=False, table_suff
 
             # Get the database user who executed the migration
             cursor.execute("SELECT current_user")
-            installed_by = cursor.fetchone()[0]
+            row = cursor.fetchone()
+            installed_by = row[0] if isinstance(row, (list, tuple)) else row['current_user']
 
             end_time = time.time()
             execution_time = int((end_time - start_time) * 1000)  # milliseconds
