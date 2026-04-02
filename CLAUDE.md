@@ -121,7 +121,7 @@ run: echo "${{ github.sha }}"
 ```
 
 ### 6. Migration Strategy
-Migrations are applied via Flyway CLI in `.github/workflows/flyway-migrate.yml`, **not** on application startup. Do NOT re-introduce auto-migration in the application.
+Migrations are applied via Python script in `.github/workflows/flyway-migrate.yml` (now uses `scripts/migrate.py`), **not** on application startup. Do NOT re-introduce auto-migration in the application.
 
 ---
 
@@ -183,7 +183,7 @@ Before committing/pushing:
 1. Create SQL file: `flyway/sql/V<next>__<description>.sql`
 2. Use `IF NOT EXISTS` for tables, `IF NOT EXISTS` for indexes
 3. Commit with message: `feat(db): <description>`
-4. Push → Flyway applies automatically in CI/CD
+4. Push → Migrations apply automatically in CI/CD
 5. Verify `schema_version` table in production
 
 ### Deploy to Render

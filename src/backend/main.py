@@ -41,10 +41,10 @@ async def startup_event():
 
     logger.info("Configuration: Using environment variables only")
     logger.info(
-        "Note: Database migrations are applied via GitHub Actions (flyway-migrate workflow)"
+        "Note: Database migrations are applied via GitHub Actions (migrate workflow)"
     )
     logger.info(
-        "Local development: Use SQLite (auto-creates schema) or run Flyway manually"
+        "Local development: Use SQLite (auto-creates schema) or run migrate.py manually"
     )
 
     # Migrate any existing plain-text passwords to bcrypt (only runs if needed)

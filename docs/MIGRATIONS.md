@@ -68,20 +68,20 @@ Examples:
 
 ## How Migrations Are Applied
 
-Migrations are applied via GitHub Actions using Flyway CLI:
+Migrations are applied via GitHub Actions using a Python script (`scripts/migrate.py`):
 
 1. On push to `main` or `develop`, the `flyway-migrate` workflow runs
-2. Flyway CLI is installed and configured with `flyway/conf/flyway.conf`
-3. Flyway connects to the database using secrets (`PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`)
-4. Flyway scans `flyway/sql/` for `V*__*.sql` files
-5. For each unapplied migration, Flyway:
+2. GitHub Actions sets up Python and installs `psycopg2-binary`
+3. The script connects to the database using secrets (`PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`)
+4. It scans `flyway/sql/` for `V*__*.sql` files
+5. For each unapplied migration:
    - Executes the SQL (with placeholder replacement)
-   - Records the migration in the `schema_version` table automatically
+   - Records the migration in the `schema_version` table (with environment suffix)
 6. If all migrations succeed, deployment continues; otherwise it fails
 
-**Note**: The application does not run migrations on startup. Local development uses SQLite which auto-creates the schema from the migration files on first run, or you can run Flyway manually.
+**Note**: The application does not run migrations on startup. Local development uses SQLite which auto-creates the schema from the migration files on first run, or you can run `python scripts/migrate.py` manually.
 
-Flyway ensures migrations are applied exactly once and tracks their history in `schema_version`.
+The migration script ensures migrations are applied exactly once and tracks their history in `schema_version`.
 
 ---
 

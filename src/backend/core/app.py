@@ -45,7 +45,7 @@ Backend API for PlayNexus gaming hub - Multi-App Platform.
 - Secure authentication with bcrypt + pepper
 - Rate limiting per app category
 - IP audit logging
-- Flyway-style database migrations
+- Versioned database migrations
 - Health monitoring endpoint
 
 ## Authentication

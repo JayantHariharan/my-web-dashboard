@@ -1,6 +1,6 @@
-# Database Migrations (Flyway Style)
+# Database Migrations (Lightweight Python Runner)
 
-This project uses Flyway-style versioned SQL migrations for database schema management. Migrations are applied via **GitHub Actions** using the official Flyway CLI, not at application startup.
+This project uses versioned SQL migrations for database schema management. Migrations are applied via **GitHub Actions** using a lightweight Python script (`scripts/migrate.py`), not at application startup.
 
 ---
 
@@ -8,14 +8,17 @@ This project uses Flyway-style versioned SQL migrations for database schema mana
 
 1. **Migration files** are numbered `.sql` files in `flyway/sql/`
 2. **On deploy**, GitHub Actions workflow `flyway-migrate.yml` runs:
-   - Installs Flyway CLI
-   - Connects to the database using secrets
+   - Sets up Python and installs `psycopg2-binary`
+   - Connects to the Supabase database using secrets (DATABASE_URL or PG*)
    - Scans `flyway/sql/` for files named `V<number>__<description>.sql`
-   - Applies any migrations not yet recorded in `schema_version`
-   - Records each applied migration in Flyway's `schema_version` table
+   - Applies any pending migrations using the Python script
+   - Records each applied migration in the `schema_version` table (with environment suffix)
 3. Migrations run in order; if one fails, the deployment fails and the error is reported
 
-**Configuration**: `flyway/conf/flyway.conf` contains Flyway settings (locations, table name, placeholders, validation).
+**Placeholders**: The migration script replaces these placeholders automatically:
+- `{AUTOINCREMENT}` → `SERIAL PRIMARY KEY` (PostgreSQL) or `INTEGER PRIMARY KEY AUTOINCREMENT` (SQLite)
+- `{TEXT}` → `TEXT` (both databases)
+- `{table_suffix}` → `_prod`, `_test`, or empty based on `ENV` variable
 
 ---
 
@@ -71,8 +74,6 @@ Flyway replaces these placeholders automatically:
 | `{TEXT}` | `TEXT` | `TEXT` | Text columns (works in both) |
 | `{table_suffix}` | `_prod` or `_test` | `_prod` or `_test` | Environment-based table suffix (set via `ENV` variable) |
 
-**Note**: Flyway uses `{placeholder}` syntax configured in `flyway/conf/flyway.conf` with `flyway.placeholderPrefix={` and `flyway.placeholderSuffix=}`.
-
 Example:
 
 ```sql
@@ -104,12 +105,13 @@ git push origin main
 
 ### Step 4: Automatic Deployment
 
-GitHub Actions runs the `flyway-migrate` workflow → Flyway applies the migration → deployment proceeds.
+GitHub Actions runs the `flyway-migrate` workflow → Python script applies migration → deployment proceeds.
 
 **Check GitHub Actions logs** to confirm:
 ```
-🚀 Running Flyway database migrations...
-✅ Flyway migrations completed successfully
+[DB] Database: PostgreSQL
+...
+[OK]  All migrations applied successfully!
 ```
 
 ---
@@ -205,10 +207,10 @@ Examples:
 
 ### Migrations Failed
 
-**Symptom**: GitHub Actions workflow fails during the "Run Flyway migrations" step.
+**Symptom**: GitHub Actions workflow fails during the "Run Python migrations" step.
 
 **Fix**:
-1. Check logs for the exact SQL error
+1. Check logs for the exact SQL error (look for "Failed to apply Vx")
 2. Fix the SQL syntax in the migration file
 3. If migration partially applied, manually clean up:
    - Connect to DB
@@ -220,40 +222,7 @@ Examples:
 - Verify `flyway-migrate.yml` workflow exists and is triggered
 - Check that `flyway/sql/` directory exists at project root
 - Ensure database secrets (`PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`) are set in GitHub repository secrets
-- Look for log line: `📦 Found X migration(s)`
-
----
-
-## Advanced: Custom Placeholders
-
-Flyway replaces placeholders defined in `flyway/conf/flyway.conf`.
-
-Default placeholders:
-- `{AUTOINCREMENT}` → `SERIAL PRIMARY KEY` (PostgreSQL)
-- `{TEXT}` → `TEXT` (both databases)
-
-To add custom placeholders:
-
-1. Edit `flyway/conf/flyway.conf`:
-   ```properties
-   flyway.placeholders.YOUR_PLACEHOLDER=replacement_value
-   ```
-2. Use in migration: `column_name {YOUR_PLACEHOLDER}`
-
-For database-specific replacements (e.g., different for PostgreSQL vs SQLite), maintain separate config files per environment or use Flyway callbacks for dynamic resolution.
-
----
-
-## Comparison with Python Migrations
-
-We previously used Python-based migrations (`.py` files with `upgrade(repo)` functions). We switched to **SQL-only** because:
-
-- **DBA-friendly**: SQL is universal; DBAs can review/modify without Python
-- **Standard**: Flyway is a well-known industry pattern
-- **Simple**: No Python code to write; just SQL
-- **Portable**: Migration files work with any language/tool that understands Flyway format
-
-If you need complex logic (data transformations), you can still write Python in migrations, but for schema changes, SQL is sufficient and cleaner.
+- Look for output showing migration status (e.g., `[..] Migrations status:`)
 
 ---
 

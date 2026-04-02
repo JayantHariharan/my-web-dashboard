@@ -1,7 +1,6 @@
-name: Flyway Database Migrations
+name: Database Migrations (Python)
 
 on:
-  # This workflow is called by other workflows (deploy.yml)
   workflow_call:
     inputs:
       environment:
@@ -18,9 +17,11 @@ on:
         required: true
       PGDATABASE:
         required: true
+      DATABASE_URL:
+        required: true
 
 concurrency:
-  group: flyway-${{ inputs.environment }}
+  group: migrate-${{ inputs.environment }}
   cancel-in-progress: true
 
 jobs:
@@ -29,6 +30,7 @@ jobs:
     environment: ${{ inputs.environment }}
     outputs:
       success: ${{ steps.migrate.outputs.success }}
+
     env:
       PGHOST: ${{ secrets.PGHOST }}
       PGPORT: ${{ secrets.PGPORT }}
@@ -36,64 +38,74 @@ jobs:
       PGPASSWORD: ${{ secrets.PGPASSWORD }}
       PGDATABASE: ${{ secrets.PGDATABASE }}
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      ENV: ${{ inputs.environment }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Cache Flyway
-        uses: actions/cache@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          path: /opt/flyway
-          key: ${{ runner.os }}-flyway-10.17.0
+          python-version: '3.11'
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Install Flyway (if not cached)
+      - name: Install dependencies
         run: |
-          if [ ! -d "/opt/flyway" ]; then
-            echo "📥 Downloading Flyway (cache miss)..."
-            wget -q https://repo1.maven.org/maven2/org/flywaydb/flyway-commandline/10.17.0/flyway-commandline-10.17.0-linux-x64.tar.gz
-            tar -xzf flyway-commandline-10.17.0-linux-x64.tar.gz
-            sudo mv flyway-10.17.0 /opt/flyway
-          fi
-          echo "/opt/flyway" >> $GITHUB_PATH
+          pip install --quiet psycopg2-binary pyyaml python-dotenv
 
       - name: Validate database configuration
         run: |
-          if [ -z "$PGHOST" ] || [ -z "$PGPORT" ] || [ -z "$PGUSER" ] || [ -z "$PGPASSWORD" ] || [ -z "$PGDATABASE" ]; then
-            echo "❌ ERROR: PostgreSQL environment variables not set"
-            echo "Required secrets: PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE"
+          # Support both PG* secrets and DATABASE_URL
+          if [ -n "$DATABASE_URL" ]; then
+            echo "✅ Using DATABASE_URL from secrets"
+            echo "   URL: ${DATABASE_URL:0:50}...(truncated)"
+          elif [ -z "$PGHOST" ] || [ -z "$PGPORT" ] || [ -z "$PGUSER" ] || [ -z "$PGPASSWORD" ] || [ -z "$PGDATABASE" ]; then
+            echo "❌ ERROR: PostgreSQL configuration incomplete"
+            echo "Required either:"
+            echo "  - DATABASE_URL (full connection string)"
+            echo "  - Or individual secrets: PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE"
             exit 1
+          else
+            echo "✅ Database configuration validated (using PG* secrets)"
+            echo "   Host: $PGHOST"
+            echo "   Port: $PGPORT"
+            echo "   Database: $PGDATABASE"
+            echo "   User: $PGUSER"
           fi
-          echo "✅ Database configuration validated"
-          echo "   Host: $PGHOST"
-          echo "   Port: $PGPORT"
-          echo "   Database: $PGDATABASE"
-          echo "   User: $PGUSER"
           echo "   Environment: ${{ inputs.environment }}"
 
           # Test network connectivity to the database host
+          DB_HOST="${PGHOST:-$(echo $DATABASE_URL | sed -n 's|.*://\([^:/]*\).*|\1|p')}"
+          DB_PORT="${PGPORT:-$(echo $DATABASE_URL | sed -n 's|.*:\([0-9]*\)/.*|\1|p')}"
+          if [ -z "$DB_PORT" ]; then DB_PORT=5432; fi
+
           echo ""
-          echo "🔍 Testing network connectivity to $PGHOST:$PGPORT..."
+          echo "🔍 Testing network connectivity to $DB_HOST:$DB_PORT..."
           if command -v nc &> /dev/null; then
-            timeout 10 nc -z $PGHOST $PGPORT && echo "✅ Network connection successful" || echo "❌ Cannot reach database host/port"
+            if timeout 10 nc -z $DB_HOST $DB_PORT; then
+              echo "✅ Network connection successful"
+            else
+              echo "❌ Cannot reach database host/port"
+              echo "   This likely means Supabase is blocking this IP."
+              echo "   Solution: Add GitHub Actions IPs to Supabase allowlist."
+              echo "   See: https://supabase.com/docs/guides/database/connecting-to-database#ip-allowlist"
+            fi
           elif command -v curl &> /dev/null; then
-            curl --connect-timeout 10 "https://${PGHOST}" > /dev/null 2>&1 && echo "✅ Host reachable via HTTPS" || echo "❌ Host not reachable"
+            if curl --connect-timeout 10 "https://${DB_HOST}" > /dev/null 2>&1; then
+              echo "✅ Host reachable via HTTPS"
+            else
+              echo "❌ Host not reachable"
+            fi
           else
             echo "⚠️  Cannot test connectivity (nc/curl not available)"
           fi
 
-      - name: Run Flyway migrations
+      - name: Run Python migrations
         id: migrate
         run: |
           set -e
 
-          echo "🚀 Running Flyway database migrations..."
+          echo "🚀 Running Python database migrations..."
 
           # Determine table suffix based on environment (matches app logic)
           if [ "${{ inputs.environment }}" = "production" ]; then
@@ -104,59 +116,25 @@ jobs:
 
           echo "Environment: ${{ inputs.environment }}"
           echo "Table suffix: $TABLE_SUFFIX"
-          echo "Schema history table: schema_version$TABLE_SUFFIX"
 
-          # Build DATABASE_URL: Use provided secret or construct from parts
-          if [ -n "$DATABASE_URL" ]; then
-            echo "Using DATABASE_URL from secrets (full connection string provided)"
-            # Already in correct format, just ensure jdbc prefix if missing
-            if [[ "$DATABASE_URL" != jdbc:* ]]; then
-              JDBC_URL="jdbc:$DATABASE_URL"
-            else
-              JDBC_URL="$DATABASE_URL"
-            fi
-          else
-            echo "Constructing DATABASE_URL from individual secrets..."
-            # URL-encode the password (special characters like &, =, etc.)
-            ENCODED_PASSWORD=$(python3 -c "import urllib.parse; print(urllib.parse.quote('''$PGPASSWORD'''))" 2>/dev/null || echo "$PGPASSWORD")
-            JDBC_URL="jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}?sslmode=require&tcpKeepAlive=true&connectTimeout=30"
-            echo "Connection details:"
-            echo "  Host: $PGHOST"
-            echo "  Port: $PGPORT"
-            echo "  Database: $PGDATABASE"
-            echo "  User: $PGUSER"
-            echo "  Password length: ${#PGPASSWORD}"
-          fi
-
-          echo "JDBC URL: $JDBC_URL"
-
-          # Test connection before migrations (using psql if available)
+          # Show migration plan first
           echo ""
-          echo "🔍 Testing database connection..."
-          if command -v psql &> /dev/null && [ -n "$PGHOST" ]; then
-            PGPASSWORD="$PGPASSWORD" psql -h "$PGHOST" -p "$PGPORT" -U "$PGUSER" -d "$PGDATABASE" -c "SELECT 1" -w > /dev/null 2>&1 && echo "✅ Connection test successful" || echo "⚠️  Connection test failed (will still attempt Flyway)"
-          fi
+          echo "📋 Available migrations:"
+          python scripts/migrate.py --list || true
 
-          # Display configuration
-          flyway -configFiles=flyway/conf/flyway.conf info || true
-
-          # Retry logic for transient network errors
+          # Run migrations with retry logic
           echo ""
           echo "🔄 Attempting migrations (max 3 retries)..."
           max_attempts=3
           attempt=1
+          success=false
+
           while [ $attempt -le $max_attempts ]; do
             echo "Attempt $attempt of $max_attempts..."
-            if flyway -configFiles=flyway/conf/flyway.conf \
-              -url="$JDBC_URL" \
-              -user="$PGUSER" \
-              -password="$PGPASSWORD" \
-              -placeholders.table_suffix="$TABLE_SUFFIX" \
-              -table="schema_version$TABLE_SUFFIX" \
-              migrate; then
-              echo "✅ Flyway migrations completed successfully on attempt $attempt"
-              echo "success=true" >> $GITHUB_OUTPUT
-              exit 0
+            if python scripts/migrate.py; then
+              echo "✅ Migrations completed successfully on attempt $attempt"
+              success=true
+              break
             else
               echo "❌ Attempt $attempt failed"
               if [ $attempt -lt $max_attempts ]; then
@@ -167,6 +145,11 @@ jobs:
             attempt=$((attempt + 1))
           done
 
-          echo "❌ Flyway migrations failed after $max_attempts attempts"
-          echo "success=false" >> $GITHUB_OUTPUT
-          exit 1
+          if [ "$success" = true ]; then
+            echo "success=true" >> $GITHUB_OUTPUT
+            exit 0
+          else
+            echo "❌ Migrations failed after $max_attempts attempts"
+            echo "success=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
