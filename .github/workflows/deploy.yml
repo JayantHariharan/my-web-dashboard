@@ -338,6 +338,14 @@ jobs:
 
           echo "All health checks passed!"
 
+      - name: Install Node.js dependencies
+        if: success()
+        run: |
+          echo "📦 Installing test dependencies..."
+          npm ci --only=dev 2>/dev/null || npm install --save-dev playwright
+          npx playwright install chromium --with-deps
+          echo "✅ Dependencies installed"
+
       - name: Smoke test
         if: success()
         env:
