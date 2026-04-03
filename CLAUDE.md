@@ -295,11 +295,16 @@ Then run: `python scripts/migrate.py` to apply migrations.
   - Added missing `.orb-4` style to complete the set of floating orbs
   - Result: animated orbs now visible, no more black screen; canvas particles visible through translucent portal
 - **2026-04-04**: Fixed signup & login user experience
-  - Signup: include `confirm_password` in request body to satisfy backend validation
-  - Backend login: return specific error messages ("Username not found", "Invalid password") instead of generic
-  - Frontend: differentiate login errors and show helpful prompt for non-existent usernames
-  - Frontend: improved signup error parsing to handle Pydantic array errors and highlight relevant fields
-  - Overall: signup now works correctly; login provides clearer feedback
+  - Signup: include `confirm_password` in API request to satisfy backend validation
+  - Backend login: return specific errors ("Username not found" vs "Invalid password")
+  - Frontend: differentiate login errors and show targeted prompts for non-existent usernames
+  - Frontend: improved signup error parsing (Pydantic array format) and field highlighting
+  - Overall: signup now functions correctly; login provides clearer feedback
+- **2026-04-04**: Improved CI/CD health check and test artifacts
+  - Health check: replaced Render API URL lookup with hardcoded environment URLs (production: https://playnexus.onrender.com, staging: https://playnexus-test.onrender.com)
+  - Health check now always runs with correct target, never skips due to missing service URL
+  - Smoke test: added artifact upload of screenshot.png (7-day retention) for easy access from GitHub Actions UI
+  - This ensures reliable post-deploy verification and accessible visual test results
 
 - **2026-04-03**: Fixed deployment workflow output propagation and error handling
   - Added `outputs` to `flyway-migrate.yml` to expose migration success status
