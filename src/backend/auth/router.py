@@ -83,7 +83,7 @@ async def login(login_data: LoginData, request: Request):
             f"from IP {client_ip}"
         )
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Username not found"
         )
 
     # Verify password
@@ -95,7 +95,7 @@ async def login(login_data: LoginData, request: Request):
             f"from IP {client_ip}"
         )
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password"
         )
 
     # Update login tracking (last_login_at, last_login_ip)

@@ -288,6 +288,23 @@ Then run: `python scripts/migrate.py` to apply migrations.
   - Consolidated design tokens into `css/style.css`
   - Removed unused `design-system.css`
   - Updated README and CLAUDE.md with architecture notes
+- **2026-04-04**: Fixed login page animation visibility (critical fix)
+  - Corrected CSS class selector mismatch (`.auth-bg` → `.global-bg`) that caused background orbs to be hidden behind portal background
+  - Fixed z-index stacking: `.global-bg` now uses `position: absolute; z-index: 0` (overriding global `fixed`/`-1`) to render above portal background
+  - Enhanced visual depth: made auth portal background semi-transparent (`rgba(10,10,15,0.4)`) revealing underlying canvas particle system for layered animation
+  - Added missing `.orb-4` style to complete the set of floating orbs
+  - Result: animated orbs now visible, no more black screen; canvas particles visible through translucent portal
+- **2026-04-04**: Fixed signup & login user experience
+  - Signup: include `confirm_password` in API request to satisfy backend validation
+  - Backend login: return specific errors ("Username not found" vs "Invalid password")
+  - Frontend: differentiate login errors and show targeted prompts for non-existent usernames
+  - Frontend: improved signup error parsing (Pydantic array format) and field highlighting
+  - Overall: signup now functions correctly; login provides clearer feedback
+- **2026-04-04**: Improved CI/CD health check and test artifacts
+  - Health check: replaced Render API URL lookup with hardcoded environment URLs (production: https://playnexus.onrender.com, staging: https://playnexus-test.onrender.com)
+  - Health check now always runs with correct target, never skips due to missing service URL
+  - Smoke test: added artifact upload of screenshot.png (7-day retention) for easy access from GitHub Actions UI
+  - This ensures reliable post-deploy verification and accessible visual test results
 
 - **2026-04-03**: Fixed deployment workflow output propagation and error handling
   - Added `outputs` to `flyway-migrate.yml` to expose migration success status

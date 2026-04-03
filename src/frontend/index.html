@@ -40,13 +40,15 @@
                 justify-content: center;
                 position: relative;
                 overflow: hidden;
-                background: radial-gradient(ellipse at center, #0a0a0f 0%, #000000 100%);
+                background: radial-gradient(ellipse at center, rgba(10, 10, 15, 0.4) 0%, rgba(0, 0, 0, 0.6) 100%);
                 padding: 20px;
                 box-sizing: border-box;
             }
 
             /* Animated Background Orbs */
-            .auth-bg {
+            /* Fixed: Uses .global-bg (not .auth-bg) to match HTML class. Absolute positioning ensures it sits above
+               the portal's background gradient but below the auth card. z-index: 0 positions it within portal's stacking context. */
+            .global-bg {
                 position: absolute;
                 inset: 0;
                 overflow: hidden;
@@ -85,6 +87,16 @@
                 bottom: -10%;
                 left: 20%;
                 animation-delay: -14s;
+            }
+
+            .orb-4 {
+                width: 450px;
+                height: 450px;
+                /* Fourth orb: gold accent - completes the orb set (cyan, purple, pink, gold) */
+                background: radial-gradient(circle, rgba(251, 191, 36, 0.12) 0%, transparent 70%);
+                top: 10%;
+                right: -15%;
+                animation-delay: -21s;
             }
 
             @keyframes orbFloat {
@@ -1150,6 +1162,11 @@
 
             const username = usernameInput.value.trim();
             const password = passwordInput.value;
+            // Build request body (signup requires confirm_password)
+            let requestBody = { username, password };
+            if (!isLoginMode) {
+                requestBody.confirm_password = confirmInput.value;
+            }
 
             hideError();
             isAuthenticating = true;
@@ -1165,27 +1182,56 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        username: username,
-                        password: password
-                    })
+                    body: JSON.stringify(requestBody)
                 });
 
                 const data = await response.json();
 
                 if (!response.ok) {
-                    // Authentication failed - provide specific feedback for signup, generic for login
+                    // Authentication failed - provide specific feedback based on mode and error
                     let errorMsg = 'Authentication failed';
                     if (isLoginMode) {
-                        // For login, keep generic message for security (don't reveal if username exists)
-                        errorMsg = 'Invalid username or password';
-                    } else {
-                        // For signup, we can be more specific
+                        // Handle specific login errors based on backend response
                         if (data.detail) {
                             if (typeof data.detail === 'string') {
+                                if (data.detail === 'Username not found') {
+                                    errorMsg = "Username doesn't exist. Create an account?";
+                                    setFieldStatus(usernameInput, 'error', 'Username not found');
+                                } else if (data.detail === 'Invalid password') {
+                                    errorMsg = 'Invalid password';
+                                    setFieldStatus(passwordInput, 'error', 'Invalid password');
+                                } else {
+                                    errorMsg = data.detail;
+                                }
+                            } else if (Array.isArray(data.detail)) {
+                                // Fallback for array details (should not happen for login)
+                                errorMsg = 'Invalid username or password';
+                            } else {
+                                errorMsg = 'Invalid username or password';
+                            }
+                        } else {
+                            errorMsg = 'Invalid username or password';
+                        }
+                    } else {
+                        // For signup, provide specific feedback
+                        if (data.detail) {
+                            // Handle Pydantic validation errors (array format)
+                            if (Array.isArray(data.detail)) {
+                                // Find the first error related to username or password
+                                const usernameError = data.detail.find(err => err.loc && err.loc.includes('username'));
+                                const passwordError = data.detail.find(err => err.loc && err.loc.includes('password'));
+                                if (usernameError) {
+                                    errorMsg = usernameError.msg;
+                                    setFieldStatus(usernameInput, 'error', usernameError.msg);
+                                } else if (passwordError) {
+                                    errorMsg = passwordError.msg;
+                                    setFieldStatus(passwordInput, 'error', passwordError.msg);
+                                } else {
+                                    errorMsg = 'Validation error';
+                                }
+                            } else if (typeof data.detail === 'string') {
                                 if (data.detail.includes('already exists') || data.detail.includes('duplicate')) {
                                     errorMsg = 'Username is already taken';
-                                    // Highlight username field
                                     setFieldStatus(usernameInput, 'error', 'Username taken');
                                 } else if (data.detail.includes('password')) {
                                     errorMsg = 'Password does not meet requirements';

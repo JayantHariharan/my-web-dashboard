@@ -297,31 +297,17 @@ jobs:
           echo "Last known status: $status"
           exit 1
 
-      - name: Get service URL
-        id: get-url
-        if: success()
-        env:
-          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
-        run: |
-          service_url=$(curl -s \
-            -H "Authorization: Bearer $RENDER_API_KEY" \
-            "https://api.render.com/v1/services/$RENDER_SERVICE_ID" | jq -r '.service.url')
-          echo "service_url=$service_url" >> $GITHUB_OUTPUT
-
       - name: Health check
         if: success()
         env:
-          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
-          RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
+          APP_ENV: ${{ needs.precheck.outputs.environment == 'production' && 'production' || 'test' }}
         run: |
-          service_url="${{ steps.get-url.outputs.service_url }}"
-          if [ -z "$service_url" ] || [ "$service_url" = "null" ]; then
-            echo "Service URL not available, skipping health check"
-            exit 0
+          # Determine service URL based on environment (same as smoke test)
+          if [ "$APP_ENV" = "production" ] || [ "$APP_ENV" = "prod" ]; then
+            base_url="https://playnexus.onrender.com"
+          else
+            base_url="https://playnexus-test.onrender.com"
           fi
-
-          base_url="https://$service_url"
           echo "Service URL: $base_url"
 
           endpoints=("/health" "/api/auth/login")
@@ -359,3 +345,11 @@ jobs:
           fi
           echo "Running smoke test on: $SITE_URL"
           SITE_URL="$SITE_URL" node tests/smoke.test.js
+
+      - name: Upload smoke test screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-screenshot-${{ needs.precheck.outputs.environment }}
+          path: screenshot.png
+          retention-days: 7
