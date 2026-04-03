@@ -288,6 +288,18 @@ Then run: `python scripts/migrate.py` to apply migrations.
   - Consolidated design tokens into `css/style.css`
   - Removed unused `design-system.css`
   - Updated README and CLAUDE.md with architecture notes
+- **2026-04-04**: Fixed login page animation visibility (critical fix)
+  - Corrected CSS class selector mismatch (`.auth-bg` → `.global-bg`) that caused background orbs to be hidden behind portal background
+  - Fixed z-index stacking: `.global-bg` now uses `position: absolute; z-index: 0` (overriding global `fixed`/`-1`) to render above portal background
+  - Enhanced visual depth: made auth portal background semi-transparent (`rgba(10,10,15,0.4)`) revealing underlying canvas particle system for layered animation
+  - Added missing `.orb-4` style to complete the set of floating orbs
+  - Result: animated orbs now visible, no more black screen; canvas particles visible through translucent portal
+- **2026-04-04**: Fixed signup & login user experience
+  - Signup: include `confirm_password` in request body to satisfy backend validation
+  - Backend login: return specific error messages ("Username not found", "Invalid password") instead of generic
+  - Frontend: differentiate login errors and show helpful prompt for non-existent usernames
+  - Frontend: improved signup error parsing to handle Pydantic array errors and highlight relevant fields
+  - Overall: signup now works correctly; login provides clearer feedback
 
 - **2026-04-03**: Fixed deployment workflow output propagation and error handling
   - Added `outputs` to `flyway-migrate.yml` to expose migration success status
