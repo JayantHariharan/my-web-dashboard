@@ -59,7 +59,7 @@
             <strong>Base URLs:</strong><br>
             <code style="background:rgba(255,255,255,0.2);padding:4px 8px;border-radius:4px;">http://localhost:8000</code> (local dev) |
             <code style="background:rgba(255,255,255,0.2);padding:4px 8px;border-radius:4px;">https://playnexus-test.onrender.com</code> (staging) |
-            <code style="background:rgba(255,255,255,0.2);padding:4px 8px;border-radius:4px;">https://playnexus.onrender.com</code> (production)
+            <code style="background:rgba(255,255,255,0.2);padding:4px 8px;border-radius:4px;">https://playnexus-prod.onrender.com</code> (production)
         </p>
     </div>
 
@@ -93,7 +93,7 @@
             <ul>
                 <li><strong>Local Development:</strong> <code>http://localhost:8000</code></li>
                 <li><strong>Staging:</strong> <code>https://playnexus-test.onrender.com</code></li>
-                <li><strong>Production:</strong> <code>https://playnexus.onrender.com</code></li>
+                <li><strong>Production:</strong> <code>https://playnexus-prod.onrender.com</code></li>
             </ul>
             <h3>Rate Limiting</h3>
             <p>Authentication endpoints are limited to <strong>20 requests per hour per IP address</strong> to prevent abuse.</p>
@@ -148,8 +148,8 @@
                 <ul>
                     <li><strong>Constant-time comparison:</strong> Prevents timing attacks</li>
                     <li><strong>Generic errors:</strong> Doesn't reveal if username exists</li>
-                    <li><strong>IP logging:</strong> Tracks <code>last_login_ip</code> and <code>last_login_at</code></li>
-                    <li><strong>Rate limiting:</strong> 20 requests per hour per IP (shared with signup)</li>
+                    <li><strong>Privacy-first:</strong> No IP address storage</li>
+                    <li><strong>Rate limiting:</strong> 5 attempts per hour to prevent brute force</li>
                 </ul>
             </div>
         </div>
@@ -229,7 +229,6 @@
   "username": "player123",
   "created_at": "2025-03-29T10:30:00",
   "last_login_at": "2025-03-29T15:45:00",
-  "last_login_ip": "192.168.1.1",
   "profile": {}
 }</code></pre>
                 </div>
@@ -596,8 +595,6 @@
                     <tr><td><code>password</code></td><td>text</td><td>NOT NULL</td><td>Bcrypt hash with pepper</td></tr>
                     <tr><td><code>created_at</code></td><td>timestamp</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Registration time</td></tr>
                     <tr><td><code>last_login_at</code></td><td>timestamp</td><td>NULL</td><td>Last login</td></tr>
-                    <tr><td><code>created_ip</code></td><td>text</td><td>NULL</td><td>IP at signup</td></tr>
-                    <tr><td><code>last_login_ip</code></td><td>text</td><td>NULL</td><td>IP at last login</td></tr>
                 </table>
 
                 <h3 class="section-title">user_profiles</h3>

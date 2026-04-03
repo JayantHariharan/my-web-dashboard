@@ -47,8 +47,8 @@ async def login(login_data: LoginData, request: Request):
     ## Security Features
     - Constant-time comparison prevents timing attacks
     - Generic error messages don't reveal if username exists
-    - IP address logging for security auditing
-    - Rate limiting: 20 requests per hour per IP
+    - Privacy-first: No IP address storage
+    - Rate limiting: 5 attempts per hour per IP
 
     ## Error Responses
     - `400 Bad Request`: Missing or invalid credentials
@@ -58,14 +58,13 @@ async def login(login_data: LoginData, request: Request):
     """
     username = login_data.username
     password = login_data.password
-    client_ip = get_client_ip(request)
 
     try:
         user = user_repo.get_user_by_username(username)
     except Exception as e:
         from ..shared.log_config import logger
 
-        logger.error(f"Login error for user '{username}' from IP {client_ip}: {e}")
+        logger.error(f"Login error for user '{username}': {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Authentication service unavailable",
@@ -78,29 +77,23 @@ async def login(login_data: LoginData, request: Request):
         verify_password(password, dummy_hash)
         from ..shared.log_config import logger
 
-        logger.warning(
-            f"Failed login attempt for non-existent user: {username} "
-            f"from IP {client_ip}"
-        )
+        logger.warning(f"Failed login attempt for non-existent user: {username}")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Username not found"
         )
 
     # Verify password
     if not verify_password(password, user["password"]):
         from ..shared.log_config import logger
 
-        logger.warning(
-            f"Failed login attempt (wrong password) for user: {username} "
-            f"from IP {client_ip}"
-        )
+        logger.warning(f"Failed login attempt (wrong password) for user: {username}")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect password"
         )
 
-    # Update login tracking (last_login_at, last_login_ip)
+    # Update login tracking (last_login_at)
     try:
-        user_repo.update_login_tracking(username, client_ip)
+        user_repo.update_login_tracking(username)
     except Exception as e:
         from ..shared.log_config import logger
 
@@ -109,7 +102,7 @@ async def login(login_data: LoginData, request: Request):
 
     from ..shared.log_config import logger
 
-    logger.info(f"User logged in: {username} from IP {client_ip}")
+    logger.info(f"User logged in: {username}")
     return AuthSuccess(
         message="Login successful", username=username, user_id=user["id"]
     )
@@ -141,11 +134,11 @@ async def signup(register_data: RegisterData, request: Request):
     ## Security Features
     - Password hashing: bcrypt with pepper (server secret)
     - Username validation: min 3 chars, must contain letters
-    - Password requirements: min 8 characters
+    - Password requirements: min 6 characters
     - Confirmation validation: passwords must match
     - Duplicate check: prevents username conflicts
-    - IP logging: tracks signup location
-    - Rate limiting: 20 requests per hour per IP
+    - Rate limiting: 5 attempts per hour
+    - Privacy-first: No IP address storage
 
     ## Error Responses
     - `400 Bad Request`: Validation error (empty fields, password mismatch,
@@ -156,38 +149,33 @@ async def signup(register_data: RegisterData, request: Request):
     """
     username = register_data.username
     password = register_data.password
-    client_ip = get_client_ip(request)
 
     try:
         password_hash = hash_password(password)
     except Exception as e:
         from ..shared.log_config import logger
 
-        logger.error(f"Password hashing failed for {username} from IP {client_ip}: {e}")
+        logger.error(f"Password hashing failed for {username}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Unable to process password",
         )
 
     try:
-        user_id = user_repo.create_user(username, password_hash, created_ip=client_ip)
+        user_id = user_repo.create_user(username, password_hash)
         from ..shared.log_config import logger
 
-        logger.info(
-            f"New user registered: {username} (ID: {user_id}) from IP {client_ip}"
-        )
+        logger.info(f"New user registered: {username} (ID: {user_id})")
     except ValueError as e:
         # Username already exists
         from ..shared.log_config import logger
 
-        logger.warning(
-            f"Signup attempt with existing username: {username} from IP {client_ip}"
-        )
+        logger.warning(f"Signup attempt with existing username: {username}")
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except Exception as e:
         from ..shared.log_config import logger
 
-        logger.error(f"Signup error for user '{username}' from IP {client_ip}: {e}")
+        logger.error(f"Signup error for user '{username}': {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration service unavailable",
@@ -235,11 +223,5 @@ async def get_current_user(username: Optional[str] = None):
     return UserResponse(**user)
 
 
-def get_client_ip(request: Request) -> str:
-    """Extract client IP address from request."""
-    x_forwarded_for = request.headers.get("X-Forwarded-For")
-    if x_forwarded_for:
-        return x_forwarded_for.split(",")[0].strip()
-    if request.client:
-        return request.client.host
-    return "unknown"
+# Note: IP tracking removed for privacy compliance.
+# Future: Consider user consent if needing to store connection metadata.

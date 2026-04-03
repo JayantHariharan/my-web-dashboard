@@ -53,7 +53,7 @@ SITE_URL=https://playnexus-test.onrender.com node tests/smoke.test.js  # smoke t
 
 **Smoke test environment fallback:**
 If `SITE_URL` is not set, the test uses `APP_ENV` to determine the URL:
-- `production` → `https://playnexus.onrender.com`
+- `production` → `https://playnexus-prod.onrender.com`
 - anything else → `https://playnexus-test.onrender.com`
 
 ---
@@ -211,7 +211,7 @@ Before committing/pushing:
 
 **Environment URLs:**
 - Staging: `https://playnexus-test.onrender.com`
-- Production: `https://playnexus.onrender.com` (configured in Render)
+- Production: `https://playnexus-prod.onrender.com` (configured in Render)
 
 **Smoke test:**
 - Runs automatically after successful deployment
@@ -220,7 +220,7 @@ Before committing/pushing:
 - Takes a full-page screenshot for debugging
 - If `SITE_URL` is not provided or is `null`, falls back to environment-specific hardcoded URLs:
   - Staging: `https://playnexus-test.onrender.com`
-  - Production: `https://playnexus.onrender.com`
+  - Production: `https://playnexus-prod.onrender.com`
 
 **Monitoring:**
 - Render deployment monitored for up to 60 minutes

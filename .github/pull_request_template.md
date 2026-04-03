@@ -1,67 +1,98 @@
-## 🚀 Pull Request Checklist
+# Pull Request Checklist
 
-- [x] I have **forked** the repository and created a feature branch from `develop`.
-- [x] I have **tested** my changes locally (run `flake8`, verified syntax).
-- [x] I have followed the **Project Structure** (`src/` for code, `tests/` for tests).
-- [x] My code follows the **Glassmorphism** style of the project (no UI changes in this PR).
+Thank you for contributing to PlayNexus! Before submitting this PR, please complete the following:
 
-## 📝 Description
+## Pre-requisites
+- [ ] I have read the [CONTRIBUTING.md](./CONTRIBUTING.md) and [DEVELOPER.md](./docs/DEVELOPER.md)
+- [ ] My code follows the project's code style and conventions
+- [ ] I have run `./scripts/run-quality-checks.sh` locally and all checks pass
+- [ ] My changes generate no new warnings or errors
 
-This PR fixes two important issues in the GitHub Actions deployment workflow and code quality:
+## Database Changes
+- [ ] If I added/modified a database migration:
+  - [ ] Migration file is in `flyway/sql/` with proper naming `V<number>__<description>.sql`
+  - [ ] Used `{AUTOINCREMENT}` for auto-incrementing primary keys
+  - [ ] Used `{TEXT}` for text fields (database-agnostic)
+  - [ ] Added `IF NOT EXISTS` for tables and indexes where appropriate
+  - [ ] Migration is idempotent (can be safely re-run)
+  - [ ] Tested migration locally with `python scripts/migrate.py`
 
-### 1. Fix Secret Validation Error Messages (`.github/workflows/deploy.yml`)
-- The error message incorrectly referenced `RENDER_SERVICE_ID_PROD` and `RENDER_SERVICE_ID_TEST`
-- Updated to use the actual secret names expected by the workflow: `RENDER_SERVICE_ID` (main) and `RENDER_SERVICE_ID_TEST` (develop)
-- Added clear branch-specific guidance in the validation error
-- Removed unused `RENDER_ENV_GROUP_ID` functionality (no longer needed)
+## Security Review
+- [ ] No hardcoded secrets or credentials (use environment variables)
+- [ ] All SQL queries use parameterized queries (repository pattern)
+- [ ] Passwords are hashed with bcrypt + pepper
+- [ ] Rate limiting is enabled on sensitive endpoints
+- [ ] No sensitive data is logged
+- [ ] Input validation is performed on all user inputs
+- [ ] Authentication/authorization checks are in place for new endpoints
 
-This prevents confusion during deployment and ensures users set up GitHub Actions secrets correctly.
+## Testing
+- [ ] Added or updated tests for new functionality
+- [ ] Existing tests pass locally (if applicable)
+- [ ] Smoke test passes: `SITE_URL=<url> node tests/smoke.test.js`
+- [ ] Manual testing completed and documented below
 
-### 2. Resolve Flake8 Linting Errors
-Removed all unused imports and fixed import ordering (`E402` errors):
+## Documentation
+- [ ] Updated API documentation in `docs/API-REFERENCE.html` (if API changes)
+- [ ] Updated user documentation (if user-facing changes)
+- [ ] Updated `README.md` with new features or setup changes
+- [ ] Added or updated code comments where necessary
+- [ ] Updated architecture diagrams if needed
 
-**Files fixed:**
-- `src/backend/auth/router.py` - removed unused `Depends`, `settings`, `AuthResponse`, `AuthenticationError`
-- `src/backend/auth/service.py` - removed unused `AuthenticationError`
-- `src/backend/config.py` - removed unused `Optional` import
-- `src/backend/main.py` - moved imports to top of file, proper ordering (stdlib → third-party → local)
+## Frontend Changes (if applicable)
+- [ ] UI changes are responsive and work on mobile
+- [ ] Accessibility considerations addressed (ARIA labels, keyboard navigation)
+- [ ] Cross-browser compatibility tested (Chrome, Firefox, Safari)
 
-All flake8 checks should now pass without warnings or errors.
+## Backend Changes (if applicable)
+- [ ] New endpoints follow RESTful conventions
+- [ ] Proper HTTP status codes are used
+- [ ] Error messages are informative but don't leak sensitive info
+- [ ] Rate limiting is configured appropriately
+- [ ] Logging is added for important operations
 
-## 🔗 Related Issues
+## Performance Considerations
+- [ ] No N+1 query issues introduced
+- [ ] Database queries are optimized with proper indexing
+- [ ] Static assets are cached appropriately
+- [ ] Gzip compression enabled for responses
 
-Fixes deployment configuration issues and code quality problems.
+## Git Hygiene
+- [ ] Commits are logically grouped and follow [Conventional Commits](https://www.conventionalcommits.org/)
+- [ ] No merge commits in PR history (squash merge recommended)
+- [ ] No temporary/debug code or console.log statements
+- [ ] No sensitive data in commit history
 
-## 📊 Changes Summary
-
-| File | Changes |
-|------|---------|
-| `.github/workflows/deploy.yml` | +6/-1 (validation messages improved) |
-| `src/backend/auth/router.py` | +4/-6 (unused imports removed) |
-| `src/backend/auth/service.py` | +0/-1 (unused import removed) |
-| `src/backend/config.py` | +1/-1 (unused import removed) |
-| `src/backend/main.py` | +3/-3 (import reordering) |
-
-## 🧪 Testing
-
-- ✅ Syntax check passes (`python -m py_compile`)
-- ✅ Flake8 critical errors: none
-- ✅ Flake8 full lint: passes (no E/F codes)
-- ✅ All imports verified in use
-- ✅ Import ordering follows PEP 8
-
-## 📦 Impact
-
-- **Low risk**: These are cleanup changes; no functional behavior changes
-- **High value**: Fixes confusing error messages, improves code maintainability
-- **Ready to merge**: No breaking changes, backward compatible
-
-## 🔀 Target Branch
-
-**Recommendation:** Merge into `develop` first for staging deployment testing.
-
-If this PR looks good, please review and merge. Once merged to `develop`, the CI/CD pipeline will auto-deploy to staging for further validation.
+## Deployment Readiness
+- [ ] CI/CD pipeline passes (GitHub Actions)
+- [ ] All required secrets are available in GitHub repository settings
+- [ ] No environment-specific hardcoded values
+- [ ] Rollback plan considered (if this is a risky change)
 
 ---
 
-*By submitting this PR, I agree to follow the Code of Conduct.*
+## Testing Performed
+
+<!-- Describe the testing you performed, including any manual testing, automated tests, and edge cases. This helps reviewers understand your QA process. -->
+
+## Additional Notes
+
+<!-- Any other information that reviewers should know: architectural decisions, trade-offs, open questions, etc. -->
+
+## Screenshots / Demo
+
+<!-- If this is a UI change, please include screenshots or a short video/GIF demonstrating the new functionality. Use: -->
+
+---
+
+**Reviewer Checklist:**
+- [ ] All checklist items addressed
+- [ ] Code reviewed for security vulnerabilities
+- [ ] Architecture/design evaluated
+- [ ] Tests are adequate
+- [ ] Documentation complete
+- [ ] Ready to merge ✅
+
+---
+
+*By submitting this PR, I acknowledge that I have read the Code of Conduct and agree to abide by its terms.*

@@ -119,9 +119,9 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
 # Pre-configured rate limiters for different app categories
 # These can be imported by individual app modules
 
-# Auth endpoints: 20 requests/hour, 15-minute block
+# Auth endpoints: 5 attempts/hour, 30-minute block (brute force protection)
 auth_rate_limiter = SimpleRateLimiter(
-    max_requests=20, window_seconds=3600, block_duration_seconds=900
+    max_requests=5, window_seconds=3600, block_duration_seconds=1800
 )
 
 # Games endpoints: 100 requests/hour, 10-minute block

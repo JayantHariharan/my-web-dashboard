@@ -60,48 +60,49 @@ jobs:
       - name: Validate database configuration
         run: |
           # Support both PG* secrets and DATABASE_URL
+          echo "🔍 Validating database configuration..." 2>&1 | tee migration-validation.log
           if [ -n "$DATABASE_URL" ]; then
             echo "✅ Using DATABASE_URL from secrets"
-            echo "   URL: ${DATABASE_URL:0:50}...(truncated)"
+            echo "   URL: ${DATABASE_URL:0:50}...(truncated)" | tee -a migration-validation.log
           elif [ -z "$PGHOST" ] || [ -z "$PGPORT" ] || [ -z "$PGUSER" ] || [ -z "$PGPASSWORD" ] || [ -z "$PGDATABASE" ]; then
-            echo "❌ ERROR: PostgreSQL configuration incomplete"
-            echo "Required either:"
-            echo "  - DATABASE_URL (full connection string)"
-            echo "  - Or individual secrets: PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE"
+            echo "❌ ERROR: PostgreSQL configuration incomplete" | tee -a migration-validation.log
+            echo "Required either:" | tee -a migration-validation.log
+            echo "  - DATABASE_URL (full connection string)" | tee -a migration-validation.log
+            echo "  - Or individual secrets: PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE" | tee -a migration-validation.log
             exit 1
           else
-            echo "✅ Database configuration validated (using PG* secrets)"
-            echo "   Host: $PGHOST"
-            echo "   Port: $PGPORT"
-            echo "   Database: $PGDATABASE"
-            echo "   User: $PGUSER"
+            echo "✅ Database configuration validated (using PG* secrets)" | tee -a migration-validation.log
+            echo "   Host: $PGHOST" | tee -a migration-validation.log
+            echo "   Port: $PGPORT" | tee -a migration-validation.log
+            echo "   Database: $PGDATABASE" | tee -a migration-validation.log
+            echo "   User: $PGUSER" | tee -a migration-validation.log
           fi
-          echo "   Environment: ${{ inputs.environment }}"
+          echo "   Environment: ${{ inputs.environment }}" | tee -a migration-validation.log
 
           # Test network connectivity to the database host
           DB_HOST="${PGHOST:-$(echo $DATABASE_URL | sed -n 's|.*://\([^:/]*\).*|\1|p')}"
           DB_PORT="${PGPORT:-$(echo $DATABASE_URL | sed -n 's|.*:\([0-9]*\)/.*|\1|p')}"
           if [ -z "$DB_PORT" ]; then DB_PORT=5432; fi
 
-          echo ""
-          echo "🔍 Testing network connectivity to $DB_HOST:$DB_PORT..."
+          echo "" | tee -a migration-validation.log
+          echo "🔍 Testing network connectivity to $DB_HOST:$DB_PORT..." | tee -a migration-validation.log
           if command -v nc &> /dev/null; then
             if timeout 10 nc -z $DB_HOST $DB_PORT; then
-              echo "✅ Network connection successful"
+              echo "✅ Network connection successful" | tee -a migration-validation.log
             else
-              echo "❌ Cannot reach database host/port"
-              echo "   This likely means Supabase is blocking this IP."
-              echo "   Solution: Add GitHub Actions IPs to Supabase allowlist."
-              echo "   See: https://supabase.com/docs/guides/database/connecting-to-database#ip-allowlist"
+              echo "❌ Cannot reach database host/port" | tee -a migration-validation.log
+              echo "   This likely means Supabase is blocking this IP." | tee -a migration-validation.log
+              echo "   Solution: Add GitHub Actions IPs to Supabase allowlist." | tee -a migration-validation.log
+              echo "   See: https://supabase.com/docs/guides/database/connecting-to-database#ip-allowlist" | tee -a migration-validation.log
             fi
           elif command -v curl &> /dev/null; then
             if curl --connect-timeout 10 "https://${DB_HOST}" > /dev/null 2>&1; then
-              echo "✅ Host reachable via HTTPS"
+              echo "✅ Host reachable via HTTPS" | tee -a migration-validation.log
             else
-              echo "❌ Host not reachable"
+              echo "❌ Host not reachable" | tee -a migration-validation.log
             fi
           else
-            echo "⚠️  Cannot test connectivity (nc/curl not available)"
+            echo "⚠️  Cannot test connectivity (nc/curl not available)" | tee -a migration-validation.log
           fi
 
       - name: Run Python migrations
@@ -109,7 +110,7 @@ jobs:
         run: |
           set -e
 
-          echo "🚀 Running Python database migrations..."
+          echo "🚀 Running Python database migrations..." 2>&1 | tee migration-output.log
 
           # Determine table suffix based on environment (matches app logic)
           if [ "${{ inputs.environment }}" = "production" ]; then
@@ -118,31 +119,31 @@ jobs:
             TABLE_SUFFIX="_test"
           fi
 
-          echo "Environment: ${{ inputs.environment }}"
-          echo "Table suffix: $TABLE_SUFFIX"
+          echo "Environment: ${{ inputs.environment }}" | tee -a migration-output.log
+          echo "Table suffix: $TABLE_SUFFIX" | tee -a migration-output.log
 
           # Show migration plan first
-          echo ""
-          echo "📋 Available migrations:"
-          python scripts/migrate.py --list || true
+          echo "" | tee -a migration-output.log
+          echo "📋 Available migrations:" | tee -a migration-output.log
+          python scripts/migrate.py --list 2>&1 | tee -a migration-output.log || true
 
           # Run migrations with retry logic
-          echo ""
-          echo "🔄 Attempting migrations (max 3 retries)..."
+          echo "" | tee -a migration-output.log
+          echo "🔄 Attempting migrations (max 3 retries)..." | tee -a migration-output.log
           max_attempts=3
           attempt=1
           success=false
 
           while [ $attempt -le $max_attempts ]; do
-            echo "Attempt $attempt of $max_attempts..."
-            if python scripts/migrate.py; then
-              echo "✅ Migrations completed successfully on attempt $attempt"
+            echo "Attempt $attempt of $max_attempts..." | tee -a migration-output.log
+            if python scripts/migrate.py 2>&1 | tee -a migration-output.log; then
+              echo "✅ Migrations completed successfully on attempt $attempt" | tee -a migration-output.log
               success=true
               break
             else
-              echo "❌ Attempt $attempt failed"
+              echo "❌ Attempt $attempt failed" | tee -a migration-output.log
               if [ $attempt -lt $max_attempts ]; then
-                echo "⏳ Waiting 10 seconds before retry..."
+                echo "⏳ Waiting 10 seconds before retry..." | tee -a migration-output.log
                 sleep 10
               fi
             fi
@@ -153,7 +154,17 @@ jobs:
             echo "success=true" >> $GITHUB_OUTPUT
             exit 0
           else
-            echo "❌ Migrations failed after $max_attempts attempts"
+            echo "❌ Migrations failed after $max_attempts attempts" | tee -a migration-output.log
             echo "success=false" >> $GITHUB_OUTPUT
             exit 1
           fi
+
+      - name: Upload migration artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: migration-artifacts-${{ github.sha }}-${{ inputs.environment }}
+          path: |
+            migration-validation.log
+            migration-output.log
+          retention-days: 7

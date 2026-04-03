@@ -20,9 +20,7 @@ CREATE TABLE IF NOT EXISTS users{table_suffix} (
     username VARCHAR(255) UNIQUE NOT NULL,
     password {TEXT} NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_login_at TIMESTAMP NULL,
-    created_ip {TEXT} NULL,
-    last_login_ip {TEXT} NULL
+    last_login_at TIMESTAMP NULL
 );
 
 -- 2. User profiles table (additional user data)

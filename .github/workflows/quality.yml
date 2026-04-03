@@ -54,4 +54,13 @@ jobs:
 
       - name: Python syntax check
         run: |
-          python -m py_compile src/backend/main.py
+          python -m py_compile src/backend/main.py 2>&1 | tee quality-syntax.log
+
+      - name: Upload quality reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports-${{ github.sha }}
+          path: |
+            quality-syntax.log
+          retention-days: 7

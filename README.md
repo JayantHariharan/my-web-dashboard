@@ -12,7 +12,7 @@
 
 ## ✨ Features
 
-- 🔐 **Secure authentication** – bcrypt + pepper, rate limiting, IP audit logging
+- 🔐 **Secure authentication** – bcrypt + pepper, rate limiting, privacy-first
 - 🚀 **Automated CI/CD** – GitHub Actions → Render deployment (staging + production)
 - 🗄️ **Versioned migrations** – SQL-based migration scripts (auto-applied)
 - 📱 **Static frontend** – Cinematic UI with Matter.js physics (served by backend)
@@ -371,7 +371,7 @@ Rate limits are per IP address and vary by app category:
 
 | Category | Endpoints | Limit | Block |
 |----------|-----------|-------|-------|
-| Auth | `/api/auth/*` | 20/hr | 15min |
+| Auth | `/api/auth/*` | 5/hr | 30min |
 | Games | `/api/games/*` | 100/hr | 10min |
 | Apps | `/apps/*` | 200/hr | 10min |
 | Health | `/health` | Unlimited | - |
@@ -445,7 +445,7 @@ my-web-dashboard/
 - Passwords hashed with **bcrypt** + **pepper** (`SECRET_KEY`)
 - **Constant-time comparison** prevents timing attacks
 - **Rate limiting** per endpoint category
-- **IP audit logging** (`created_ip`, `last_login_ip`)
+- **Privacy-first design** – No IP address storage, minimal data collection
 - **Parameterized queries** – no SQL injection
 - **Generic error messages** – doesn't reveal user existence
 - **CORS configured** for allowed origins
@@ -545,7 +545,7 @@ If multi-app functionality (apps, games) is needed later, refer to `docs/DEVELOP
 
 ## 🤝 Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+Contribution guidelines are documented in the [Developer Guide](docs/DEVELOPER.md).
 
 ---
 

@@ -262,14 +262,14 @@ class UserRepository(BaseRepository):
         Create a new user.
         Returns the user ID.
         Raises ValueError if username already exists.
+        Note: created_ip parameter is ignored (IP tracking removed for privacy).
         """
         # Optional pre-check for better error message
         if self.get_user_by_username(username):
             raise ValueError(f"Username '{username}' already exists")
 
         data = {"username": username, "password": password_hash}
-        if created_ip:
-            data["created_ip"] = created_ip
+        # IP tracking removed - privacy first
 
         return self.create(data)
 
@@ -277,25 +277,15 @@ class UserRepository(BaseRepository):
         self, username: str, login_ip: Optional[str] = None
     ) -> bool:
         """
-        Update last_login_at and last_login_ip for a user.
+        Update last_login_at for a user.
         Returns True if updated, False if user not found.
+        Note: login_ip parameter is ignored (IP tracking removed for privacy).
         """
-        update_data = {"last_login_at": "CURRENT_TIMESTAMP"}  # Will be used as raw SQL
-        if login_ip:
-            update_data["last_login_ip"] = login_ip
-
         # Use raw SQL for timestamp to ensure database sets it
         is_postgres = self._is_postgres
         placeholder = "%s" if is_postgres else "?"
-        sets = ["last_login_at = CURRENT_TIMESTAMP"]
-        values = []
-
-        if login_ip:
-            sets.append(f"last_login_ip = {placeholder}")
-            values.append(login_ip)
-
-        values.append(username)
-        sql = f"UPDATE {self.table_name} SET {', '.join(sets)} WHERE username = {placeholder}"
+        sql = f"UPDATE {self.table_name} SET last_login_at = CURRENT_TIMESTAMP WHERE username = {placeholder}"
+        values = [username]
 
         with self.get_cursor() as cursor:
             cursor.execute(sql, tuple(values))

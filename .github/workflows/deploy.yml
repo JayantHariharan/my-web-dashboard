@@ -64,7 +64,7 @@ jobs:
             fi
           done
           echo ""
-          echo " Continuing to validation..."
+          echo " Continuing to validation..." 2>&1 | tee precheck-debug.log
 
           # Check PostgreSQL secrets
           missing=()
@@ -86,26 +86,35 @@ jobs:
           fi
 
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "❌ Missing required secrets: ${missing[*]}"
-            echo ""
-            echo "Please add these secrets in GitHub:"
-            echo "  Settings → Secrets and variables → Actions → New repository secret"
-            echo ""
-            echo "Required (PostgreSQL):"
-            echo "  - PGHOST"
-            echo "  - PGPORT (usually 5432)"
-            echo "  - PGUSER"
-            echo "  - PGPASSWORD"
-            echo "  - PGDATABASE"
-            echo ""
-            echo "Required (Render):"
-            echo "  - RENDER_API_KEY"
-            echo "  - RENDER_SERVICE_ID_TEST (for staging)"
-            echo "  - RENDER_SERVICE_ID_PROD (for production)"
+            echo "❌ Missing required secrets: ${missing[*]}" | tee -a precheck-debug.log
+            echo "" | tee -a precheck-debug.log
+            echo "Please add these secrets in GitHub:" | tee -a precheck-debug.log
+            echo "  Settings → Secrets and variables → Actions → New repository secret" | tee -a precheck-debug.log
+            echo "" | tee -a precheck-debug.log
+            echo "Required (PostgreSQL):" | tee -a precheck-debug.log
+            echo "  - PGHOST" | tee -a precheck-debug.log
+            echo "  - PGPORT (usually 5432)" | tee -a precheck-debug.log
+            echo "  - PGUSER" | tee -a precheck-debug.log
+            echo "  - PGPASSWORD" | tee -a precheck-debug.log
+            echo "  - PGDATABASE" | tee -a precheck-debug.log
+            echo "" | tee -a precheck-debug.log
+            echo "Required (Render):" | tee -a precheck-debug.log
+            echo "  - RENDER_API_KEY" | tee -a precheck-debug.log
+            echo "  - RENDER_SERVICE_ID_TEST (for staging)" | tee -a precheck-debug.log
+            echo "  - RENDER_SERVICE_ID_PROD (for production)" | tee -a precheck-debug.log
             exit 1
           fi
 
-          echo "✅ All required secrets present"
+          echo "✅ All required secrets present" | tee -a precheck-debug.log
+
+      - name: Upload precheck artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: precheck-artifacts-${{ github.sha }}-${{ needs.precheck.outputs.environment }}
+          path: |
+            precheck-debug.log
+          retention-days: 7
 
   migrate-database:
     needs: precheck
@@ -151,16 +160,16 @@ jobs:
         if: success()
         run: |
           if [ -z "$RENDER_API_KEY" ]; then
-            echo "ERROR: RENDER_API_KEY is not set"
+            echo "ERROR: RENDER_API_KEY is not set" | tee deploy-validation.log
             exit 1
           fi
           if [ -z "$RENDER_SERVICE_ID" ]; then
-            echo "ERROR: RENDER_SERVICE_ID is not set"
+            echo "ERROR: RENDER_SERVICE_ID is not set" | tee deploy-validation.log
             exit 1
           fi
-          echo "✅ Render configuration validated"
-          echo "   Environment: $DISPLAY_ENV"
-          echo "   Service ID: $RENDER_SERVICE_ID"
+          echo "✅ Render configuration validated" | tee deploy-validation.log
+          echo "   Environment: $DISPLAY_ENV" | tee -a deploy-validation.log
+          echo "   Service ID: $RENDER_SERVICE_ID" | tee -a deploy-validation.log
 
       - name: Trigger Render deployment
         id: trigger
@@ -171,12 +180,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          echo "🚀 Triggering deployment for $DISPLAY_ENV..."
+          echo "🚀 Triggering deployment for $DISPLAY_ENV..." 2>&1 | tee deploy-trigger.log
 
           # Wait for any existing in-progress deployment to finish (max 15 min)
           max_wait=30
           for i in $(seq 1 $max_wait); do
-            echo "Checking for in-progress deployments (attempt $i/$max_wait)..."
+            echo "Checking for in-progress deployments (attempt $i/$max_wait)..." | tee -a deploy-trigger.log
             response=$(curl -s \
               -H "Authorization: Bearer $RENDER_API_KEY" \
               "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" || true)
@@ -185,23 +194,23 @@ jobs:
             if echo "$response" | jq -e 'type == "array"' >/dev/null 2>&1; then
               deploy_status=$(echo "$response" | jq -r '.[0].status // "empty"')
               if [ "$deploy_status" = "empty" ]; then
-                echo "  No existing deployments found, proceeding..."
+                echo "  No existing deployments found, proceeding..." | tee -a deploy-trigger.log
                 break
               fi
               if [[ "$deploy_status" =~ ^(live|succeeded|errored|failed|canceled|build_failed|update_failed|upload_failed)$ ]]; then
-                echo "  Latest deployment is in terminal state: $deploy_status, proceeding..."
+                echo "  Latest deployment is in terminal state: $deploy_status, proceeding..." | tee -a deploy-trigger.log
                 break
               fi
-              echo "  Deployment still in progress (status: $deploy_status), waiting 30s..."
+              echo "  Deployment still in progress (status: $deploy_status), waiting 30s..." | tee -a deploy-trigger.log
             else
-              echo " ⚠️  Unexpected response format, assuming no in-progress deployments"
-              echo "  Response: ${response:0:200}"
+              echo " ⚠️  Unexpected response format, assuming no in-progress deployments" | tee -a deploy-trigger.log
+              echo "  Response: ${response:0:200}" | tee -a deploy-trigger.log
             fi
             sleep 30
           done
 
           # Trigger new deployment
-          echo "Triggering new deployment..."
+          echo "🔄 Triggering new deployment..." | tee -a deploy-trigger.log
           response=$(curl -s -w "\n%{http_code}" -X POST \
             -H "Authorization: Bearer $RENDER_API_KEY" \
             -H "Content-Type: application/json" \
@@ -211,21 +220,21 @@ jobs:
           body=$(echo "$response" | sed '$d')
 
           if [[ ! "$http_code" =~ ^(200|201|202)$ ]]; then
-            echo "❌ Deploy trigger failed (HTTP $http_code):"
-            echo "$body" | jq . 2>/dev/null || echo "${body:0:500}"
+            echo "❌ Deploy trigger failed (HTTP $http_code):" | tee -a deploy-trigger.log
+            echo "$body" | jq . 2>/dev/null || echo "${body:0:500}" | tee -a deploy-trigger.log
             exit 1
           fi
 
           # Validate response is JSON and extract deploy_id
           if ! echo "$body" | jq -e 'type == "object" and .id' >/dev/null 2>&1; then
-            echo "❌ Response is not a valid deployment object or missing 'id':"
-            echo "$body" | jq . 2>/dev/null || echo "${body:0:500}"
+            echo "❌ Response is not a valid deployment object or missing 'id':" | tee -a deploy-trigger.log
+            echo "$body" | jq . 2>/dev/null || echo "${body:0:500}" | tee -a deploy-trigger.log
             exit 1
           fi
 
           deploy_id=$(echo "$body" | jq -r -e '.id')
           echo "deploy_id=$deploy_id" >> $GITHUB_OUTPUT
-          echo "✅ Deployment triggered: $deploy_id"
+          echo "✅ Deployment triggered: $deploy_id" | tee -a deploy-trigger.log
 
       - name: Monitor deployment
         id: monitor
@@ -237,17 +246,17 @@ jobs:
           set -euo pipefail
 
           deploy_id="${{ steps.trigger.outputs.deploy_id }}"
-          echo "Monitoring deployment: $deploy_id"
+          echo "Monitoring deployment: $deploy_id" 2>&1 | tee deploy-monitor.log
 
           if [ -z "$deploy_id" ] || [ "$deploy_id" = "null" ]; then
-            echo "❌ Invalid deploy_id from trigger step: '$deploy_id'"
-            echo "   Trigger step output: ${{ steps.trigger.outputs }}"
+            echo "❌ Invalid deploy_id from trigger step: '$deploy_id'" | tee -a deploy-monitor.log
+            echo "   Trigger step output: ${{ steps.trigger.outputs }}" | tee -a deploy-monitor.log
             exit 1
           fi
 
           # Poll for status, up to 120 checks (60 minutes)
           for i in $(seq 1 120); do
-            echo "[$i/120] Checking deployment status..."
+            echo "[$i/120] Checking deployment status..." | tee -a deploy-monitor.log
 
             # Fetch deployment details with error handling
             response=$(curl -s -w "\n%{http_code}" \
@@ -258,43 +267,43 @@ jobs:
 
             # Check for HTTP errors
             if [[ ! "$http_code" =~ ^(200)$ ]]; then
-              echo "❌ API request failed (HTTP $http_code):"
-              echo "$body" | jq . 2>/dev/null || echo "${body:0:500}"
+              echo "❌ API request failed (HTTP $http_code):" | tee -a deploy-monitor.log
+              echo "$body" | jq . 2>/dev/null || echo "${body:0:500}" | tee -a deploy-monitor.log
               exit 1
             fi
 
             # Validate response is JSON object
             if ! echo "$body" | jq -e 'type == "object"' >/dev/null 2>&1; then
-              echo "❌ Response is not a valid JSON object:"
-              echo "${body:0:500}"
+              echo "❌ Response is not a valid JSON object:" | tee -a deploy-monitor.log
+              echo "${body:0:500}" | tee -a deploy-monitor.log
               exit 1
             fi
 
             # Extract status safely
             status=$(echo "$body" | jq -r -e '.status' 2>/dev/null || echo "unknown")
-            echo "   Status: $status"
+            echo "   Status: $status" | tee -a deploy-monitor.log
 
             # Success conditions
             if [[ "$status" == "live" ]] || [[ "$status" == "succeeded" ]]; then
-              echo "✅ Deployment successful!"
+              echo "✅ Deployment successful!" | tee -a deploy-monitor.log
               exit 0
             fi
 
             # Failure conditions (terminal states)
             if [[ "$status" =~ ^(errored|failed|canceled|build_failed|update_failed|upload_failed)$ ]]; then
-              echo "❌ Deployment failed with status: $status"
-              echo "Deployment details:"
-              echo "$body" | jq .
+              echo "❌ Deployment failed with status: $status" | tee -a deploy-monitor.log
+              echo "Deployment details:" | tee -a deploy-monitor.log
+              echo "$body" | jq . | tee -a deploy-monitor.log
               exit 1
             fi
 
             # Still in progress, wait before next check
-            echo "   Still in progress (status: $status), waiting 30 seconds..."
+            echo "   Still in progress (status: $status), waiting 30 seconds..." | tee -a deploy-monitor.log
             sleep 30
           done
 
-          echo "❌ TIMEOUT: Deployment did not complete within 60 minutes"
-          echo "Last known status: $status"
+          echo "❌ TIMEOUT: Deployment did not complete within 60 minutes" | tee -a deploy-monitor.log
+          echo "Last known status: $status" | tee -a deploy-monitor.log
           exit 1
 
       - name: Get service URL
@@ -317,42 +326,63 @@ jobs:
         run: |
           service_url="${{ steps.get-url.outputs.service_url }}"
           if [ -z "$service_url" ] || [ "$service_url" = "null" ]; then
-            echo "Service URL not available, skipping health check"
+            echo "Service URL not available, skipping health check" | tee health-check.log
             exit 0
           fi
 
           base_url="https://$service_url"
-          echo "Service URL: $base_url"
+          echo "Service URL: $base_url" | tee health-check.log
 
           endpoints=("/health" "/api/auth/login")
           for endpoint in "${endpoints[@]}"; do
-            echo "Checking $base_url$endpoint..."
+            echo "Checking $base_url$endpoint..." | tee -a health-check.log
             code=$(curl -s -o /dev/null -w "%{http_code}" "$base_url$endpoint")
             if [[ "$code" =~ ^(200|302|401)$ ]]; then
-              echo "  ✅ OK ($code)"
+              echo "  ✅ OK ($code)" | tee -a health-check.log
             else
-              echo "  ❌ FAILED ($code)"
+              echo "  ❌ FAILED ($code)" | tee -a health-check.log
               exit 1
             fi
           done
 
-          echo "All health checks passed!"
+          echo "All health checks passed!" | tee -a health-check.log
 
       - name: Install Node.js dependencies
         if: success()
         run: |
-          echo "📦 Installing test dependencies..."
+          echo "📦 Installing test dependencies..." 2>&1 | tee npm-install.log
           npm ci --only=dev 2>/dev/null || npm install --save-dev playwright
-          npx playwright install chromium --with-deps
-          echo "✅ Dependencies installed"
+          npx playwright install chromium --with-deps 2>&1 | tee -a npm-install.log
+          echo "✅ Dependencies installed" | tee -a npm-install.log
 
       - name: Smoke test
         if: success()
         env:
           SITE_URL: ${{ steps.get-url.outputs.service_url }}
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
         run: |
           if [ -z "$SITE_URL" ] || [ "$SITE_URL" = "null" ]; then
             SITE_URL="https://$(curl -s -H "Authorization: Bearer $RENDER_API_KEY" "https://api.render.com/v1/services/$RENDER_SERVICE_ID" | jq -r '.service.url')"
           fi
-          echo "Running smoke test on: $SITE_URL"
-          SITE_URL="$SITE_URL" node tests/smoke.test.js
+          echo "Running smoke test on: $SITE_URL" 2>&1 | tee smoke-test.log
+          set +e
+          SITE_URL="$SITE_URL" node tests/smoke.test.js 2>&1 | tee -a smoke-test.log
+          TEST_EXIT_CODE=${PIPESTATUS[0]}
+          set -e
+          echo "Smoke test exit code: $TEST_EXIT_CODE" | tee -a smoke-test.log
+          exit $TEST_EXIT_CODE
+
+      - name: Upload deployment artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: deploy-artifacts-${{ github.sha }}-${{ needs.precheck.outputs.environment }}
+          path: |
+            deploy-validation.log
+            deploy-trigger.log
+            deploy-monitor.log
+            health-check.log
+            npm-install.log
+            smoke-test.log
+          retention-days: 7

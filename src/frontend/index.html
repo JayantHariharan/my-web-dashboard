@@ -27,7 +27,7 @@
                 display: block;
                 color: #4caf50;
                 position: absolute;
-                right: 12px;
+                left: 12px;
                 top: 50%;
                 transform: translateY(-50%);
                 font-size: 1.2rem;
@@ -40,7 +40,7 @@
                 display: block;
                 color: #ff4444;
                 position: absolute;
-                right: 12px;
+                left: 12px;
                 top: 50%;
                 transform: translateY(-50%);
                 font-size: 1.2rem;
@@ -81,38 +81,44 @@
         <div class="hero-login-container">
             <div class="crystal-auth-card">
                 <!-- 🪐 BRAND ANCHOR -->
-                <div style="text-align: center; margin-bottom: 28px;">
+                <div style="text-align: center; margin-bottom: 32px;">
                     <h1 class="nexus-gradient-text" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.6rem; letter-spacing: 12px;">PLAYNEXUS</h1>
-                    <p style="color: rgba(255,255,255,0.25); font-size: 0.65rem; letter-spacing: 4px; margin-top: 8px; font-family: 'Outfit';">CONSOLE PORTAL</p>
                 </div>
 
                 <!-- 🚪 SECURITY GATE -->
                 <div id="auth-form-container">
+                    <h2 id="auth-heading" style="text-align: center; margin-bottom: 24px; font-family: 'Outfit'; font-size: 1rem; letter-spacing: 8px; color: rgba(255,255,255,0.5); font-weight: 600;">LOGIN</h2>
                     <div class="auth-field" style="margin-bottom: 14px; position: relative;">
                         <input type="text" id="auth-username" class="floating-input" placeholder="Username" autocomplete="username" required
                                style="border-color: var(--input-border, var(--border)); transition: border-color 0.2s;">
-                        <div id="username-feedback" style="position: absolute; bottom: -18px; left: 0; font-size: 0.6rem; color: var(--text-muted); opacity: 0; transition: opacity 0.2s;"></div>
                     </div>
 
                     <div class="auth-field" style="margin-bottom: 14px; position: relative;">
                         <input type="password" id="auth-password" class="floating-input" placeholder="Password" autocomplete="current-password" required
-                               style="border-color: var(--input-border, var(--border)); transition: border-color 0.2s;">
-                        <div id="password-feedback" style="position: absolute; bottom: -18px; left: 0; font-size: 0.6rem; color: var(--text-muted); opacity: 0; transition: opacity 0.2s;"></div>
+                               style="border-color: var(--input-border, var(--border)); transition: border-color 0.2s; padding-right: 45px;">
+                        <button type="button" id="toggle-password-visibility" style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: rgba(255,255,255,0.4); cursor: pointer; font-size: 1.2rem; padding: 4px;" title="Show password">
+                            👁️
+                        </button>
                     </div>
 
                     <div id="confirm-password-field" class="auth-field" style="margin-bottom: 14px; position: relative; display: none;">
                         <input type="password" id="auth-confirm-password" class="floating-input" placeholder="Confirm Password" autocomplete="new-password" required
                                style="border-color: var(--input-border, var(--border)); transition: border-color 0.2s;">
-                        <div id="confirm-feedback" style="position: absolute; bottom: -18px; left: 0; font-size: 0.6rem; color: var(--text-muted); opacity: 0; transition: opacity 0.2s;"></div>
                     </div>
 
-                    <button id="auth-btn" class="nexus-btn-luxe" onclick="handleAuth()">Enter the Nexus</button>
+                    <!-- Validation Status Bar (Creative UX) -->
+                    <div id="validation-status" style="margin-top: 12px; padding: 8px 12px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid transparent; transition: all 0.3s ease; opacity: 0;">
+                        <div id="status-message" style="font-size: 0.75rem; color: rgba(255,255,255,0.4); text-align: center; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <span style="font-size: 0.9rem;">⏳</span>
+                            <span>Fill in your credentials</span>
+                        </div>
+                    </div>
+
+                    <button id="auth-btn" class="nexus-btn-luxe" style="margin-top: 8px;" onclick="handleAuth()">Enter the Nexus</button>
 
                     <!-- Mode switcher below button (Netflix/Crunchyroll style) -->
-                    <div style="text-align: center; margin-top: 16px; font-size: 0.8rem; color: rgba(255,255,255,0.6);">
-                        <span id="auth-mode-indicator" style="opacity: 0.7;">LOGIN</span>
-                        <span style="margin: 0 8px; opacity: 0.3;">|</span>
-                        <button id="mode-btn" onclick="toggleAuthMode()" style="background:none;border:none;color:var(--nexus-cyan);cursor:pointer;font-size:0.8rem;transition:opacity 0.2s;padding:0;">Need an account? Sign Up</button>
+                    <div class="mode-toggle-container" style="text-align: center; margin-top: 24px; font-size: 0.8rem; color: rgba(255,255,255,0.6);">
+                        <button id="mode-btn" class="mode-toggle" onclick="toggleAuthMode()">Need an account? Sign Up</button>
                     </div>
                 </div>
 
@@ -126,7 +132,7 @@
         
         <!-- 🚀 HUB NAV (Right-Aligned Profile with AI Avatar) -->
         <header id="universal-hud" style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 30px 5%; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(40px); border-bottom: 1px solid var(--crystal-border);">
-            <div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="location.href='index.html'">
+            <div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="location.reload()">
                 <img src="assets/logo.png" style="width: 40px; height: auto;" alt="Nexus Logo">
                 <div class="nexus-gradient-text" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.5rem; letter-spacing: 2px;">PLAYNEXUS</div>
             </div>
@@ -145,51 +151,71 @@
             </div>
         </header>
 
-        <!-- 🏢 CONTENT EXPLORER (4 Sections) -->
+        <!-- 🏢 CONTENT EXPLORER (Auth-Only Hub) -->
         <div style="padding-top: 160px; padding-bottom: 100px;">
-            <!-- 🌟 RECENTLY OPENED (Featured Continue) -->
-            <section class="hub-row" style="margin-bottom: 60px;">
-                <h2 class="row-title" style="color: #fff; opacity: 0.5; font-size: 0.85rem; letter-spacing: 4px; margin-bottom: 25px;">RECENTLY ACCESSED</h2>
-                <div class="hub-carousel" style="gap: 30px;">
-                    <div class="featured-item-hero" style="min-width: 580px; height: 300px; background: linear-gradient(90deg, rgba(7,11,20,0.95) 0%, rgba(7,11,20,0.4) 60%, transparent 100%), url('assets/tictactoe-cover.svg') center/cover; padding: 50px; position: relative; overflow: hidden; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;" onclick="location.href='games/tic-tac-toe.html'">
-                        
-                        <span class="badge" style="background: rgba(255,255,255,0.9); color: #000; padding: 6px 14px; border-radius: 6px; font-weight: 900; font-size: 0.7rem; position: absolute; top: 40px; left: 50px;">CONTINUE PLAYING</span>
-                        <div class="info" style="margin-top: 70px;">
-                            <h3 style="font-size: 2.2rem; margin-bottom: 10px;">Tic-Tac-Toe Crystal</h3>
-                            <p style="font-size: 1rem; color: #999;">Last session: 4 minutes ago</p>
-                            <button class="nexus-btn-luxe" style="margin-top: 30px; width: auto; min-width: 160px; padding: 14px 25px; font-size: 0.8rem; background: #fff; color: #000; border-radius: 8px; box-shadow: 0 10px 20px rgba(255,255,255,0.1);" onclick="event.stopPropagation(); location.href='games/games.html'">
-                                <span style="font-size: 1rem; vertical-align: middle; margin-right: 8px;">▶</span> LAUNCH CENTER
-                            </button>
+            <!-- 🎉 WELCOME SECTION -->
+            <section class="hub-row" style="margin-bottom: 60px; text-align: center;">
+                <h1 class="nexus-gradient-text" style="font-family: 'Outfit'; font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 800; margin-bottom: 16px;">Welcome to PlayNexus</h1>
+                <p style="color: rgba(255,255,255,0.6); font-size: 1.1rem; max-width: 600px; margin: 0 auto 40px; line-height: 1.6;">
+                    Your gateway to a unified gaming ecosystem. Authentication is now active — additional apps are coming soon.
+                </p>
+                <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap;">
+                    <button class="nexus-btn-luxe" style="width: auto; max-width: 280px; padding: 14px 32px; font-size: 0.85rem; border-radius: 100px;">View Documentation</button>
+                    <button class="btn-secondary" style="width: auto; max-width: 280px; padding: 14px 32px; font-size: 0.85rem; border-radius: 100px;">Learn More</button>
+                </div>
+            </section>
+
+            <!-- 🚧 COMING SOON APPS -->
+            <section class="hub-row">
+                <h2 class="row-title" style="color: #fff; opacity: 0.5; font-size: 0.85rem; letter-spacing: 4px; margin-bottom: 40px; text-align: center;">SYSTEM APPS — COMING SOON</h2>
+                <div class="system-categories-grid" style="opacity: 0.6;">
+                    <div class="sys-category-card" style="background-image: linear-gradient(135deg, rgba(109,40,217,0.3), rgba(37,99,235,0.2)); filter: grayscale(0.5); pointer-events: none;">
+                        <div class="sys-category-overlay" style="background: rgba(0,0,0,0.4);">
+                            <span class="sys-category-title" style="font-size: 1.2rem;">GAMES & FUN</span>
+                            <p style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 8px; letter-spacing: 1px;">COMING SOON</p>
+                        </div>
+                    </div>
+
+                    <div class="sys-category-card" style="background-image: linear-gradient(135deg, rgba(6,182,212,0.3), rgba(37,99,235,0.2)); filter: grayscale(0.5); pointer-events: none;">
+                        <div class="sys-category-overlay" style="background: rgba(0,0,0,0.4);">
+                            <span class="sys-category-title" style="font-size: 1.2rem;">TRENDING WORLD</span>
+                            <p style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 8px; letter-spacing: 1px;">COMING SOON</p>
+                        </div>
+                    </div>
+
+                    <div class="sys-category-card" style="background-image: linear-gradient(135deg, rgba(52,211,153,0.3), rgba(6,182,212,0.2)); filter: grayscale(0.5); pointer-events: none;">
+                        <div class="sys-category-overlay" style="background: rgba(0,0,0,0.4);">
+                            <span class="sys-category-title" style="font-size: 1.2rem;">COMMUNITY NEXUS</span>
+                            <p style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 8px; letter-spacing: 1px;">COMING SOON</p>
+                        </div>
+                    </div>
+
+                    <div class="sys-category-card" style="background-image: linear-gradient(135deg, rgba(187,134,252,0.3), rgba(109,40,217,0.2)); filter: grayscale(0.5); pointer-events: none;">
+                        <div class="sys-category-overlay" style="background: rgba(0,0,0,0.4);">
+                            <span class="sys-category-title" style="font-size: 1.2rem;">THE VAULT</span>
+                            <p style="font-size: 0.75rem; color: rgba(255,255,255,0.5); margin-top: 8px; letter-spacing: 1px;">COMING SOON</p>
                         </div>
                     </div>
                 </div>
             </section>
 
-            <section class="hub-row">
-                <h2 class="row-title nexus-gradient-text">🎮 NEXUS SYSTEM APPS</h2>
-                <div class="system-categories-grid">
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80');" onclick="location.href='games/games.html'">
-                        <div class="sys-category-overlay">
-                            <span class="sys-category-title">GAMES & FUN</span>
-                        </div>
-                    </div>
-
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&q=80');" onclick="location.href='news/news.html'">
-                        <div class="sys-category-overlay">
-                            <span class="sys-category-title">TRENDING WORLD</span>
-                        </div>
-                    </div>
-
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80');" onclick="location.href='community/community.html'">
-                        <div class="sys-category-overlay">
-                            <span class="sys-category-title">COMMUNITY NEXUS</span>
-                        </div>
-                    </div>
-
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=800&q=80');" onclick="location.href='author/author.html'">
-                        <div class="sys-category-overlay">
-                            <span class="sys-category-title">THE VAULT</span>
-                        </div>
+            <!-- 📊 SYSTEM STATUS -->
+            <section class="hub-row" style="margin-top: 80px; text-align: center;">
+                <div style="max-width: 600px; margin: 0 auto; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 32px;">
+                    <h3 style="font-family: 'Outfit'; font-size: 1.2rem; font-weight: 600; margin-bottom: 12px;">System Status</h3>
+                    <p style="color: rgba(255,255,255,0.5); font-size: 0.9rem; line-height: 1.6; margin-bottom: 16px;">
+                        Authentication system is running normally. Your credentials are protected with industry-standard security practices.
+                    </p>
+                    <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; font-size: 0.8rem; color: rgba(255,255,255,0.4);">
+                        <span style="display: flex; align-items: center; gap: 6px;">
+                            <span style="color: #2ed573;">●</span> Secure hashing
+                        </span>
+                        <span style="display: flex; align-items: center; gap: 6px;">
+                            <span style="color: #2ed573;">●</span> Rate limited
+                        </span>
+                        <span style="display: flex; align-items: center; gap: 6px;">
+                            <span style="color: #2ed573;">●</span> Encrypted sessions
+                        </span>
                     </div>
                 </div>
             </section>
@@ -213,7 +239,6 @@
         const modeBtn = document.getElementById('mode-btn');
         const authError = document.getElementById('auth-error');
         const confirmField = document.getElementById('confirm-password-field');
-        const modeIndicator = document.getElementById('auth-mode-indicator');
         const usernameInput = document.getElementById('auth-username');
         const passwordInput = document.getElementById('auth-password');
         const confirmInput = document.getElementById('auth-confirm-password');
@@ -259,6 +284,9 @@
                     fieldWrapper.appendChild(msgEl);
                 }
             }
+
+            // Update validation status bar
+            updateValidationStatus();
         }
 
         /**
@@ -375,34 +403,175 @@
         }
 
         // Call setup on page load
-        document.addEventListener('DOMContentLoaded', setupRealtimeValidation);
+        document.addEventListener('DOMContentLoaded', async () => {
+            setupRealtimeValidation();
+            initValidationStatus();
+            initPasswordToggle();
+            // Initial status update
+            setTimeout(updateValidationStatus, 100);
+            // Check system health
+            await checkSystemHealth();
+        });
+
+        // 🏥 System Health Check
+        async function checkSystemHealth() {
+            try {
+                const response = await fetch('/health', { method: 'GET' });
+                const data = await response.json();
+
+                if (!response.ok || data.status !== 'healthy') {
+                    console.error('System health check failed:', data);
+                    Toast.warning('System maintenance in progress. Some features may be unavailable.', 8000);
+                    // Could also update UI to show degraded state
+                }
+            } catch (error) {
+                // If health endpoint unreachable, that's concerning
+                console.error('Health check unreachable:', error);
+                Toast.error('Unable to connect to authentication service', 10000);
+            }
+        }
+
+        // 👁️ Password Visibility Toggle
+        function initPasswordToggle() {
+            const toggleBtn = document.getElementById('toggle-password-visibility');
+            const passwordInput = document.getElementById('auth-password');
+
+            if (toggleBtn && passwordInput) {
+                toggleBtn.addEventListener('click', () => {
+                    const isPassword = passwordInput.type === 'password';
+                    passwordInput.type = isPassword ? 'text' : 'password';
+                    toggleBtn.textContent = isPassword ? '🙈' : '👁️';
+                    toggleBtn.title = isPassword ? 'Hide password' : 'Show password';
+                });
+            }
+        }
+
+        // ✨ Validation Status Bar Management
+        let statusTimeout;
+
+        function initValidationStatus() {
+            // Create the status bar structure dynamically
+            const statusBar = document.getElementById('validation-status');
+            const statusMessage = document.getElementById('status-message');
+
+            statusBar.innerHTML = `
+                <div id="status-content" style="display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap;">
+                    <span id="status-username" class="status-icon pending" title="Username">•</span>
+                    <span id="status-password" class="status-icon pending" title="Password">•</span>
+                    <span id="status-confirm" class="status-icon pending" title="Confirm Password" style="display: none;">•</span>
+                    <span id="status-separator" class="status-text" style="color: rgba(255,255,255,0.2);">|</span>
+                    <span id="status-summary" class="status-text">Fill in your credentials</span>
+                </div>
+            `;
+
+            // Watch for field validation changes
+            ['username', 'password', 'confirm'].forEach(field => {
+                const input = document.getElementById(`auth-${field === 'confirm' ? 'confirm-password' : field}`);
+                if (input) {
+                    input.addEventListener('input', updateValidationStatus);
+                    input.addEventListener('blur', updateValidationStatus);
+                }
+            });
+        }
+
+        function updateValidationStatus() {
+            const statusBar = document.getElementById('validation-status');
+            const statusSummary = document.getElementById('status-summary');
+            const statusUsername = document.getElementById('status-username');
+            const statusPassword = document.getElementById('status-password');
+            const statusConfirm = document.getElementById('status-confirm');
+
+            // Get current validation states from fieldStates
+            const usernameValid = fieldStates.username.valid;
+            const passwordValid = fieldStates.password.valid;
+            const confirmValid = fieldStates.confirm.valid;
+            const confirmVisible = confirmField.style.display !== 'none';
+
+            // Determine icon states: 'pending', 'error', 'success'
+            const getIconState = (valid, input) => {
+                if (valid && input.value.length > 0) return 'success';
+                if (input.value.length > 0) return 'error';
+                return 'pending';
+            };
+
+            const usernameState = getIconState(usernameValid, usernameInput);
+            const passwordState = getIconState(passwordValid, passwordInput);
+            const confirmState = confirmVisible ? getIconState(confirmValid, confirmInput) : 'success';
+
+            // Update individual icons
+            updateStatusIcon(statusUsername, usernameState);
+            updateStatusIcon(statusPassword, passwordState);
+            updateStatusIcon(statusConfirm, confirmState);
+
+            // Show/hide confirm icon based on visibility
+            statusConfirm.style.display = confirmVisible ? 'inline-flex' : 'none';
+
+            // For confirm field: only consider valid if it has a value (for overall status)
+            const isConfirmFieldValid = confirmVisible ? (confirmValid && confirmInput.value) : true;
+
+            // Determine overall status
+            const allValid = usernameValid && passwordValid && isConfirmFieldValid;
+            const anyInteractive = usernameInput.value || passwordInput.value || (confirmVisible && confirmInput.value);
+
+            if (allValid) {
+                statusBar.classList.remove('check-fail');
+                statusBar.classList.add('check-pass');
+                statusSummary.innerHTML = '✓ All systems go';
+                statusSummary.style.color = 'var(--nexus-cyan)';
+            } else if (anyInteractive) {
+                statusBar.classList.remove('check-pass', 'check-fail');
+                statusSummary.innerHTML = 'Almost there...<span class="status-cursor"></span>';
+                statusSummary.style.color = 'rgba(255,255,255,0.6)';
+            } else {
+                statusBar.classList.remove('check-pass', 'check-fail');
+                statusSummary.innerHTML = 'Fill in your credentials';
+                statusSummary.style.color = 'rgba(255,255,255,0.4)';
+            }
+
+            // Show status bar with slight delay for animation
+            clearTimeout(statusTimeout);
+            statusTimeout = setTimeout(() => {
+                statusBar.classList.add('visible');
+            }, 100);
+        }
+
+        function updateStatusIcon(iconElement, state) {
+            switch(state) {
+                case 'success':
+                    iconElement.className = 'status-icon success';
+                    iconElement.textContent = '✓';
+                    break;
+                case 'error':
+                    iconElement.className = 'status-icon error';
+                    iconElement.textContent = '✗';
+                    break;
+                default: // pending
+                    iconElement.className = 'status-icon pending';
+                    iconElement.textContent = '•';
+            }
+        }
 
         /**
          * Toggle between Login and Signup modes
          */
         function toggleAuthMode() {
             isLoginMode = !isLoginMode;
-            const usernameInput = document.getElementById('auth-username');
-            const passwordInput = document.getElementById('auth-password');
-            const confirmInput = document.getElementById('auth-confirm-password');
 
             if (isLoginMode) {
                 // Switch to Login
-                modeIndicator.textContent = 'LOGIN';
+                document.getElementById('auth-heading').textContent = 'LOGIN';
                 modeBtn.textContent = 'Need an account? Sign Up';
                 confirmField.style.display = 'none';
                 confirmInput.required = false;
                 authBtn.textContent = 'Enter the Nexus';
-                // For login, don't require minlength (user might have old shorter password)
                 passwordInput.minLength = '';
             } else {
                 // Switch to Signup
-                modeIndicator.textContent = 'SIGN UP';
+                document.getElementById('auth-heading').textContent = 'SIGN UP';
                 modeBtn.textContent = 'Already have an account? Login';
                 confirmField.style.display = 'block';
                 confirmInput.required = true;
                 authBtn.textContent = 'Create Account';
-                // Require minimum password length for new accounts
                 passwordInput.minLength = '6';
             }
 
@@ -412,6 +581,16 @@
             usernameInput.value = '';
             passwordInput.value = '';
             confirmInput.value = '';
+            // Reset validation states
+            fieldStates.username = { valid: false, message: '' };
+            fieldStates.password = { valid: false, message: '' };
+            fieldStates.confirm = { valid: true, message: '' };
+            // Clear visual status indicators
+            setFieldStatus(usernameInput, '');
+            setFieldStatus(passwordInput, '');
+            setFieldStatus(confirmInput, '');
+            // Update status bar
+            updateValidationStatus();
             usernameInput.focus();
         }
 
@@ -486,28 +665,34 @@
                 const data = await response.json();
 
                 if (!response.ok) {
-                    // Authentication failed - provide specific feedback for signup, generic for login
+                    // Authentication failed - handle specific error messages
                     let errorMsg = 'Authentication failed';
+                    const errorDetail = data.detail || '';
+
                     if (isLoginMode) {
-                        // For login, keep generic message for security (don't reveal if username exists)
-                        errorMsg = 'Invalid username or password';
+                        // For login, provide specific feedback based on error type (Netflix/Crunchyroll style)
+                        if (errorDetail.includes('Username not found')) {
+                            errorMsg = 'Username not found';
+                            // Highlight username field
+                            setFieldStatus(usernameInput, 'error', 'Username not found');
+                        } else if (errorDetail.includes('Incorrect password')) {
+                            errorMsg = 'Incorrect password';
+                            // Highlight password field
+                            setFieldStatus(passwordInput, 'error', 'Incorrect password');
+                        } else {
+                            errorMsg = errorDetail || 'Invalid credentials';
+                        }
                     } else {
                         // For signup, we can be more specific
-                        if (data.detail) {
-                            if (typeof data.detail === 'string') {
-                                if (data.detail.includes('already exists') || data.detail.includes('duplicate')) {
-                                    errorMsg = 'Username is already taken';
-                                    // Highlight username field
-                                    setFieldStatus(usernameInput, 'error', 'Username taken');
-                                } else if (data.detail.includes('password')) {
-                                    errorMsg = 'Password does not meet requirements';
-                                    setFieldStatus(passwordInput, 'error', 'Invalid password');
-                                } else {
-                                    errorMsg = data.detail;
-                                }
-                            } else if (data.detail.message) {
-                                errorMsg = data.detail.message;
-                            }
+                        if (errorDetail.includes('already exists') || errorDetail.includes('duplicate')) {
+                            errorMsg = 'Username is already taken';
+                            // Highlight username field
+                            setFieldStatus(usernameInput, 'error', 'Username taken');
+                        } else if (errorDetail.includes('password')) {
+                            errorMsg = 'Password does not meet requirements';
+                            setFieldStatus(passwordInput, 'error', 'Invalid password');
+                        } else {
+                            errorMsg = errorDetail || 'Registration failed';
                         }
                     }
                     showError(errorMsg);
@@ -545,7 +730,6 @@
 
             const auth = document.getElementById('crystal-auth-portal');
             const hub = document.getElementById('master-hub-container');
-            const successMsg = document.getElementById('access-granted-msg');
             const displayUser = document.getElementById('display-username');
             const profilePic = document.getElementById('user-avatar');
 
@@ -562,11 +746,7 @@
             // Store session
             sessionStorage.setItem('playnexus_user', username);
 
-            // Show success message briefly
-            successMsg.style.opacity = '1';
-            successMsg.style.letterSpacing = '10px';
-
-            // Transition to Hub
+            // Transition to Hub after brief delay
             setTimeout(() => {
                 auth.style.opacity = '0';
                 auth.style.transition = 'opacity 1s ease';
@@ -592,87 +772,6 @@
                         handleAuth();
                     }
                 }
-            }
-        });
-
-        // Helper: Set input field validation status
-        function setFieldStatus(input, status) {
-            const colors = {
-                '': 'var(--border)',
-                'valid': 'var(--nexus-cyan)',
-                'error': '#ff4444'
-            };
-            input.style.setProperty('--input-border', colors[status] || colors['']);
-            input.style.borderColor = colors[status] || colors[''];
-        }
-
-        // Input event listeners for real-time validation feedback
-        const usernameInput = document.getElementById('auth-username');
-        const passwordInput = document.getElementById('auth-password');
-        const confirmInput = document.getElementById('auth-confirm-password');
-
-        usernameInput.addEventListener('input', () => {
-            const value = usernameInput.value.trim();
-            const feedback = document.getElementById('username-feedback');
-
-            if (!value) {
-                setFieldStatus(usernameInput, '');
-                feedback.textContent = '';
-                feedback.style.opacity = '0';
-            } else if (value.length < 3) {
-                setFieldStatus(usernameInput, 'error');
-                feedback.textContent = 'Min 3 characters';
-                feedback.style.opacity = '1';
-            } else if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
-                setFieldStatus(usernameInput, 'error');
-                feedback.textContent = 'Use letters, numbers, _, - only';
-                feedback.style.opacity = '1';
-            } else {
-                setFieldStatus(usernameInput, 'valid');
-                feedback.textContent = '✓ Available';
-                feedback.style.opacity = '1';
-                feedback.style.color = 'var(--nexus-cyan)';
-            }
-        });
-
-        passwordInput.addEventListener('input', () => {
-            const value = passwordInput.value;
-            const feedback = document.getElementById('password-feedback');
-
-            if (!value) {
-                setFieldStatus(passwordInput, '');
-                feedback.textContent = '';
-                feedback.style.opacity = '0';
-            } else if (value.length < 6) {
-                setFieldStatus(passwordInput, 'error');
-                feedback.textContent = `Too short (${value.length}/6)`;
-                feedback.style.opacity = '1';
-            } else {
-                setFieldStatus(passwordInput, 'valid');
-                feedback.textContent = '✓ Strong enough';
-                feedback.style.opacity = '1';
-                feedback.style.color = 'var(--nexus-cyan)';
-            }
-        });
-
-        confirmInput.addEventListener('input', () => {
-            const value = confirmInput.value;
-            const password = passwordInput.value;
-            const feedback = document.getElementById('confirm-feedback');
-
-            if (!value) {
-                setFieldStatus(confirmInput, '');
-                feedback.textContent = '';
-                feedback.style.opacity = '0';
-            } else if (value !== password) {
-                setFieldStatus(confirmInput, 'error');
-                feedback.textContent = 'Passwords don\'t match';
-                feedback.style.opacity = '1';
-            } else {
-                setFieldStatus(confirmInput, 'valid');
-                feedback.textContent = '✓ Match';
-                feedback.style.opacity = '1';
-                feedback.style.color = 'var(--nexus-cyan)';
             }
         });
 

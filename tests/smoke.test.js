@@ -10,7 +10,7 @@ const { chromium } = require('playwright');
  *
  * Environment fallbacks:
  * - If SITE_URL is not set or is "null", uses hardcoded URLs based on APP_ENV:
- *   - production: https://playnexus.onrender.com (or your production URL)
+ *   - production: https://playnexus-prod.onrender.com
  *   - staging/test: https://playnexus-test.onrender.com
  */
 
@@ -23,7 +23,7 @@ const { chromium } = require('playwright');
     console.log(`⚠️  SITE_URL not provided (value: ${url}), using fallback for environment: ${env}`);
 
     if (env === 'production' || env === 'prod') {
-      url = 'https://playnexus.onrender.com'; // TODO: Update with actual production URL
+      url = 'https://playnexus-prod.onrender.com';
     } else {
       url = 'https://playnexus-test.onrender.com'; // staging/test default
     }

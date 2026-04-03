@@ -47,7 +47,7 @@ Backend API for PlayNexus gaming hub - Multi-App Platform.
 - Modular app architecture (auth, games, utilities)
 - Secure authentication with bcrypt + pepper
 - Rate limiting per app category
-- IP audit logging
+- Privacy-first design (no IP storage)
 - Versioned database migrations
 - Health monitoring endpoint
 

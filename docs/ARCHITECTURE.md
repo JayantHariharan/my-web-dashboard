@@ -129,7 +129,6 @@ Ordered middleware chain in `core/app.py`:
    - `username` (unique, indexed)
    - `password` (bcrypt hash)
    - `created_at`, `last_login_at`
-   - `created_ip`, `last_login_ip` (audit)
 
 2. **user_profiles**
    - `user_id` (FK to users, 1:1)

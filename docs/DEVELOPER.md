@@ -381,7 +381,7 @@ The system is now focused solely on authentication.
 ### Tables (Auth-Only Mode)
 
 **Core authentication tables:**
-- `users` - Core authentication (id, username, password_hash, created_at, last_login_at, created_ip, last_login_ip)
+- `users` - Core authentication (id, username, password_hash, created_at, last_login_at)
 - `user_profiles` - Extended profile (user_id, display_name, bio, preferences, avatar_url, created_at, updated_at)
 - `schema_version` - Tracks applied migrations (with environment suffix)
 
@@ -758,11 +758,9 @@ Before going live:
 Keep these – they're expected in professional open-source projects:
 
 - `LICENSE` – Legal license (MIT) permitting reuse
-- `CODE_OF_CONDUCT.md` – Community standards
-- `CONTRIBUTING.md` – How to contribute
 - `.env.example` – Environment variable template
 
-Removing these makes the project look unmaintained.
+Community guidelines and contribution instructions are consolidated in this DEVELOPER.md file to reduce file clutter.
 
 ### Multi-App Architecture
 
@@ -821,8 +819,6 @@ my-web-dashboard/
 │   ├── MIGRATIONS.md
 │   └── API-REFERENCE.html
 ├── README.md             # Quick start
-├── CODE_OF_CONDUCT.md
-├── CONTRIBUTING.md
 ├── requirements.txt      # Python dependencies
 ├── runtime.txt           # Python version (3.12)
 └── .env.example          # Environment template
