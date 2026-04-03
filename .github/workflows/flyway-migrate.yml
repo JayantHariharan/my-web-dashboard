@@ -19,6 +19,10 @@ on:
         required: true
       DATABASE_URL:
         required: false
+    outputs:
+      success:
+        description: 'Migration success status'
+        value: ${{ jobs.migrate.outputs.success }}
 
 concurrency:
   group: migrate-${{ inputs.environment }}
