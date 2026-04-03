@@ -48,8 +48,13 @@ npm install playwright && npx playwright install chromium --with-deps
 python -m py_compile src/backend/main.py  # syntax check
 python .github/scripts/ai_quality_scan.py   # AI quality scan (replaces flake8, mypy, black, bandit)
 python .github/scripts/claude_security_scan.py  # AI security-only scan
-node tests/smoke.test.js  # with SITE_URL set
+SITE_URL=https://playnexus-test.onrender.com node tests/smoke.test.js  # smoke test with explicit URL
 ```
+
+**Smoke test environment fallback:**
+If `SITE_URL` is not set, the test uses `APP_ENV` to determine the URL:
+- `production` → `https://playnexus.onrender.com`
+- anything else → `https://playnexus-test.onrender.com`
 
 ---
 
@@ -121,7 +126,13 @@ run: echo "${{ github.sha }}"
 ```
 
 ### 6. Migration Strategy
-Migrations are applied via Python script in `.github/workflows/flyway-migrate.yml` (now uses `scripts/migrate.py`), **not** on application startup. Do NOT re-introduce auto-migration in the application.
+Migrations are applied via Python script in `.github/workflows/flyway-migrate.yml` (uses `scripts/migrate.py`), **not** on application startup. Do NOT re-introduce auto-migration in the application.
+
+### 7. Reusable Workflow Outputs
+To pass outputs from a reusable workflow to the caller:
+- Define `outputs` in the `workflow_call` section of the called workflow
+- Access via `needs.<job>.outputs.<output_name>` in the caller
+- Do NOT add an `outputs` block directly under the job using `uses:`
 
 ---
 
@@ -187,11 +198,35 @@ Before committing/pushing:
 5. Verify `schema_version` table in production
 
 ### Deploy to Render
-- Push to `main` or `develop` branch
-- GitHub Actions runs: precheck → flyway migrate → deploy
-- Quality checks run automatically on PRs before merge
-- Monitor workflow status in GitHub Actions tab
-- Health checks run automatically after deploy
+
+**Automatic deployments:**
+- Push to `main` → Production deployment
+- Push to `develop` → Staging deployment
+- Feature branches do NOT trigger deployment
+
+**Workflow steps:**
+1. **Precheck** – validates secrets and database connectivity
+2. **Migrate database** – applies Flyway migrations via `scripts/migrate.py`
+3. **Deploy** – triggers Render deployment, monitors until completion, runs health checks and smoke test
+
+**Environment URLs:**
+- Staging: `https://playnexus-test.onrender.com`
+- Production: `https://playnexus.onrender.com` (configured in Render)
+
+**Smoke test:**
+- Runs automatically after successful deployment
+- Uses Playwright to navigate to the deployed site
+- Verifies that "PlayNexus" appears on the page
+- Takes a full-page screenshot for debugging
+- If `SITE_URL` is not provided or is `null`, falls back to environment-specific hardcoded URLs:
+  - Staging: `https://playnexus-test.onrender.com`
+  - Production: `https://playnexus.onrender.com`
+
+**Monitoring:**
+- Render deployment monitored for up to 60 minutes
+- Deployments in `live` or `succeeded` state → success
+- Failures (`errored`, `failed`, `build_failed`, etc.) cause workflow to fail
+- Health checks: `/health` and `/api/auth/login` must return 200/302/401
 
 ---
 
@@ -216,4 +251,21 @@ Then run: `python scripts/migrate.py` to apply migrations.
 
 ---
 
-**Last Updated**: 2026-04-01
+**Last Updated**: 2026-04-03
+
+---
+
+## Recent Major Changes
+
+- **2026-04-03**: Fixed deployment workflow output propagation and error handling
+  - Added `outputs` to `flyway-migrate.yml` to expose migration success status
+  - Improved deploy job monitoring with robust error handling and 60-minute timeout
+  - Added Playwright dependency installation before smoke test
+  - Smoke test now uses environment fallback URLs when `SITE_URL` is null
+
+- **2026-04-03**: Fixed migration constraint issue with PostgreSQL
+  - `scripts/migrate.py` now correctly includes `checksum` column in `schema_version` INSERT
+  - Column order matches Flyway's structure exactly to avoid constraint violations
+
+- **2026-04-02**: Introduced AI-powered quality scanning (replaces flake8/mypy/black/bandit)
+- **2026-04-01**: Migrated from Flyway CLI to lightweight Python migration runner
