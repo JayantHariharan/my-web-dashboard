@@ -121,6 +121,8 @@ jobs:
       PGUSER: ${{ secrets.PGUSER }}
       PGPASSWORD: ${{ secrets.PGPASSWORD }}
       PGDATABASE: ${{ secrets.PGDATABASE }}
+    outputs:
+      success: ${{ jobs.migrate.outputs.success }}
 
   deploy:
     needs: migrate-database
