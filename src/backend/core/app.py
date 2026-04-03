@@ -75,15 +75,42 @@ Future: JWT tokens for persistent sessions.
     app.add_middleware(RequestIdMiddleware)
 
     # 2. CORS - allow cross-origin requests (configure per environment)
+    # For security, avoid wildcard with credentials. Use specific origins.
+    if settings.debug:
+        allow_origins = ["http://localhost:8000", "http://127.0.0.1:8000"]
+    else:
+        # In production, should be your domain(s)
+        allow_origins = ["https://playnexus.onrender.com"]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"] if settings.debug else ["https://your-app.onrender.com"],
+        allow_origins=allow_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
-    # 3. Gzip compression for all responses
+    # 3. Security Headers Middleware
+    class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            response = await call_next(request)
+            # Prevent MIME type sniffing
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            # Prevent clickjacking
+            response.headers["X-Frame-Options"] = "DENY"
+            # XSS protection (legacy browsers)
+            response.headers["X-XSS-Protection"] = "1; mode=block"
+            # Referrer policy
+            response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+            # Permissions policy (restrict sensitive features)
+            response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+            # HSTS (HTTPS only) - enforce in production
+            if not settings.debug:
+                response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            return response
+
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    # 4. Gzip compression for all responses
     app.add_middleware(GZipMiddleware, minimum_size=1000)
 
     # 3b. Cache control for static assets (CSS, JS, images)

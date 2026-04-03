@@ -83,7 +83,7 @@
                 <!-- 🪐 BRAND ANCHOR -->
                 <div style="text-align: center; margin-bottom: 28px;">
                     <h1 class="nexus-gradient-text" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.6rem; letter-spacing: 12px;">PLAYNEXUS</h1>
-                    <p style="color: rgba(255,255,255,0.25); font-size: 0.65rem; letter-spacing: 4px; margin-top: 8px; font-family: 'Outfit';">CONSOLE PORTAL</p>
+                    <p style="color: rgba(255,255,255,0.25); font-size: 0.65rem; letter-spacing: 4px; margin-top: 8px; font-family: 'Outfit';">LOGIN</p>
                 </div>
 
                 <!-- 🚪 SECURITY GATE -->
@@ -96,22 +96,34 @@
 
                     <div class="auth-field" style="margin-bottom: 14px; position: relative;">
                         <input type="password" id="auth-password" class="floating-input" placeholder="Password" autocomplete="current-password" required
-                               style="border-color: var(--input-border, var(--border)); transition: border-color 0.2s;">
+                               style="border-color: var(--input-border, var(--border)); transition: border-color 0.2s; padding-right: 45px;">
+                        <button type="button" id="password-toggle" class="password-toggle-btn" aria-label="Toggle password visibility"
+                                style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background:none; border:none; color:rgba(255,255,255,0.5); cursor:pointer; padding:4px; display:flex; align-items:center; justify-content:center;">
+                            <svg id="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
                         <div id="password-feedback" style="position: absolute; bottom: -18px; left: 0; font-size: 0.6rem; color: var(--text-muted); opacity: 0; transition: opacity 0.2s;"></div>
                     </div>
 
                     <div id="confirm-password-field" class="auth-field" style="margin-bottom: 14px; position: relative; display: none;">
                         <input type="password" id="auth-confirm-password" class="floating-input" placeholder="Confirm Password" autocomplete="new-password" required
-                               style="border-color: var(--input-border, var(--border)); transition: border-color 0.2s;">
+                               style="border-color: var(--input-border, var(--border)); transition: border-color 0.2s; padding-right: 45px;">
+                        <button type="button" class="password-toggle-btn" aria-label="Toggle password visibility"
+                                style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background:none; border:none; color:rgba(255,255,255,0.5); cursor:pointer; padding:4px; display:flex; align-items:center; justify-content:center;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                            </svg>
+                        </button>
                         <div id="confirm-feedback" style="position: absolute; bottom: -18px; left: 0; font-size: 0.6rem; color: var(--text-muted); opacity: 0; transition: opacity 0.2s;"></div>
                     </div>
 
                     <button id="auth-btn" class="nexus-btn-luxe" onclick="handleAuth()">Enter the Nexus</button>
 
-                    <!-- Mode switcher below button (Netflix/Crunchyroll style) -->
-                    <div style="text-align: center; margin-top: 16px; font-size: 0.8rem; color: rgba(255,255,255,0.6);">
-                        <span id="auth-mode-indicator" style="opacity: 0.7;">LOGIN</span>
-                        <span style="margin: 0 8px; opacity: 0.3;">|</span>
+                    <!-- Mode switcher below button -->
+                    <div style="text-align: center; margin-top: 16px;">
                         <button id="mode-btn" onclick="toggleAuthMode()" style="background:none;border:none;color:var(--nexus-cyan);cursor:pointer;font-size:0.8rem;transition:opacity 0.2s;padding:0;">Need an account? Sign Up</button>
                     </div>
                 </div>
@@ -147,12 +159,12 @@
 
         <!-- 🏢 CONTENT EXPLORER (4 Sections) -->
         <div style="padding-top: 160px; padding-bottom: 100px;">
-            <!-- 🌟 RECENTLY OPENED (Featured Continue) -->
-            <section class="hub-row" style="margin-bottom: 60px;">
+            <!-- 🌟 RECENTLY OPENED (Featured Continue) - Hidden until apps are available -->
+            <!-- <section class="hub-row" style="margin-bottom: 60px;">
                 <h2 class="row-title" style="color: #fff; opacity: 0.5; font-size: 0.85rem; letter-spacing: 4px; margin-bottom: 25px;">RECENTLY ACCESSED</h2>
                 <div class="hub-carousel" style="gap: 30px;">
                     <div class="featured-item-hero" style="min-width: 580px; height: 300px; background: linear-gradient(90deg, rgba(7,11,20,0.95) 0%, rgba(7,11,20,0.4) 60%, transparent 100%), url('assets/tictactoe-cover.svg') center/cover; padding: 50px; position: relative; overflow: hidden; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;" onclick="location.href='games/tic-tac-toe.html'">
-                        
+
                         <span class="badge" style="background: rgba(255,255,255,0.9); color: #000; padding: 6px 14px; border-radius: 6px; font-weight: 900; font-size: 0.7rem; position: absolute; top: 40px; left: 50px;">CONTINUE PLAYING</span>
                         <div class="info" style="margin-top: 70px;">
                             <h3 style="font-size: 2.2rem; margin-bottom: 10px;">Tic-Tac-Toe Crystal</h3>
@@ -163,32 +175,32 @@
                         </div>
                     </div>
                 </div>
-            </section>
+            </section> -->
 
             <section class="hub-row">
                 <h2 class="row-title nexus-gradient-text">🎮 NEXUS SYSTEM APPS</h2>
                 <div class="system-categories-grid">
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80');" onclick="location.href='games/games.html'">
+                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
                         <div class="sys-category-overlay">
-                            <span class="sys-category-title">GAMES & FUN</span>
+                            <span class="badge badge-soon">COMING SOON</span>
                         </div>
                     </div>
 
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&q=80');" onclick="location.href='news/news.html'">
+                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
                         <div class="sys-category-overlay">
-                            <span class="sys-category-title">TRENDING WORLD</span>
+                            <span class="badge badge-soon">COMING SOON</span>
                         </div>
                     </div>
 
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80');" onclick="location.href='community/community.html'">
+                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
                         <div class="sys-category-overlay">
-                            <span class="sys-category-title">COMMUNITY NEXUS</span>
+                            <span class="badge badge-soon">COMING SOON</span>
                         </div>
                     </div>
 
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=800&q=80');" onclick="location.href='author/author.html'">
+                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
                         <div class="sys-category-overlay">
-                            <span class="sys-category-title">THE VAULT</span>
+                            <span class="badge badge-soon">COMING SOON</span>
                         </div>
                     </div>
                 </div>
@@ -213,10 +225,10 @@
         const modeBtn = document.getElementById('mode-btn');
         const authError = document.getElementById('auth-error');
         const confirmField = document.getElementById('confirm-password-field');
-        const modeIndicator = document.getElementById('auth-mode-indicator');
         const usernameInput = document.getElementById('auth-username');
         const passwordInput = document.getElementById('auth-password');
         const confirmInput = document.getElementById('auth-confirm-password');
+        const passwordToggles = document.querySelectorAll('.password-toggle-btn');
 
         // Field validation state
         const fieldStates = {
@@ -375,7 +387,10 @@
         }
 
         // Call setup on page load
-        document.addEventListener('DOMContentLoaded', setupRealtimeValidation);
+        document.addEventListener('DOMContentLoaded', () => {
+            setupRealtimeValidation();
+            setupPasswordToggle();
+        });
 
         /**
          * Toggle between Login and Signup modes
@@ -388,7 +403,6 @@
 
             if (isLoginMode) {
                 // Switch to Login
-                modeIndicator.textContent = 'LOGIN';
                 modeBtn.textContent = 'Need an account? Sign Up';
                 confirmField.style.display = 'none';
                 confirmInput.required = false;
@@ -397,7 +411,6 @@
                 passwordInput.minLength = '';
             } else {
                 // Switch to Signup
-                modeIndicator.textContent = 'SIGN UP';
                 modeBtn.textContent = 'Already have an account? Login';
                 confirmField.style.display = 'block';
                 confirmInput.required = true;
@@ -413,6 +426,32 @@
             passwordInput.value = '';
             confirmInput.value = '';
             usernameInput.focus();
+        }
+
+        /**
+         * Setup password visibility toggles
+         */
+        function setupPasswordToggle() {
+            passwordToggles.forEach(toggle => {
+                toggle.addEventListener('click', function() {
+                    const field = this.closest('.auth-field');
+                    const input = field.querySelector('input');
+                    const isPassword = input.type === 'password';
+                    input.type = isPassword ? 'text' : 'password';
+
+                    // Update icon (switch between eye and slashed eye)
+                    const svg = this.querySelector('svg');
+                    if (isPassword) {
+                        // Change to slashed eye (hide)
+                        svg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+                        this.setAttribute('aria-label', 'Hide password');
+                    } else {
+                        // Change to open eye (show)
+                        svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+                        this.setAttribute('aria-label', 'Show password');
+                    }
+                });
+            });
         }
 
         /**
