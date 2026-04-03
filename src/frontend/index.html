@@ -14,121 +14,703 @@
 
     <!-- 🎨 CANVAS LIQUID ENGINE (Managed by cinematic-startup.js) -->
     <canvas id="cinematic-bg"></canvas>
-    
-    <!-- 🔐 LUMINOUS AUTH PORTAL (Centered Hero Phase) -->
+
+    <!-- Global Animated Background -->
+    <div class="global-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="orb orb-4"></div>
+        <div class="grid-overlay"></div>
+    </div>
+
+    <!-- 🔐 LUMINOUS AUTH PORTAL (Redesigned) -->
     <section id="crystal-auth-portal" class="hidden">
         <style>
-            /* Auth Form Validation Styles */
-            .auth-field.success input {
-                border-color: #4caf50 !important;
-                box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+            /* ═══════════════════════════════════════════════════
+               ULTIMATE FORTNITE-INSPIRED GLASSMORPHISM AUTH
+               ═══════════════════════════════════════════════════ */
+            :root {
+                --forge-blue: #00d4ff;
+                --forge-purple: #a855f7;
+                --forge-pink: #ec4899;
+                --forge-gold: #fbbf24;
+                --glass-bg: rgba(255, 255, 255, 0.05);
+                --glass-border: rgba(255, 255, 255, 0.1);
+                --glass-highlight: rgba(255, 255, 255, 0.2);
+                --success: #10b981;
+                --error: #ef4444;
             }
-            .auth-field.success .validation-icon {
-                display: block;
-                color: #4caf50;
+
+            .auth-hub {
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                overflow: hidden;
+                background: radial-gradient(ellipse at center, #0a0a0f 0%, #000000 100%);
+                padding: 20px;
+                box-sizing: border-box;
+            }
+
+            /* Animated Background Orbs */
+            .auth-bg {
                 position: absolute;
-                right: 12px;
-                top: 50%;
-                transform: translateY(-50%);
-                font-size: 1.2rem;
+                inset: 0;
+                overflow: hidden;
+                z-index: 0;
             }
-            .auth-field.error input {
-                border-color: #ff4444 !important;
-                box-shadow: 0 0 0 2px rgba(255, 68, 68, 0.2);
-            }
-            .auth-field.error .validation-icon {
-                display: block;
-                color: #ff4444;
+
+            .orb {
                 position: absolute;
-                right: 12px;
-                top: 50%;
-                transform: translateY(-50%);
-                font-size: 1.2rem;
-            }
-            .auth-field .validation-icon {
-                display: none;
-            }
-            .field-error-msg {
-                color: #ff4444;
-                font-size: 0.7rem;
-                margin-top: 4px;
-                margin-bottom: -8px;
-                text-align: left;
-                font-weight: 500;
-                letter-spacing: 0.5px;
-            }
-            .mode-toggle:hover {
-                text-decoration: underline;
-            }
-            /* Improve button loading state */
-            .nexus-btn-luxe:disabled {
-                opacity: 0.6;
-                cursor: not-allowed;
-            }
-            .spinner {
-                display: inline-block;
-                width: 12px;
-                height: 12px;
-                border: 2px solid rgba(255,255,255,0.3);
                 border-radius: 50%;
-                border-top-color: #fff;
-                animation: spin 1s ease-in-out infinite;
+                filter: blur(80px);
+                animation: orbFloat 20s ease-in-out infinite;
             }
-            @keyframes spin {
-                to { transform: rotate(360deg); }
+
+            .orb-1 {
+                width: 600px;
+                height: 600px;
+                background: radial-gradient(circle, rgba(0, 212, 255, 0.15) 0%, transparent 70%);
+                top: -20%;
+                left: -10%;
+                animation-delay: 0s;
+            }
+
+            .orb-2 {
+                width: 500px;
+                height: 500px;
+                background: radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, transparent 70%);
+                top: 20%;
+                right: -15%;
+                animation-delay: -7s;
+            }
+
+            .orb-3 {
+                width: 400px;
+                height: 400px;
+                background: radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, transparent 70%);
+                bottom: -10%;
+                left: 20%;
+                animation-delay: -14s;
+            }
+
+            @keyframes orbFloat {
+                0%, 100% { transform: translate(0, 0) scale(1); }
+                33% { transform: translate(30px, -40px) scale(1.1); }
+                66% { transform: translate(-20px, 30px) scale(0.9); }
+            }
+
+            /* Grid Overlay */
+            .grid-overlay {
+                position: absolute;
+                inset: 0;
+                background-image:
+                    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+                background-size: 50px 50px;
+                z-index: 1;
+            }
+
+            /* Main Card */
+            .auth-card {
+                position: relative;
+                z-index: 10;
+                width: 100%;
+                max-width: 440px;
+                background: var(--glass-bg);
+                backdrop-filter: blur(40px) saturate(150%);
+                -webkit-backdrop-filter: blur(40px) saturate(150%);
+                border: 1px solid var(--glass-border);
+                border-radius: 32px;
+                padding: 56px 48px;
+                box-shadow:
+                    0 32px 80px rgba(0, 0, 0, 0.6),
+                    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+                    0 0 40px rgba(0, 212, 255, 0.05);
+                animation: cardEntrance 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+            }
+
+            @keyframes cardEntrance {
+                from {
+                    opacity: 0;
+                    transform: translateY(30px) scale(0.95);
+                    filter: blur(10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                    filter: blur(0);
+                }
+            }
+
+            .auth-card::before {
+                content: '';
+                position: absolute;
+                top: -1px;
+                left: -1px;
+                right: -1px;
+                height: 2px;
+                background: var(--accent-grd);
+                border-radius: 32px 32px 0 0;
+                box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+            }
+
+            /* Header */
+            .auth-header {
+                text-align: center;
+                margin-bottom: 48px;
+            }
+
+            .logo-container {
+                position: relative;
+                display: inline-block;
+                margin-bottom: 8px;
+            }
+
+            .auth-logo {
+                font-family: 'Orbitron', 'Outfit', sans-serif;
+                font-weight: 900;
+                font-size: 2.4rem;
+                letter-spacing: 8px;
+                background: linear-gradient(135deg,
+                    var(--forge-blue) 0%,
+                    var(--forge-purple) 50%,
+                    var(--forge-pink) 100%);
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.3));
+                animation: logoGlow 4s ease-in-out infinite;
+            }
+
+            @keyframes logoGlow {
+                0%, 100% { filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.3)); }
+                50% { filter: drop-shadow(0 0 40px rgba(168, 85, 247, 0.5)); }
+            }
+
+            .auth-subtitle {
+                color: rgba(255, 255, 255, 0.5);
+                font-size: 0.7rem;
+                letter-spacing: 8px;
+                text-transform: uppercase;
+                font-weight: 700;
+                opacity: 0.8;
+            }
+
+            /* Form Elements */
+            .form-group {
+                margin-bottom: 24px;
+                position: relative;
+            }
+
+            .form-label {
+                display: block;
+                margin-bottom: 10px;
+                color: rgba(255, 255, 255, 0.7);
+                font-size: 0.75rem;
+                font-weight: 700;
+                letter-spacing: 2px;
+                text-transform: uppercase;
+            }
+
+            .input-wrapper {
+                position: relative;
+            }
+
+            .auth-input {
+                width: 100%;
+                padding: 18px 56px 18px 20px;
+                background: rgba(0, 0, 0, 0.3);
+                border: 1.5px solid rgba(255, 255, 255, 0.1);
+                border-radius: 16px;
+                color: #fff;
+                font-family: 'Inter', sans-serif;
+                font-size: 1rem;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                outline: none;
+            }
+
+            .auth-input::placeholder {
+                color: rgba(255, 255, 255, 0.35);
+                letter-spacing: 1px;
+                font-size: 0.85rem;
+            }
+
+            .auth-input:focus {
+                background: rgba(0, 0, 0, 0.4);
+                border-color: var(--forge-blue);
+                box-shadow:
+                    0 0 0 4px rgba(0, 212, 255, 0.15),
+                    0 0 30px rgba(0, 212, 255, 0.2);
+            }
+
+            .input-wrapper.success .auth-input {
+                border-color: var(--success);
+                box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+            }
+
+            .input-wrapper.error .auth-input {
+                border-color: var(--error);
+                box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
+            }
+
+            .icon-wrapper {
+                position: absolute;
+                right: 16px;
+                top: 50%;
+                transform: translateY(-50%);
+                user-select: none;
+            }
+
+            .success-icon {
+                color: var(--success);
+                font-size: 1.2rem;
+                filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
+            }
+
+            .error-icon {
+                color: var(--error);
+                font-size: 1.2rem;
+                filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.5));
+            }
+
+            /* Password Toggle */
+            .password-toggle {
+                position: absolute;
+                right: 16px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                color: rgba(255, 255, 255, 0.6);
+                cursor: pointer;
+                width: 40px;
+                height: 40px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .password-toggle:hover {
+                background: rgba(255, 255, 255, 0.1);
+                border-color: var(--forge-blue);
+                color: #fff;
+                box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+            }
+
+            /* Field Feedback */
+            .field-feedback {
+                margin-top: 8px;
+                min-height: 22px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.8rem;
+                font-weight: 500;
+                opacity: 0;
+                transform: translateY(-5px);
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .field-feedback.visible {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            .field-feedback.success {
+                color: var(--success);
+            }
+
+            .field-feedback.error {
+                color: var(--error);
+            }
+
+            .field-feedback .icon {
+                font-size: 1rem;
+            }
+
+            /* Requirements List */
+            .requirements-list {
+                margin-top: 16px;
+                padding: 16px;
+                background: rgba(0, 0, 0, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                border-radius: 12px;
+                font-size: 0.8rem;
+                animation: fadeSlide 0.3s ease;
+            }
+
+            @keyframes fadeSlide {
+                from {
+                    opacity: 0;
+                    transform: translateY(-10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            .req-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 8px;
+                color: rgba(255, 255, 255, 0.5);
+                transition: all 0.2s ease;
+            }
+
+            .req-item:last-child {
+                margin-bottom: 0;
+            }
+
+            .req-item.valid {
+                color: var(--success);
+            }
+
+            .req-icon {
+                width: 20px;
+                height: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                font-size: 1rem;
+                font-weight: 700;
+                background: rgba(255, 255, 255, 0.05);
+                transition: all 0.2s ease;
+            }
+
+            .req-item.valid .req-icon {
+                background: rgba(16, 185, 129, 0.2);
+                color: var(--success);
+            }
+
+            .req-item:not(.valid) .req-icon {
+                color: rgba(255, 255, 255, 0.4);
+            }
+
+            /* Auth Button */
+            .auth-btn {
+                width: 100%;
+                padding: 18px 32px;
+                background: linear-gradient(135deg,
+                    var(--forge-blue) 0%,
+                    var(--forge-purple) 100%);
+                border: none;
+                border-radius: 16px;
+                color: #fff;
+                font-family: 'Orbitron', 'Outfit', sans-serif;
+                font-weight: 800;
+                font-size: 0.95rem;
+                letter-spacing: 4px;
+                text-transform: uppercase;
+                cursor: pointer;
+                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                position: relative;
+                overflow: hidden;
+                margin-top: 20px;
+                box-shadow:
+                    0 10px 40px rgba(0, 212, 255, 0.3),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            }
+
+            .auth-btn::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg,
+                    transparent,
+                    rgba(255, 255, 255, 0.2),
+                    transparent);
+                animation: buttonShine 3s ease-in-out infinite;
+            }
+
+            @keyframes buttonShine {
+                0% { left: -100%; }
+                50%, 100% { left: 100%; }
+            }
+
+            .auth-btn:hover {
+                transform: translateY(-3px) scale(1.02);
+                box-shadow:
+                    0 20px 60px rgba(0, 212, 255, 0.5),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            }
+
+            .auth-btn:active {
+                transform: translateY(-1px) scale(0.98);
+            }
+
+            .auth-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: none;
+            }
+
+            .btn-text {
+                display: inline-flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .btn-icon {
+                font-size: 1.1rem;
+            }
+
+            /* Mode Switch */
+            .mode-switch {
+                text-align: center;
+                margin-top: 28px;
+                padding-top: 24px;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+            }
+
+            .mode-switch-text {
+                color: rgba(255, 255, 255, 0.5);
+                font-size: 0.85rem;
+                font-weight: 500;
+            }
+
+            .mode-btn {
+                background: transparent;
+                border: 1px solid var(--glass-border);
+                color: var(--forge-blue);
+                font-size: 0.85rem;
+                font-weight: 700;
+                cursor: pointer;
+                margin-left: 10px;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                padding: 8px 16px;
+                border-radius: 20px;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .mode-btn::before {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(135deg,
+                    rgba(0, 212, 255, 0.1),
+                    rgba(168, 85, 247, 0.1));
+                opacity: 0;
+                transition: opacity 0.3s;
+            }
+
+            .mode-btn:hover::before {
+                opacity: 1;
+            }
+
+            .mode-btn:hover {
+                border-color: var(--forge-blue);
+                transform: translateY(-2px);
+                box-shadow: 0 8px 20px rgba(0, 212, 255, 0.2);
+            }
+
+            /* Error Display */
+            .auth-error {
+                margin-top: 20px;
+                padding: 14px 18px;
+                background: linear-gradient(135deg,
+                    rgba(239, 68, 68, 0.15),
+                    rgba(239, 68, 68, 0.05));
+                border: 1px solid rgba(239, 68, 68, 0.3);
+                border-radius: 12px;
+                color: #f87171;
+                font-size: 0.85rem;
+                text-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                animation: errorPop 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+            }
+
+            @keyframes errorPop {
+                0% {
+                    opacity: 0;
+                    transform: scale(0.9) translateY(-10px);
+                }
+                100% {
+                    opacity: 1;
+                    transform: scale(1) translateY(0);
+                }
+            }
+
+            /* Responsive */
+            @media (max-width: 768px) {
+                .auth-hub {
+                    padding: 15px;
+                }
+
+                .orb-1 {
+                    width: 400px !important;
+                    height: 400px !important;
+                }
+
+                .orb-2 {
+                    width: 300px !important;
+                    height: 300px !important;
+                }
+
+                .orb-3 {
+                    width: 250px !important;
+                    height: 250px !important;
+                }
+
+                .auth-card {
+                    margin: 15px;
+                    padding: 36px 28px;
+                }
+
+                .auth-logo {
+                    font-size: 1.8rem;
+                    letter-spacing: 5px;
+                }
+
+                .auth-input {
+                    padding: 16px 50px 16px 18px;
+                    font-size: 0.95rem;
+                }
+            }
+
+            @media (max-width: 480px) {
+                .auth-card {
+                    padding: 32px 24px;
+                }
+
+                .auth-logo {
+                    font-size: 1.6rem;
+                    letter-spacing: 4px;
+                }
+
+                .form-label {
+                    font-size: 0.7rem;
+                }
             }
         </style>
-        <div class="hero-login-container">
-            <div class="crystal-auth-card">
-                <!-- 🪐 BRAND ANCHOR -->
-                <div style="text-align: center; margin-bottom: 28px;">
-                    <h1 class="nexus-gradient-text" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.6rem; letter-spacing: 12px;">PLAYNEXUS</h1>
-                    <p style="color: rgba(255,255,255,0.25); font-size: 0.65rem; letter-spacing: 4px; margin-top: 8px; font-family: 'Outfit';">LOGIN</p>
+
+        <div class="auth-hub">
+            <!-- Auth Card -->
+            <div class="auth-card glass-card">
+                <!-- Header -->
+                <div class="auth-header">
+                    <div class="logo-container">
+                        <h1 class="auth-logo">PLAYNEXUS</h1>
+                    </div>
+                    <p class="auth-subtitle" id="auth-mode-title">LOGIN</p>
                 </div>
 
-                <!-- 🚪 SECURITY GATE -->
+                <!-- Form -->
                 <div id="auth-form-container">
-                    <div class="auth-field" style="margin-bottom: 14px; position: relative;">
-                        <input type="text" id="auth-username" class="floating-input" placeholder="Username" autocomplete="username" required
-                               style="border-color: var(--input-border, var(--border)); transition: border-color 0.2s;">
-                        <div id="username-feedback" style="position: absolute; bottom: -18px; left: 0; font-size: 0.6rem; color: var(--text-muted); opacity: 0; transition: opacity 0.2s;"></div>
+                    <!-- Username -->
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <div class="input-wrapper" id="username-wrapper">
+                            <input
+                                type="text"
+                                id="auth-username"
+                                class="auth-input"
+                                placeholder="Enter username"
+                                autocomplete="username"
+                                required
+                            >
+                        </div>
+                        <div id="username-feedback" class="field-feedback"></div>
                     </div>
 
-                    <div class="auth-field" style="margin-bottom: 14px; position: relative;">
-                        <input type="password" id="auth-password" class="floating-input" placeholder="Password" autocomplete="current-password" required
-                               style="border-color: var(--input-border, var(--border)); transition: border-color 0.2s; padding-right: 45px;">
-                        <button type="button" id="password-toggle" class="password-toggle-btn" aria-label="Toggle password visibility"
-                                style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background:none; border:none; color:rgba(255,255,255,0.5); cursor:pointer; padding:4px; display:flex; align-items:center; justify-content:center;">
-                            <svg id="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                        </button>
-                        <div id="password-feedback" style="position: absolute; bottom: -18px; left: 0; font-size: 0.6rem; color: var(--text-muted); opacity: 0; transition: opacity 0.2s;"></div>
+                    <!-- Password -->
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <div class="input-wrapper" id="password-wrapper">
+                            <input
+                                type="password"
+                                id="auth-password"
+                                class="auth-input"
+                                placeholder="Enter password"
+                                autocomplete="current-password"
+                                required
+                            >
+                            <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+                                <svg class="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg class="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="password-feedback" class="field-feedback"></div>
                     </div>
 
-                    <div id="confirm-password-field" class="auth-field" style="margin-bottom: 14px; position: relative; display: none;">
-                        <input type="password" id="auth-confirm-password" class="floating-input" placeholder="Confirm Password" autocomplete="new-password" required
-                               style="border-color: var(--input-border, var(--border)); transition: border-color 0.2s; padding-right: 45px;">
-                        <button type="button" class="password-toggle-btn" aria-label="Toggle password visibility"
-                                style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background:none; border:none; color:rgba(255,255,255,0.5); cursor:pointer; padding:4px; display:flex; align-items:center; justify-content:center;">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
-                        </button>
-                        <div id="confirm-feedback" style="position: absolute; bottom: -18px; left: 0; font-size: 0.6rem; color: var(--text-muted); opacity: 0; transition: opacity 0.2s;"></div>
+                    <!-- Confirm Password (Signup only) -->
+                    <div class="form-group" id="confirm-password-group" style="display: none;">
+                        <label class="form-label">Confirm Password</label>
+                        <div class="input-wrapper" id="confirm-wrapper">
+                            <input
+                                type="password"
+                                id="auth-confirm-password"
+                                class="auth-input"
+                                placeholder="Confirm password"
+                                autocomplete="new-password"
+                                required
+                            >
+                            <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+                                <svg class="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg class="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="confirm-feedback" class="field-feedback"></div>
                     </div>
 
-                    <button id="auth-btn" class="nexus-btn-luxe" onclick="handleAuth()">Enter the Nexus</button>
+                    <!-- Submit Button -->
+                    <button id="auth-btn" class="auth-btn" onclick="handleAuth()">
+                        <span class="btn-text">
+                            <span class="btn-icon">⚡</span>
+                            <span class="btn-label">ENTER THE NEXUS</span>
+                        </span>
+                    </button>
 
-                    <!-- Mode switcher below button -->
-                    <div style="text-align: center; margin-top: 16px;">
-                        <button id="mode-btn" onclick="toggleAuthMode()" style="background:none;border:none;color:var(--nexus-cyan);cursor:pointer;font-size:0.8rem;transition:opacity 0.2s;padding:0;">Need an account? Sign Up</button>
+                    <!-- Mode Switch -->
+                    <div class="mode-switch">
+                        <span class="mode-switch-text">New to the Nexus?</span>
+                        <button class="mode-btn" onclick="toggleAuthMode()">CREATE ACCOUNT</button>
                     </div>
                 </div>
 
-                <div id="auth-error" style="margin-top: 12px; color: #ff4444; font-size: 0.75rem; text-align: center; letter-spacing: 1px; opacity: 0; transition: all 0.3s ease; min-height: 18px; font-weight: 500;"></div>
+                <!-- Error Display -->
+                <div id="auth-error" class="auth-error" style="display: none;">
+                    <span>⚠️</span>
+                    <span id="auth-error-text"></span>
+                </div>
+
+                <!-- Password Requirements (Signup mode) -->
+                <div id="password-requirements" class="requirements-list" style="display: none;">
+                    <div class="req-item" data-requirement="length">
+                        <span class="req-icon">○</span>
+                        <span>At least 6 characters</span>
+                    </div>
+                    <div class="req-item" data-requirement="match">
+                        <span class="req-icon">○</span>
+                        <span>Passwords match</span>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -222,13 +804,13 @@
 
         // DOM Elements
         const authBtn = document.getElementById('auth-btn');
-        const modeBtn = document.getElementById('mode-btn');
+        const modeBtn = document.querySelector('.mode-btn');
         const authError = document.getElementById('auth-error');
-        const confirmField = document.getElementById('confirm-password-field');
+        const confirmField = document.getElementById('confirm-password-group');
         const usernameInput = document.getElementById('auth-username');
         const passwordInput = document.getElementById('auth-password');
         const confirmInput = document.getElementById('auth-confirm-password');
-        const passwordToggles = document.querySelectorAll('.password-toggle-btn');
+        const passwordToggles = document.querySelectorAll('.password-toggle');
 
         // Field validation state
         const fieldStates = {
@@ -238,38 +820,37 @@
         };
 
         /**
-         * Set field visual state (success/error)
+         * Set field visual state (success/error) - Updated to work with .form-group
          */
         function setFieldStatus(fieldElement, status, message = '') {
-            const fieldWrapper = fieldElement.closest('.auth-field');
-            const existingIcon = fieldWrapper.querySelector('.validation-icon');
-            const existingMsg = fieldWrapper.querySelector('.field-error-msg');
+            const fieldWrapper = fieldElement.closest('.form-group');
+            const feedback = fieldWrapper.querySelector('.field-feedback');
+            const wrapper = fieldElement.closest('.input-wrapper');
+
+            if (!feedback) return;
 
             // Remove existing states
             fieldWrapper.classList.remove('success', 'error');
-            if (existingIcon) existingIcon.remove();
-            if (existingMsg) existingMsg.remove();
+            wrapper.classList.remove('success', 'error');
+            feedback.classList.remove('error', 'success');
 
-            if (status === 'validating') {
-                // Add spinner or neutral state if needed
-            } else if (status === 'valid') {
+            if (status === 'valid') {
                 fieldWrapper.classList.add('success');
-                const check = document.createElement('span');
-                check.className = 'validation-icon';
-                check.textContent = '✓';
-                fieldWrapper.appendChild(check);
+                wrapper.classList.add('success');
+                feedback.classList.add('success');
+                feedback.innerHTML = `<span class="icon">✓</span> ${message || 'Looks good'}`;
+                feedback.style.opacity = '1';
             } else if (status === 'error') {
                 fieldWrapper.classList.add('error');
-                const icon = document.createElement('span');
-                icon.className = 'validation-icon';
-                icon.textContent = '✗';
-                fieldWrapper.appendChild(icon);
-                if (message) {
-                    const msgEl = document.createElement('div');
-                    msgEl.className = 'field-error-msg';
-                    msgEl.textContent = message;
-                    fieldWrapper.appendChild(msgEl);
-                }
+                wrapper.classList.add('error');
+                feedback.classList.add('error');
+                feedback.innerHTML = `<span class="icon">✗</span> ${message || 'Invalid'}`;
+                feedback.style.opacity = '1';
+            } else {
+                // Neutral/cleared state
+                wrapper.classList.remove('success', 'error');
+                feedback.textContent = '';
+                feedback.style.opacity = '0';
             }
         }
 
@@ -349,18 +930,53 @@
             if (!confirm) {
                 setFieldStatus(confirmInput, 'error', 'Please confirm password');
                 fieldStates.confirm = { valid: false, message: 'Required' };
+                updatePasswordRequirements();
                 return false;
             }
 
             if (confirm !== password) {
                 setFieldStatus(confirmInput, 'error', 'Passwords do not match');
                 fieldStates.confirm = { valid: false, message: 'Mismatch' };
+                updatePasswordRequirements();
                 return false;
             }
 
             setFieldStatus(confirmInput, 'valid');
             fieldStates.confirm = { valid: true, message: '' };
+            updatePasswordRequirements();
             return true;
+        }
+
+        /**
+         * Update password requirements list in real-time (signup mode only)
+         */
+        function updatePasswordRequirements() {
+            const requirementsList = document.getElementById('password-requirements');
+            if (!requirementsList || requirementsList.style.display === 'none') return;
+
+            const password = passwordInput.value;
+            const confirm = confirmInput.value;
+
+            // Update length requirement
+            const lengthItem = requirementsList.querySelector('[data-requirement="length"]');
+            const lengthIcon = lengthItem ? lengthItem.querySelector('.req-icon') : null;
+            if (lengthItem && lengthIcon) {
+                const isLengthValid = password.length >= 6;
+                lengthIcon.textContent = isLengthValid ? '✓' : '○';
+                lengthItem.classList.toggle('valid', isLengthValid);
+            }
+
+            // Update match requirement (only in signup mode)
+            const matchItem = requirementsList.querySelector('[data-requirement="match"]');
+            const matchIcon = matchItem ? matchItem.querySelector('.req-icon') : null;
+            if (matchItem && matchIcon && !isLoginMode) {
+                let isMatchValid = false;
+                if (confirm && password) {
+                    isMatchValid = confirm === password && password.length >= 6;
+                }
+                matchIcon.textContent = isMatchValid ? '✓' : (confirm && password ? '✗' : '○');
+                matchItem.classList.toggle('valid', isMatchValid);
+            }
         }
 
         /**
@@ -370,19 +986,31 @@
             usernameInput.addEventListener('input', () => {
                 // Debounce slightly for performance
                 clearTimeout(window.usernameValidateTimer);
-                window.usernameValidateTimer = setTimeout(validateUsernameField, 200);
+                window.usernameValidateTimer = setTimeout(() => {
+                    validateUsernameField();
+                }, 200);
             });
 
             usernameInput.addEventListener('blur', validateUsernameField);
 
             passwordInput.addEventListener('input', () => {
                 clearTimeout(window.passwordValidateTimer);
-                window.passwordValidateTimer = setTimeout(validatePasswordField, 200);
+                window.passwordValidateTimer = setTimeout(() => {
+                    validatePasswordField();
+                    updatePasswordRequirements();
+                }, 200);
             });
 
-            passwordInput.addEventListener('blur', validatePasswordField);
+            passwordInput.addEventListener('blur', () => {
+                validatePasswordField();
+                updatePasswordRequirements();
+            });
 
-            confirmInput.addEventListener('input', validateConfirmField);
+            confirmInput.addEventListener('input', () => {
+                validateConfirmField();
+                updatePasswordRequirements();
+            });
+
             confirmInput.addEventListener('blur', validateConfirmField);
         }
 
@@ -400,6 +1028,8 @@
             const usernameInput = document.getElementById('auth-username');
             const passwordInput = document.getElementById('auth-password');
             const confirmInput = document.getElementById('auth-confirm-password');
+            const passwordRequirements = document.getElementById('password-requirements');
+            const modeTitle = document.getElementById('auth-mode-title');
 
             if (isLoginMode) {
                 // Switch to Login
@@ -407,24 +1037,40 @@
                 confirmField.style.display = 'none';
                 confirmInput.required = false;
                 authBtn.textContent = 'Enter the Nexus';
-                // For login, don't require minlength (user might have old shorter password)
+                authBtn.querySelector('.btn-label').textContent = 'ENTER THE NEXUS';
+                authBtn.querySelector('.btn-icon').textContent = '⚡';
                 passwordInput.minLength = '';
+                // Hide password requirements for login
+                if (passwordRequirements) passwordRequirements.style.display = 'none';
+                // Update title
+                if (modeTitle) modeTitle.textContent = 'LOGIN';
             } else {
                 // Switch to Signup
                 modeBtn.textContent = 'Already have an account? Login';
                 confirmField.style.display = 'block';
                 confirmInput.required = true;
                 authBtn.textContent = 'Create Account';
-                // Require minimum password length for new accounts
+                authBtn.querySelector('.btn-label').textContent = 'CREATE ACCOUNT';
+                authBtn.querySelector('.btn-icon').textContent = '✨';
                 passwordInput.minLength = '6';
+                // Show password requirements for signup
+                if (passwordRequirements) passwordRequirements.style.display = 'block';
+                // Update title
+                if (modeTitle) modeTitle.textContent = 'SIGN UP';
             }
 
             // Clear any previous errors
             hideError();
-            // Clear inputs
+            // Clear inputs and reset validation states
             usernameInput.value = '';
             passwordInput.value = '';
             confirmInput.value = '';
+            // Reset field states
+            setFieldStatus(usernameInput, '');
+            setFieldStatus(passwordInput, '');
+            setFieldStatus(confirmInput, '');
+            // Update password requirements
+            updatePasswordRequirements();
             usernameInput.focus();
         }
 
@@ -434,21 +1080,24 @@
         function setupPasswordToggle() {
             passwordToggles.forEach(toggle => {
                 toggle.addEventListener('click', function() {
-                    const field = this.closest('.auth-field');
+                    const field = this.closest('.form-group');
                     const input = field.querySelector('input');
                     const isPassword = input.type === 'password';
                     input.type = isPassword ? 'text' : 'password';
 
-                    // Update icon (switch between eye and slashed eye)
-                    const svg = this.querySelector('svg');
-                    if (isPassword) {
-                        // Change to slashed eye (hide)
-                        svg.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
-                        this.setAttribute('aria-label', 'Hide password');
-                    } else {
-                        // Change to open eye (show)
-                        svg.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
-                        this.setAttribute('aria-label', 'Show password');
+                    // Toggle between eye-open and eye-closed SVGs
+                    const eyeOpen = this.querySelector('.eye-open');
+                    const eyeClosed = this.querySelector('.eye-closed');
+                    if (eyeOpen && eyeClosed) {
+                        if (isPassword) {
+                            eyeOpen.style.display = 'none';
+                            eyeClosed.style.display = 'block';
+                            this.setAttribute('aria-label', 'Hide password');
+                        } else {
+                            eyeOpen.style.display = 'block';
+                            eyeClosed.style.display = 'none';
+                            this.setAttribute('aria-label', 'Show password');
+                        }
                     }
                 });
             });
@@ -633,92 +1282,6 @@
                 }
             }
         });
-
-        // Helper: Set input field validation status
-        function setFieldStatus(input, status) {
-            const colors = {
-                '': 'var(--border)',
-                'valid': 'var(--nexus-cyan)',
-                'error': '#ff4444'
-            };
-            input.style.setProperty('--input-border', colors[status] || colors['']);
-            input.style.borderColor = colors[status] || colors[''];
-        }
-
-        // Input event listeners for real-time validation feedback
-        const usernameInput = document.getElementById('auth-username');
-        const passwordInput = document.getElementById('auth-password');
-        const confirmInput = document.getElementById('auth-confirm-password');
-
-        usernameInput.addEventListener('input', () => {
-            const value = usernameInput.value.trim();
-            const feedback = document.getElementById('username-feedback');
-
-            if (!value) {
-                setFieldStatus(usernameInput, '');
-                feedback.textContent = '';
-                feedback.style.opacity = '0';
-            } else if (value.length < 3) {
-                setFieldStatus(usernameInput, 'error');
-                feedback.textContent = 'Min 3 characters';
-                feedback.style.opacity = '1';
-            } else if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
-                setFieldStatus(usernameInput, 'error');
-                feedback.textContent = 'Use letters, numbers, _, - only';
-                feedback.style.opacity = '1';
-            } else {
-                setFieldStatus(usernameInput, 'valid');
-                feedback.textContent = '✓ Available';
-                feedback.style.opacity = '1';
-                feedback.style.color = 'var(--nexus-cyan)';
-            }
-        });
-
-        passwordInput.addEventListener('input', () => {
-            const value = passwordInput.value;
-            const feedback = document.getElementById('password-feedback');
-
-            if (!value) {
-                setFieldStatus(passwordInput, '');
-                feedback.textContent = '';
-                feedback.style.opacity = '0';
-            } else if (value.length < 6) {
-                setFieldStatus(passwordInput, 'error');
-                feedback.textContent = `Too short (${value.length}/6)`;
-                feedback.style.opacity = '1';
-            } else {
-                setFieldStatus(passwordInput, 'valid');
-                feedback.textContent = '✓ Strong enough';
-                feedback.style.opacity = '1';
-                feedback.style.color = 'var(--nexus-cyan)';
-            }
-        });
-
-        confirmInput.addEventListener('input', () => {
-            const value = confirmInput.value;
-            const password = passwordInput.value;
-            const feedback = document.getElementById('confirm-feedback');
-
-            if (!value) {
-                setFieldStatus(confirmInput, '');
-                feedback.textContent = '';
-                feedback.style.opacity = '0';
-            } else if (value !== password) {
-                setFieldStatus(confirmInput, 'error');
-                feedback.textContent = 'Passwords don\'t match';
-                feedback.style.opacity = '1';
-            } else {
-                setFieldStatus(confirmInput, 'valid');
-                feedback.textContent = '✓ Match';
-                feedback.style.opacity = '1';
-                feedback.style.color = 'var(--nexus-cyan)';
-            }
-        });
-
-        // Clear validation status on input for all fields
-        usernameInput.addEventListener('input', hideError);
-        passwordInput.addEventListener('input', hideError);
-        confirmInput.addEventListener('input', hideError);
 
         // Session recovery check
         document.addEventListener('DOMContentLoaded', () => {

@@ -227,6 +227,33 @@ Before committing/pushing:
 
 ---
 
+## Frontend Architecture
+
+### Design System
+- **Global Background**: Animated floating orbs + grid overlay (defined in `css/style.css`)
+- **Glassmorphism**: `.glass-card` component with backdrop blur, border glow, and hover effects
+- **Neon Palette**: Cyan (#00d4ff), Purple (#a855f7), Pink (#ec4899)
+- **Auth Portal**: Custom Fortnite-inspired UI with real-time validation, password requirements list, and entrance animations
+
+### CSS Structure
+- `css/style.css` – Main stylesheet with design tokens, global effects, and component styles
+- `css/crystal-portal.css` – Page-specific styles for hub, apps, and legacy components
+- Inline styles in `index.html` for auth portal (kept separate for encapsulation)
+
+### JavaScript Modules
+- `js/toast.js` – Toast notification system
+- `js/cinematic-startup.js` – Canvas particle system & logo bloom animation
+- `js/main.js` – Matter.js physics integration for hub cards
+
+### Auth UI Features
+- Mode switching (Login/Signup) with dynamic button and subtitle updates
+- Real-time field validation with success/error states
+- Password visibility toggle with eye icon switching
+- Shake animation for errors, card entrance animation
+- Fully responsive (mobile, tablet, desktop)
+
+---
+
 ## Troubleshooting
 
 ### Workflow syntax errors
@@ -248,11 +275,19 @@ Then run: `python scripts/migrate.py` to apply migrations.
 
 ---
 
-**Last Updated**: 2026-04-03
+**Last Updated**: 2026-04-04
 
 ---
 
 ## Recent Major Changes
+
+- **2026-04-04**: Ultra-modern glassmorphism UI overhaul
+  - Added global animated background with floating neon orbs and grid overlay
+  - Redesigned auth portal with Fortnite-inspired aesthetics
+  - Fixed border alignment, responsive issues, and missing visual effects
+  - Consolidated design tokens into `css/style.css`
+  - Removed unused `design-system.css`
+  - Updated README and CLAUDE.md with architecture notes
 
 - **2026-04-03**: Fixed deployment workflow output propagation and error handling
   - Added `outputs` to `flyway-migrate.yml` to expose migration success status

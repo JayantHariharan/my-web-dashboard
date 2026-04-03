@@ -1,6 +1,6 @@
-# PlayNexus Auth
+# PlayNexus
 
-> **Authentication-Only Backend** – Secure, minimal API with automated CI/CD and quality checks.
+> **Ultra-Modern Gaming Platform** – Secure authentication backend with stunning glassmorphism UI, animated backgrounds, and cinematic user experience.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://python.org)
@@ -15,8 +15,9 @@
 - 🔐 **Secure authentication** – bcrypt + pepper, rate limiting, IP audit logging
 - 🚀 **Automated CI/CD** – GitHub Actions → Render deployment (staging + production)
 - 🗄️ **Versioned migrations** – SQL-based migrations via Python script
-- 📱 **Static frontend** – Cinematic UI with Matter.js physics (served by backend)
-- ⚡ **Simplified architecture** – Auth-only backend, focused and maintainable
+- 📱 **Ultra-Modern UI** – Fortnite-inspired glassmorphism, neon glows, liquid crystal animations
+- 🎮 **Gaming Aesthetic** – Dynamic background orbs, grid overlays, cinematic entrance animations
+- ⚡ **Responsive Design** – Perfect on desktop, tablet, and mobile
 - 🔒 **Production-ready** – Branch protection, smoke tests, health checks, concurrency control
 
 ---

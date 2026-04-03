@@ -220,8 +220,8 @@ src/frontend/
 ├── news/
 │   └── news.html             # Trending World
 ├── css/
-│   ├── style.css             # Main styles (dark/light theme, components)
-│   └── crystal-portal.css    # Auth portal specific styles
+│   ├── style.css             # Main stylesheet: design tokens, global animations (orbs, grid), glassmorphism components
+│   └── crystal-portal.css    # Page-specific styles for hub, apps, and legacy components
 ├── js/
 │   ├── cinematic-startup.js  # Canvas background animation (Matter.js)
 │   ├── main.js               # Physics engine, gravity effects
@@ -239,7 +239,9 @@ src/frontend/
 - Toast notifications (success/error/info/warning)
 - Matter.js physics effects
 - PS5-style cinematic entrance
-- Mobile-optimized (reduced particles on small screens)
+- **Glassmorphism UI** with neon glows and animated floating orbs
+- **Global background animations** (liquid crystal effect)
+- Mobile-optimized (responsive design, reduced animations on small screens)
 
 ---
 
