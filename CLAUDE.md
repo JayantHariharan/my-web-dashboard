@@ -22,21 +22,19 @@ python -m http.server 3000
 ### Development Commands
 
 **Git hooks** (automatic):
-- `pre-commit` – Syntax, AI-powered quality check, updates doc timestamps
-- `pre-push` – Full suite (syntax, AI quality scan, smoke test), updates doc timestamps
+- `pre-commit` – Syntax, quality checks, secret scanning, updates doc timestamps
+- `pre-push` – Full suite (syntax, quality checks, smoke test), updates doc timestamps
 
 **Skip hooks**: `git commit --no-verify` or `git push --no-verify` (NOT recommended)
 
 **Note**: Hooks automatically update "Last Updated" dates in `docs/DEVELOPER.md`, `docs/ARCHITECTURE.md`, `docs/FLYWAY.md` and stage them. Commit these changes separately.
 
 **Claude Code slash commands**:
-- `/security-scan` – Security audit (AI-powered Claude security analysis)
-- `/code-quality` – AI-powered comprehensive quality scan (replaces flake8/mypy/black/bandit)
 - `/deploy-ready` – Verify deployment readiness
 
 **Install dev tools** (for hooks & manual checks):
 ```bash
-pip install openai pyyaml
+pip install pyyaml
 npm install playwright && npx playwright install chromium --with-deps
 ```
 
@@ -46,8 +44,7 @@ npm install playwright && npx playwright install chromium --with-deps
 **Manual checks**:
 ```bash
 python -m py_compile src/backend/main.py  # syntax check
-python .github/scripts/ai_quality_scan.py   # AI quality scan (replaces flake8, mypy, black, bandit)
-python .github/scripts/claude_security_scan.py  # AI security-only scan
+./scripts/run-quality-checks.sh            # comprehensive quality & security checks
 SITE_URL=https://playnexus-test.onrender.com node tests/smoke.test.js  # smoke test with explicit URL
 ```
 
@@ -267,5 +264,4 @@ Then run: `python scripts/migrate.py` to apply migrations.
   - `scripts/migrate.py` now correctly includes `checksum` column in `schema_version` INSERT
   - Column order matches Flyway's structure exactly to avoid constraint violations
 
-- **2026-04-02**: Introduced AI-powered quality scanning (replaces flake8/mypy/black/bandit)
 - **2026-04-01**: Migrated from Flyway CLI to lightweight Python migration runner

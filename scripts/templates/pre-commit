@@ -29,11 +29,7 @@ python -m py_compile src/backend/main.py 2>/dev/null && echo -e "${GREEN}[PASS]$
     FAIL=1
 }
 
-# 2. AI-Powered Quality Scan placeholder (full scan runs in CI)
-echo -n "  AI Quality Scan (skipped - runs in CI)... "
-echo -e "${YELLOW}[SKIP] (comprehensive analysis runs on PRs)${NC}"
-
-# 3. Hardcoded secrets check (fast pattern match)
+# 2. Hardcoded secrets check (fast pattern match)
 echo -n "  Hardcoded secrets... "
 if grep -rn "SECRET_KEY\s*=" src/backend/ --include="*.py" \
     | grep -v "os.environ.get" \
@@ -163,14 +159,13 @@ echo -e "${GREEN}[PASS]${NC}"
 echo ""
 if [ $FAIL -eq 0 ]; then
     echo -e "${GREEN}[PASS] All pre-commit checks passed!${NC}"
-    echo "   [PASS] Python syntax, AI quality scan placeholder, secrets, TODOs, workflows"
-    echo "   (Note: Comprehensive AI quality analysis runs in CI on PRs automatically)"
+    echo "   [PASS] Python syntax, secrets, TODOs, workflow validation, doc timestamps"
     exit 0
 else
     echo ""
     echo -e "${RED}[FAIL] Pre-commit checks failed.${NC}"
     echo "   Fix the issues above or use 'git commit --no-verify' to skip (NOT recommended)."
     echo ""
-    echo "[TIP] Install dev tools: pip install openai pyyaml"
+    echo "[TIP] Install dev tool: pip install pyyaml (for YAML workflow validation)"
     exit 1
 fi

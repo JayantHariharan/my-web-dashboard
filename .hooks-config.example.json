@@ -23,7 +23,7 @@
 
   "$environment-variables": {
     "HOOKS_SKIP_PRE_PUSH": "Set to skip all pre-push checks",
-    "HOOKS_QUICK": "Set to run only syntax check (skip AI, fast)",
+    "HOOKS_QUICK": "Set to run only syntax check (skip full checks, fast)",
     "HOOKS_SKIP_BRANCH_CHECK": "Set to skip 'branch up-to-date' validation"
   }
 }

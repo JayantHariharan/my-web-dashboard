@@ -25,23 +25,19 @@ python -m http.server 3000
 
 #### `pre-commit` (fast checks on every commit)
 - ✅ Python syntax validation
-- ✅ Code formatting check (black)
-- ✅ Critical lint errors (flake8)
-- ✅ Hardcoded secret detection
-- ✅ TODO/FIXME warnings
+- ✅ Hardcoded secret detection (fast pattern match)
+- ✅ Check for TODO/FIXME in staged files
+- ✅ Workflow validation (YAML syntax, concurrency, artifact retention)
 - ✅ Auto-updates documentation timestamps
-- **Blocks** commits with syntax errors, formatting issues, or critical lints
+- **Blocks** commits with syntax errors or potential secret leaks
 
-#### `pre-push` (comprehensive checks before pushing to main/develop)
-- ✅ All pre-commit checks (syntax, formatting, lint)
-- ✅ Type checking (mypy)
-- ✅ Full security scan (bandit)
-- ✅ AI Security Analysis (if `OPENROUTER_API_KEY` set)
-- ✅ Critical/High security issues block push
-- ✅ No debug print() statements
-- ✅ No large files (>1MB)
-- **Runs only on `main` and `develop` branches** (skipped on feature branches for speed)
-- **Blocks** pushes with Critical/High security vulnerabilities
+#### `pre-push` (comprehensive checks before pushing)
+- ✅ All pre-commit checks (syntax, secrets, TODOs, workflow validation)
+- ✅ Branch up-to-date validation (feature branches must be rebased onto `develop`)
+- ✅ Comprehensive quality scan (`./scripts/run-quality-checks.sh`)
+- ✅ Optional smoke test (if backend accessible)
+- **Runs on all branches** (use `HOOKS_QUICK=1` for syntax-only on feature branches)
+- **Blocks** pushes with syntax errors, potential secret leaks, or failing quality checks
 
 #### `commit-msg` ( Conventional Commits )
 - ✅ Enforces commit message format: `type(scope): description`
@@ -51,9 +47,9 @@ python -m http.server 3000
 - **Blocks** invalid commit messages
 
 #### `pre-merge-commit` (optional safety net)
-- ✅ Runs when merging locally with `git merge`
-- ✅ Checks: syntax, formatting, lint, secrets
-- Provides extra protection before local merges
+- ✅ Blocks local merges that involve protected branches (`main`, `develop`)
+- ✅ Enforces PR-based workflow for protected branches
+- Provides extra safety by preventing accidental direct merges into critical branches
 
 **Installation** (hooks are auto-installed when cloning):
 ```bash
@@ -70,7 +66,7 @@ chmod +x scripts/run-quality-checks.sh
 ```bash
 ./scripts/run-quality-checks.sh
 ```
-Runs all checks with detailed output: syntax, formatting, lint, type check, bandit, AI security analysis, secrets detection, migration verification, doc freshness.
+Runs all checks with detailed output: YAML syntax, Python syntax, hardcoded secrets, TODO/FIXME, documentation freshness, migration files check.
 
 **Bypass hooks** (NOT recommended):
 ```bash
@@ -81,63 +77,34 @@ Only bypass for emergencies (e.g., hotfix). Never bypass security checks - you r
 
 **Note**: Hooks automatically update "Last Updated" dates in `docs/DEVELOPER.md`, `docs/ARCHITECTURE.md`, `docs/FLYWAY.md`, `docs/TROUBLESHOOTING.md` and stage them. Commit these changes separately.
 
-**Manual quality check** (run anytime):
-```bash
-./scripts/run-quality-checks.sh
-```
-This runs all the same checks as the hooks, plus:
-- Database migration verification
-- Documentation date freshness check
-- Comprehensive JSON reports
-
-**Note**: Hooks automatically update "Last Updated" dates in `docs/DEVELOPER.md`, `docs/ARCHITECTURE.md`, `docs/FLYWAY.md`, `docs/TROUBLESHOOTING.md` and stage them. Commit these changes separately.
-
 ### GitHub Actions CI/CD
 
 **Workflows**:
-- `quality.yml` – Code quality & security checks (lint, type, bandit, Claude AI security scan)
-  - Runs on: push to `main`/`develop`, PRs to `main`/`develop`
-  - Requires: `ANTHROPIC_API_KEY` secret for Claude security analysis
-  - Fails on: Critical/High severity security issues
-  - Artifacts: `quality-reports` (bandit-report.json, claude-security-report.json)
-  - **Blocks deployment** – Deploy workflow depends on this passing
+- `quality.yml` – Code quality & syntax checks
+  - Runs on: PRs to `main`/`develop` and pushes to these branches
+  - Checks: Python syntax, YAML syntax, PR up-to-date status
+  - Provides early feedback before merge
+  - **Blocks deployment** – Branch protection requires this to pass
 
 - `deploy.yml` – Deploy to Render (staging/production)
   - Triggered on: push to `main` (production) or `develop` (staging)
-  - Requires quality checks to pass first
-  - Includes: precheck, migration, deployment, health checks, smoke tests
+  - Includes: precheck, migration, deployment, monitoring, health checks, smoke tests
 
 - `flyway-migrate.yml` – Database migration runner
-  - Called by deploy workflow
+  - Called by deploy workflow before deployment
 
 **Required Secrets** (Settings → Secrets and variables → Actions):
 
 | Secret | Purpose |
 |--------|---------|
-| `OPENROUTER_API_KEY` | **Recommended** - OpenRouter API key (free tier available). Sign up at https://openrouter.ai, get API key. OpenRouter offers many models including Claude, Llama, etc. **Free tier includes generous usage limits**. |
-| *(Optional)* `OPENROUTER_MODEL` | Which AI model to use for security scanning. Default: `meta-llama/llama-3.3-70b-instruct` (free, excellent quality). Other free options: `mistralai/mixtral-8x7b-instruct`. Paid Claude models: `anthropic/claude-3-opus`, `anthropic/claude-3-sonnet`. |
-| *(Alternative)* `ANTHROPIC_API_KEY` | Direct Anthropic API key (more expensive, no free tier). Only use if you prefer Anthropic directly. |
 | `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` | PostgreSQL connection (required) |
 | `RENDER_API_KEY` | Render deployment API access (required) |
 | `RENDER_SERVICE_ID_PROD` | Production Render service ID (required for production) |
 | `RENDER_SERVICE_ID_TEST` | Staging Render service ID (required for staging) |
 
-**Claude Security Scanner** (`.github/scripts/claude_security_scan.py`):
-- Uses AI (via OpenRouter or Anthropic) for deep security analysis
-- Checks: hardcoded secrets, SQL injection, command injection, XSS, auth bypass, crypto failures, **secret exfiltration attempts**, etc.
-- Specifically detects suspicious patterns:
-  - Environment variable access + network transmission
-  - Printing/logging of sensitive data
-  - Reading files like `.env`, `config.json`, `secrets.json`
-  - Suspicious imports (paramiko, ftplib)
-  - Base64 encoding before transmission
-- Produces structured JSON report with severity levels and remediation guidance
-- **Blocks deployment on Critical/High findings**
-- **Blocks PR merges when configured with branch protection**
+### Branch Protection
 
-### Securing Public Repos: Branch Protection
-
-**CRITICAL**: In a public repository, malicious actors can submit PRs. You MUST enable branch protection to prevent merging code with security issues.
+**CRITICAL**: In a public repository, malicious actors can submit PRs. You MUST enable branch protection to ensure code review and CI validation.
 
 #### Setup Branch Protection:
 
@@ -149,8 +116,7 @@ This runs all the same checks as the hooks, plus:
    ✅ Require a pull request before merging
       - Require approvals: 1 (or your preferred count)
    ✅ Require status checks to pass before merging
-      - Search for and select: "code-quality"
-        (This is the job name from quality.yml)
+      - Search for and select: "syntax-check" (the job from quality.yml)
    ✅ Require linear history (optional but recommended)
    ```
 5. Click **Create** or **Save changes**
@@ -159,16 +125,15 @@ This runs all the same checks as the hooks, plus:
 Add another rule for `develop` with same settings to protect staging.
 
 #### What This Does:
-- PRs cannot be merged until ✅ **quality.yml** passes
-- Security scans (Claude, bandit, flake8, mypy) must all pass
-- If any check finds Critical/High issues, merge button is disabled
-- Protects against malicious code including secret exfiltration attempts
+- PRs cannot be merged until required CI checks pass
+- Enforces code review and prevents direct pushes to protected branches
+- Provides an audit trail and ensures basic quality gates
 
 #### Before Merging a PR:
-- Check GitHub Actions tab → quality.yml run
-- Ensure all steps passed (green checkmarks)
-- Review any security report artifacts
-- **Do not bypass** failed security checks!
+- Check GitHub Actions tab → ensure all workflows are green
+- Review the code changes and PR description
+- Verify no obvious security issues (hardcoded secrets, etc.)
+- **Do not bypass** required checks!
 
 ### GitHub's Built-in Secret Scanning
 
@@ -181,89 +146,26 @@ GitHub automatically scans for hardcoded secrets in **public repos**:
 No additional setup needed - just be aware it's active.
 
 
-### Configuring OpenRouter (Free Tier)
-
-**1. Get Your OpenRouter API Key**:
-  - Go to https://openrouter.ai
-  - Sign up / Log in
-  - Navigate to **Account** → **API Keys** (or https://openrouter.ai/account/api-keys)
-  - Click **Create Key**
-  - Copy your API key (starts with `sk-or-`)
-  - **Free credits**: OpenRouter provides generous free tier usage (likely $1+ credit to start, no time expiration)
-
-**2. Choose a Free Model** (Recommended: `meta-llama/llama-3.3-70b-instruct`):
-  - Excellent quality, completely free on OpenRouter
-  - Visit: https://openrouter.ai/models
-  - Search: `meta-llama/llama-3.3-70b-instruct`
-  - **Alternative free models**:
-    - `mistralai/mixtral-8x7b-instruct` (good quality, fast)
-    - `google/gemma-7b-it` (lighter weight)
-  - **Claude models** (if you want actual Claude): `anthropic/claude-3-haiku` (paid but cheap), `anthropic/claude-3-sonnet`, `anthropic/claude-3-opus` (paid)
-
-**3. Add GitHub Secrets**:
-  - Repository → Settings → Secrets and variables → Actions → New repository secret
-  - **Name**: `OPENROUTER_API_KEY`
-  - **Value**: Your OpenRouter API key
-  - Optional: Add `OPENROUTER_MODEL` with model name (default: `meta-llama/llama-3.3-70b-instruct`)
-
-**4. Verify Setup**:
-  - Push to `develop` branch
-  - GitHub Actions → quality.yml should run
-  - Look for "Claude Security Analysis (OpenRouter Free Tier)" step
-  - Check artifacts for `claude-security-report.json`
-
-**Note**: The scanner will automatically use OpenRouter if `OPENROUTER_API_KEY` is set. If you also set `ANTHROPIC_API_KEY`, OpenRouter takes priority. Leave `ANTHROPIC_API_KEY` unset to ensure free tier usage.
-
-**Install dev tools** (for hooks & manual checks):
-- `/security-scan` – Security audit (bandit, auth patterns, secrets)
-- `/code-quality` – Lint, type check, formatting review
-- `/deploy-ready` – Verify deployment readiness
-
-**Install dev tools** (for hooks & manual checks):
-```bash
-pip install flake8 mypy black bandit anthropic openai
-npm install playwright && npx playwright install chromium --with-deps
-```
-
-**Manual checks**:
-```bash
-flake8 src/backend/main.py --count --select=E9,F63,F7,F82
-mypy src/backend/main.py
-black --check src/backend/
-bandit -r src/backend/
-python -m py_compile src/backend/main.py  # syntax
-node tests/smoke.test.js  # with SITE_URL set
-```
-
 **API testing**:
 ```bash
-# Auth
+# Signup
+curl -X POST http://localhost:8000/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","password":"Test1234","confirm_password":"Test1234"}'
+
+# Login
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"test","password":"Test1234"}'
 
-curl -X POST http://localhost:8000/api/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"username":"newuser","password":"Test1234","confirm_password":"Test1234"}'
+# Get current user
+curl "http://localhost:8000/api/auth/me?username=test"
 
-curl http://localhost:8000/api/auth/me?username=test
-
-# Apps
-curl http://localhost:8000/api/apps/
-
-# Games
-curl http://localhost:8000/api/games/
-curl -X POST http://localhost:8000/api/games/tic-tac-toe/scores?username=test \
-  -H "Content-Type: application/json" \
-  -d '{"score":1500,"metadata":{"won":true}}'
-
-curl http://localhost:8000/api/games/tic-tac-toe/leaderboard?limit=10
-
-# Health
+# Health check
 curl http://localhost:8000/health
 
-# Swagger UI
-# Open http://localhost:8000/docs (interactive)
+# Swagger UI (interactive API docs)
+# Open http://localhost:8000/docs
 ```
 
 ---
@@ -694,30 +596,21 @@ To skip: `git commit --no-verify` or `git push --no-verify` (not recommended)
 
 ## 🧪 Quality Checks
 
-Manual checks (before pushing):
+The project uses git hooks for automated quality checks. To run manually:
 
 ```bash
-# Install dev tools
-pip install flake8 mypy black bandit
-
-# Syntax
-python -m py_compile src/backend/main.py
-
-# Lint (critical errors)
-flake8 src/backend/ --count --select=E9,F63,F7,F82 --show-source --statistics
-
-# Full lint
-flake8 src/backend/
-
-# Type check
-mypy src/backend/main.py --ignore-missing-imports
-
-# Security scan
-bandit -r src/backend/
-
-# Format check
-black --check src/backend/
+./scripts/run-quality-checks.sh
 ```
+
+This script verifies:
+- Python syntax
+- Hardcoded secrets
+- TODO/FIXME comments
+- Workflow YAML validity
+- Documentation freshness
+- Migration files presence
+
+No additional dependencies required (uses standard tools: bash, python, grep).
 
 ---
 
