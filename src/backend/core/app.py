@@ -6,12 +6,15 @@ Creates and configures the PlayNexus API application.
 import logging
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.status import (
     HTTP_422_UNPROCESSABLE_ENTITY,
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from ..config import settings
 from ..log_config import setup_logging
@@ -80,7 +83,28 @@ Future: JWT tokens for persistent sessions.
         allow_headers=["*"],
     )
 
-    # 3. Rate limiting - per app category
+    # 3. Gzip compression for all responses
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+    # 3b. Cache control for static assets (CSS, JS, images)
+    class CacheControlMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            response = await call_next(request)
+            path = request.url.path
+
+            # Add cache headers for static assets
+            if path.startswith("/css/") or path.startswith("/js/") or path.startswith("/assets/"):
+                # Cache for 1 week (immutable assets)
+                response.headers["Cache-Control"] = "public, max-age=604800, immutable"
+            elif path.startswith("/") and not path.startswith("/api") and not path.startswith("/docs") and not path.startswith("/redoc") and not path.startswith("/openapi.json"):
+                # HTML pages - no cache (always fresh)
+                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+
+            return response
+
+    app.add_middleware(CacheControlMiddleware)
+
+    # 4. Rate limiting - per app category
     # Auth endpoints (strict limit)
     app.add_middleware(
         RateLimitMiddleware, limiter=auth_rate_limiter, paths=["/api/auth"]
