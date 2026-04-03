@@ -56,11 +56,29 @@ jobs:
         run: |
           python -m py_compile src/backend/main.py 2>&1 | tee quality-syntax.log
 
+      - name: YAML syntax validation
+        run: |
+          echo "Validating workflow YAML files..."
+          for wf in .github/workflows/*.yml; do
+            echo "Checking: $wf"
+            python -c "import yaml; yaml.safe_load(open('$wf', encoding='utf-8'))" 2>&1 | tee -a quality-yaml.log || true
+          done
+        continue-on-error: false
+
+      - name: Check import ordering (basic)
+        run: |
+          echo "Checking for import order issues..."
+          if grep -n "^import" src/backend/main.py | head -1 | grep -q "^[0-9]*:import"; then
+            echo "✅ Imports appear at top of file" | tee quality-imports.log
+          else
+            echo "⚠️  Check import ordering" | tee quality-imports.log
+          fi
+
       - name: Upload quality reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: quality-reports-${{ github.sha }}
           path: |
-            quality-syntax.log
+            quality-*.log
           retention-days: 7

@@ -1,0 +1,54 @@
+# Dependabot configuration
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+
+version: 2
+
+updates:
+  # Python dependencies (requirements.txt)
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps):"
+      include: "scope"
+    reviewers:
+      # Add default reviewers if desired:
+      # - johndoe
+    # Allow up to 10 minutes for CI to pass before merging (optional)
+    # pull-request-branch-name:
+    #   separator: "-"
+    labels:
+      - dependencies
+      - automated-pr
+    # Target branch for PRs – same as main branch
+    target-branch: "main"
+    # Allow specified major version updates
+    # allow:
+    #   - dependency-type: "direct"
+    #   - dependency-type: "indirect"
+    # Update to latest compatible version
+    versioning-strategy: "auto"
+
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(ci):"
+      include: "scope"
+    labels:
+      - dependencies
+      - ci-cd
+      - automated-pr
+    target-branch: "main"
+    versioning-strategy: "auto"

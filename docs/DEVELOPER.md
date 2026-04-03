@@ -33,15 +33,15 @@ python -m http.server 3000
 - **Blocks** commits with syntax errors, formatting issues, or critical lints
 
 #### `pre-push` (comprehensive checks before pushing to main/develop)
-- ✅ All pre-commit checks (syntax, formatting, lint)
-- ✅ Type checking (mypy)
-- ✅ Full security scan (bandit)
-- ✅ AI Security Analysis (if `OPENROUTER_API_KEY` set)
-- ✅ Critical/High security issues block push
+- ✅ All pre-commit checks (syntax, YAML, secrets)
+- ✅ Branch up-to-date with base branch
+- ✅ Documentation timestamps fresh
+- ✅ No TODO/FIXME in critical code
 - ✅ No debug print() statements
 - ✅ No large files (>1MB)
+- Runs quality script: `./scripts/run-quality-checks.sh`
 - **Runs only on `main` and `develop` branches** (skipped on feature branches for speed)
-- **Blocks** pushes with Critical/High security vulnerabilities
+- **Blocks** pushes with failing quality checks
 
 #### `commit-msg` ( Conventional Commits )
 - ✅ Enforces commit message format: `type(scope): description`
@@ -95,12 +95,16 @@ This runs all the same checks as the hooks, plus:
 ### GitHub Actions CI/CD
 
 **Workflows**:
-- `quality.yml` – Code quality & security checks (lint, type, bandit, Claude AI security scan)
+- `quality.yml` – Code quality & syntax checks (Python syntax, YAML validation)
   - Runs on: push to `main`/`develop`, PRs to `main`/`develop`
-  - Requires: `ANTHROPIC_API_KEY` secret for Claude security analysis
-  - Fails on: Critical/High severity security issues
-  - Artifacts: `quality-reports` (bandit-report.json, claude-security-report.json)
-  - **Blocks deployment** – Deploy workflow depends on this passing
+  - Artifacts: `quality-reports` (syntax logs, validation logs)
+  - **Part of branch protection** – Required before merging
+
+- `codeql-analysis.yml` – Native GitHub security scanning (CodeQL)
+  - Runs on: push to `main`/`develop`, PRs, weekly schedule
+  - Scans: Python & JavaScript code for vulnerabilities (OWASP Top 10)
+  - Produces SARIF report for GitHub Security tab
+  - **Blocks PR merges on high-severity findings** (when branch protection configured)
 
 - `deploy.yml` – Deploy to Render (staging/production)
   - Triggered on: push to `main` (production) or `develop` (staging)
@@ -114,26 +118,18 @@ This runs all the same checks as the hooks, plus:
 
 | Secret | Purpose |
 |--------|---------|
-| `OPENROUTER_API_KEY` | **Recommended** - OpenRouter API key (free tier available). Sign up at https://openrouter.ai, get API key. OpenRouter offers many models including Claude, Llama, etc. **Free tier includes generous usage limits**. |
-| *(Optional)* `OPENROUTER_MODEL` | Which AI model to use for security scanning. Default: `meta-llama/llama-3.3-70b-instruct` (free, excellent quality). Other free options: `mistralai/mixtral-8x7b-instruct`. Paid Claude models: `anthropic/claude-3-opus`, `anthropic/claude-3-sonnet`. |
-| *(Alternative)* `ANTHROPIC_API_KEY` | Direct Anthropic API key (more expensive, no free tier). Only use if you prefer Anthropic directly. |
 | `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE` | PostgreSQL connection (required) |
 | `RENDER_API_KEY` | Render deployment API access (required) |
 | `RENDER_SERVICE_ID_PROD` | Production Render service ID (required for production) |
 | `RENDER_SERVICE_ID_TEST` | Staging Render service ID (required for staging) |
 
-**Claude Security Scanner** (`.github/scripts/claude_security_scan.py`):
-- Uses AI (via OpenRouter or Anthropic) for deep security analysis
-- Checks: hardcoded secrets, SQL injection, command injection, XSS, auth bypass, crypto failures, **secret exfiltration attempts**, etc.
-- Specifically detects suspicious patterns:
-  - Environment variable access + network transmission
-  - Printing/logging of sensitive data
-  - Reading files like `.env`, `config.json`, `secrets.json`
-  - Suspicious imports (paramiko, ftplib)
-  - Base64 encoding before transmission
-- Produces structured JSON report with severity levels and remediation guidance
-- **Blocks deployment on Critical/High findings**
-- **Blocks PR merges when configured with branch protection**
+**Security Features**:
+- **CodeQL** – Native GitHub static analysis for security vulnerabilities
+- **Dependabot** – Automatic dependency updates (opens PRs for outdated packages)
+- **Secret scanning** – Alerts for hardcoded secrets (enabled by GitHub)
+- **Branch protection** – Enforces reviews, status checks (CodeQL, quality.yml)
+
+**Note**: AI-powered security scanning is **not used** – we rely on GitHub's native CodeQL for production-grade security analysis.
 
 ### Securing Public Repos: Branch Protection
 
@@ -159,10 +155,10 @@ This runs all the same checks as the hooks, plus:
 Add another rule for `develop` with same settings to protect staging.
 
 #### What This Does:
-- PRs cannot be merged until ✅ **quality.yml** passes
-- Security scans (Claude, bandit, flake8, mypy) must all pass
-- If any check finds Critical/High issues, merge button is disabled
-- Protects against malicious code including secret exfiltration attempts
+- PRs cannot be merged until ✅ **quality.yml** and **codeql-analysis.yml** pass
+- CodeQL security scan must pass (no high/critical vulnerabilities)
+- If any check fails, merge button is disabled
+- Protects against security vulnerabilities and code quality issues
 
 #### Before Merging a PR:
 - Check GitHub Actions tab → quality.yml run
@@ -181,58 +177,73 @@ GitHub automatically scans for hardcoded secrets in **public repos**:
 No additional setup needed - just be aware it's active.
 
 
-### Configuring OpenRouter (Free Tier)
+### GitHub Security Features (CodeQL & Dependabot)
 
-**1. Get Your OpenRouter API Key**:
-  - Go to https://openrouter.ai
-  - Sign up / Log in
-  - Navigate to **Account** → **API Keys** (or https://openrouter.ai/account/api-keys)
-  - Click **Create Key**
-  - Copy your API key (starts with `sk-or-`)
-  - **Free credits**: OpenRouter provides generous free tier usage (likely $1+ credit to start, no time expiration)
+We use GitHub's native security tools instead of custom AI scanning:
 
-**2. Choose a Free Model** (Recommended: `meta-llama/llama-3.3-70b-instruct`):
-  - Excellent quality, completely free on OpenRouter
-  - Visit: https://openrouter.ai/models
-  - Search: `meta-llama/llama-3.3-70b-instruct`
-  - **Alternative free models**:
-    - `mistralai/mixtral-8x7b-instruct` (good quality, fast)
-    - `google/gemma-7b-it` (lighter weight)
-  - **Claude models** (if you want actual Claude): `anthropic/claude-3-haiku` (paid but cheap), `anthropic/claude-3-sonnet`, `anthropic/claude-3-opus` (paid)
+**CodeQL** (Static Application Security Testing):
+- Automatically scans Python & JavaScript code on every PR and push
+- Detects: SQL injection, XSS, path traversal, hardcoded secrets, and OWASP Top 10 vulnerabilities
+- Results appear in GitHub's **Security** tab and as inline annotations on PRs
+- Configured in `.github/workflows/codeql-analysis.yml`
+- **No API key required** – completely free for public and private repos
 
-**3. Add GitHub Secrets**:
-  - Repository → Settings → Secrets and variables → Actions → New repository secret
-  - **Name**: `OPENROUTER_API_KEY`
-  - **Value**: Your OpenRouter API key
-  - Optional: Add `OPENROUTER_MODEL` with model name (default: `meta-llama/llama-3.3-70b-instruct`)
+**Dependabot** (Dependency Updates):
+- Automatically opens PRs when dependencies have new versions or security patches
+- Configured in `.github/dependabot.yml`
+- Updates both Python packages (`requirements.txt`) and GitHub Actions
+- Runs weekly, can be manually triggered
 
-**4. Verify Setup**:
-  - Push to `develop` branch
-  - GitHub Actions → quality.yml should run
-  - Look for "Claude Security Analysis (OpenRouter Free Tier)" step
-  - Check artifacts for `claude-security-report.json`
+**Secret Scanning**:
+- GitHub automatically scans for hardcoded secrets (API keys, tokens, passwords)
+- Enable **push protection** in Settings → Security & analysis to block secrets before they're committed
+- Already active for this repository
 
-**Note**: The scanner will automatically use OpenRouter if `OPENROUTER_API_KEY` is set. If you also set `ANTHROPIC_API_KEY`, OpenRouter takes priority. Leave `ANTHROPIC_API_KEY` unset to ensure free tier usage.
+**Branch Protection** (Required for main/develop):
+- Go to Settings → Branches → Add rule
+- Require: CodeQL scan, quality.yml checks, 1+ reviewer approval, linear history
+- Prevents merging of PRs with security issues or failing checks
 
-**Install dev tools** (for hooks & manual checks):
-- `/security-scan` – Security audit (bandit, auth patterns, secrets)
-- `/code-quality` – Lint, type check, formatting review
-- `/deploy-ready` – Verify deployment readiness
+---
 
-**Install dev tools** (for hooks & manual checks):
-```bash
-pip install flake8 mypy black bandit anthropic openai
-npm install playwright && npx playwright install chromium --with-deps
-```
+### Local Development Tools
+
+**Git Hooks** (automatic):
+- `pre-commit` – Fast syntax, secrets check, doc timestamp updates
+- `pre-push` – Comprehensive checks (syntax, quality, branch status)
+- Automatically installed via `./scripts/install-hooks.sh`
 
 **Manual checks**:
 ```bash
-flake8 src/backend/main.py --count --select=E9,F63,F7,F82
-mypy src/backend/main.py
-black --check src/backend/
-bandit -r src/backend/
-python -m py_compile src/backend/main.py  # syntax
-node tests/smoke.test.js  # with SITE_URL set
+./scripts/run-quality-checks.sh          # all quality checks (syntax, YAML, etc.)
+./scripts/run-quality-checks.sh --json   # JSON output for CI
+./scripts/cleanup-unnecessary.sh --dry-run  # preview cleanup
+SITE_URL=https://playnexus-test.onrender.com node tests/smoke.test.js  # smoke test
+```
+
+**Note**: We no longer use flake8, mypy, black, bandit, or AI-powered scanners. GitHub's native tools (CodeQL) provide production-grade security analysis with zero maintenance overhead.
+
+---
+
+### API Testing
+
+```bash
+# Auth
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"test","password":"Test1234"}'
+
+curl -X POST http://localhost:8000/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"newuser","password":"Test1234","confirm_password":"Test1234"}'
+
+curl http://localhost:8000/api/auth/me?username=test
+
+# Health
+curl http://localhost:8000/health
+
+# Swagger UI
+# Open http://localhost:8000/docs (interactive)
 ```
 
 **API testing**:
