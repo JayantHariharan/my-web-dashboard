@@ -48,37 +48,3 @@ def verify_password(
 
     peppered_password = plain_password + pepper
     return pwd_context.verify(peppered_password, hashed_password)
-
-
-def compute_user_identifier(username: str, password_hash: str) -> str:
-    """
-    Compute an identifier that binds username to password hash.
-    This creates a deterministic fingerprint that can detect DB tampering.
-    Args:
-        username: User's username
-        password_hash: Hashed password (bcrypt hash)
-    Returns:
-        Hex-encoded HMAC-SHA256 fingerprint
-    """
-    # Use server secret as HMAC key
-    key = settings.secret_key.encode("utf-8")
-    message = f"{username}:{password_hash}".encode("utf-8")
-    digest = hmac.new(key, message, hashlib.sha256).hexdigest()
-    return digest
-
-
-def verify_user_identifier(
-    username: str, password_hash: str, expected_hex: str
-) -> bool:
-    """
-    Verify that the user identifier matches (constant-time comparison).
-    Args:
-        username: User's username
-        password_hash: Hashed password
-        expected_hex: Expected hex HMAC digest
-    Returns:
-        True if matches, False otherwise
-    """
-    computed = compute_user_identifier(username, password_hash)
-    # Use hmac.compare_digest for constant-time comparison
-    return hmac.compare_digest(computed, expected_hex)

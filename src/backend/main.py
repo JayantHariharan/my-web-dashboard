@@ -30,7 +30,7 @@ FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True), name="static")
 
 
-# Startup event - initialize database
+# Startup event - initialize application
 @app.on_event("startup")
 async def startup_event():
     """Initialize application on startup."""
@@ -39,18 +39,13 @@ async def startup_event():
     db_type = "PostgreSQL" if settings.database.is_postgres else "SQLite"
     logger.info(f"Database: {db_type}")
 
-    # Apply database schema migrations
-    try:
-        from .migrator import apply_migrations
-
-        apply_migrations()
-    except Exception as e:
-        logger.error(f"Database migration failed: {e}")
-        if not settings.debug:
-            raise
-
-    # Config is now via environment variables only (auth-only mode)
     logger.info("Configuration: Using environment variables only")
+    logger.info(
+        "Note: Database migrations are applied via GitHub Actions (migrate workflow)"
+    )
+    logger.info(
+        "Local development: Use SQLite (auto-creates schema) or run migrate.py manually"
+    )
 
     # Migrate any existing plain-text passwords to bcrypt (only runs if needed)
     try:

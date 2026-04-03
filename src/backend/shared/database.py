@@ -26,12 +26,13 @@ class ConnectionError(DatabaseError):
     pass
 
 
-def get_connection(is_postgres: bool, db_url: str):
+def get_connection(is_postgres: bool, db_url: str, schema: str = "public"):
     """
     Get a raw database connection.
     Args:
         is_postgres: Whether to use PostgreSQL driver
         db_url: Database connection URL
+        schema: PostgreSQL schema to use (sets search_path). Ignored for SQLite.
     Returns:
         DB-API connection object
     """
@@ -43,6 +44,8 @@ def get_connection(is_postgres: bool, db_url: str):
 
             conn = psycopg2.connect(db_url)
             conn.cursor_factory = RealDictCursor
+            # Set search_path to use custom schema (falls back to public)
+            conn.cursor().execute(f"SET search_path TO {schema}, public")
             return conn
         else:
             # SQLite connection
@@ -60,10 +63,11 @@ class BaseRepository:
         self.table_name = table_name
         self._is_postgres = settings.database.is_postgres
         self._db_url = settings.database.url
+        self._db_schema = settings.database.db_schema
 
     def _get_connection(self):
         """Get a database connection."""
-        return get_connection(self._is_postgres, self._db_url)
+        return get_connection(self._is_postgres, self._db_url, self._db_schema)
 
     @contextmanager
     def get_cursor(self):
@@ -238,7 +242,10 @@ class UserRepository(BaseRepository):
     """Repository for user-specific operations."""
 
     def __init__(self):
-        super().__init__("users")
+        from ..config import settings
+
+        table_name = f"users{settings.database.table_suffix}"
+        super().__init__(table_name)
 
     def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
         """Get user by username."""
@@ -288,7 +295,7 @@ class UserRepository(BaseRepository):
             values.append(login_ip)
 
         values.append(username)
-        sql = f"UPDATE users SET {', '.join(sets)} WHERE username = {placeholder}"
+        sql = f"UPDATE {self.table_name} SET {', '.join(sets)} WHERE username = {placeholder}"
 
         with self.get_cursor() as cursor:
             cursor.execute(sql, tuple(values))
@@ -298,9 +305,7 @@ class UserRepository(BaseRepository):
         """Update user password."""
         is_postgres = self._is_postgres
         placeholder = "%s" if is_postgres else "?"
-        sql = (
-            f"UPDATE users SET password = {placeholder} WHERE username = {placeholder}"
-        )
+        sql = f"UPDATE {self.table_name} SET password = {placeholder} WHERE username = {placeholder}"
         with self.get_cursor() as cursor:
             cursor.execute(sql, (new_password_hash, username))
             return cursor.rowcount > 0
@@ -316,9 +321,9 @@ class UserRepository(BaseRepository):
             conn = self._get_connection()
             cursor = conn.cursor()
             placeholder = "%s" if self._is_postgres else "?"
-            query = """
+            query = f"""
                 SELECT id, username, password
-                FROM users
+                FROM {self.table_name}
                 WHERE password NOT LIKE '$2b$%'
                   AND password NOT LIKE '$2a$%'
                   AND password NOT LIKE '$2y$%'
@@ -339,7 +344,7 @@ class UserRepository(BaseRepository):
 
                 new_hash = hash_password(plain_password)
                 update_sql = (
-                    f"UPDATE users SET password = {placeholder} "
+                    f"UPDATE {self.table_name} SET password = {placeholder} "
                     f"WHERE id = {placeholder}"
                 )
                 cursor.execute(update_sql, (new_hash, user_id))
@@ -362,7 +367,10 @@ class UserProfileRepository(BaseRepository):
     """Repository for user profiles."""
 
     def __init__(self):
-        super().__init__("user_profiles")
+        from ..config import settings
+
+        table_name = f"user_profiles{settings.database.table_suffix}"
+        super().__init__(table_name)
 
     def get_profile_by_user_id(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Get user profile by user_id."""
@@ -402,8 +410,3 @@ class UserProfileRepository(BaseRepository):
 # Global repository instances (auth-related only)
 user_repo = UserRepository()
 user_profile_repo = UserProfileRepository()
-
-
-def init_database():
-    """Legacy function. Use migrator.apply_migrations() instead."""
-    logger.warning("init_database() is deprecated. Use migrator.apply_migrations().")

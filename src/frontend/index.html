@@ -17,6 +17,67 @@
     
     <!-- 🔐 LUMINOUS AUTH PORTAL (Centered Hero Phase) -->
     <section id="crystal-auth-portal" class="hidden">
+        <style>
+            /* Auth Form Validation Styles */
+            .auth-field.success input {
+                border-color: #4caf50 !important;
+                box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+            }
+            .auth-field.success .validation-icon {
+                display: block;
+                color: #4caf50;
+                position: absolute;
+                right: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                font-size: 1.2rem;
+            }
+            .auth-field.error input {
+                border-color: #ff4444 !important;
+                box-shadow: 0 0 0 2px rgba(255, 68, 68, 0.2);
+            }
+            .auth-field.error .validation-icon {
+                display: block;
+                color: #ff4444;
+                position: absolute;
+                right: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                font-size: 1.2rem;
+            }
+            .auth-field .validation-icon {
+                display: none;
+            }
+            .field-error-msg {
+                color: #ff4444;
+                font-size: 0.7rem;
+                margin-top: 4px;
+                margin-bottom: -8px;
+                text-align: left;
+                font-weight: 500;
+                letter-spacing: 0.5px;
+            }
+            .mode-toggle:hover {
+                text-decoration: underline;
+            }
+            /* Improve button loading state */
+            .nexus-btn-luxe:disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+            .spinner {
+                display: inline-block;
+                width: 12px;
+                height: 12px;
+                border: 2px solid rgba(255,255,255,0.3);
+                border-radius: 50%;
+                border-top-color: #fff;
+                animation: spin 1s ease-in-out infinite;
+            }
+            @keyframes spin {
+                to { transform: rotate(360deg); }
+            }
+        </style>
         <div class="hero-login-container">
             <div class="crystal-auth-card">
                 <!-- 🪐 BRAND ANCHOR -->
@@ -25,33 +86,37 @@
                     <p style="color: rgba(255,255,255,0.25); font-size: 0.65rem; letter-spacing: 4px; margin-top: 8px; font-family: 'Outfit';">CONSOLE PORTAL</p>
                 </div>
 
-                <!-- 🚪 AUTHENTICATION MODE SWITCHER -->
-                <div style="display: flex; justify-content: center; margin-bottom: 24px;">
-                    <button id="mode-btn" class="mode-toggle" onclick="toggleAuthMode()">Sign Up</button>
-                </div>
-
                 <!-- 🚪 SECURITY GATE -->
                 <div id="auth-form-container">
-                    <div class="auth-field" style="margin-bottom: 14px;">
-                        <input type="text" id="auth-username" class="floating-input" placeholder="Username">
+                    <div class="auth-field" style="margin-bottom: 14px; position: relative;">
+                        <input type="text" id="auth-username" class="floating-input" placeholder="Username" autocomplete="username" required
+                               style="border-color: var(--input-border, var(--border)); transition: border-color 0.2s;">
+                        <div id="username-feedback" style="position: absolute; bottom: -18px; left: 0; font-size: 0.6rem; color: var(--text-muted); opacity: 0; transition: opacity 0.2s;"></div>
                     </div>
 
-                    <div class="auth-field" style="margin-bottom: 14px;">
-                        <input type="password" id="auth-password" class="floating-input" placeholder="Password">
+                    <div class="auth-field" style="margin-bottom: 14px; position: relative;">
+                        <input type="password" id="auth-password" class="floating-input" placeholder="Password" autocomplete="current-password" required
+                               style="border-color: var(--input-border, var(--border)); transition: border-color 0.2s;">
+                        <div id="password-feedback" style="position: absolute; bottom: -18px; left: 0; font-size: 0.6rem; color: var(--text-muted); opacity: 0; transition: opacity 0.2s;"></div>
                     </div>
 
-                    <div id="confirm-password-field" class="auth-field" style="margin-bottom: 14px; display: none;">
-                        <input type="password" id="auth-confirm-password" class="floating-input" placeholder="Confirm Password">
+                    <div id="confirm-password-field" class="auth-field" style="margin-bottom: 14px; position: relative; display: none;">
+                        <input type="password" id="auth-confirm-password" class="floating-input" placeholder="Confirm Password" autocomplete="new-password" required
+                               style="border-color: var(--input-border, var(--border)); transition: border-color 0.2s;">
+                        <div id="confirm-feedback" style="position: absolute; bottom: -18px; left: 0; font-size: 0.6rem; color: var(--text-muted); opacity: 0; transition: opacity 0.2s;"></div>
                     </div>
 
-                    <button id="auth-btn" class="nexus-btn-luxe" onclick="unlockPortal()">Enter the Nexus</button>
+                    <button id="auth-btn" class="nexus-btn-luxe" onclick="handleAuth()">Enter the Nexus</button>
+
+                    <!-- Mode switcher below button (Netflix/Crunchyroll style) -->
+                    <div style="text-align: center; margin-top: 16px; font-size: 0.8rem; color: rgba(255,255,255,0.6);">
+                        <span id="auth-mode-indicator" style="opacity: 0.7;">LOGIN</span>
+                        <span style="margin: 0 8px; opacity: 0.3;">|</span>
+                        <button id="mode-btn" onclick="toggleAuthMode()" style="background:none;border:none;color:var(--nexus-cyan);cursor:pointer;font-size:0.8rem;transition:opacity 0.2s;padding:0;">Need an account? Sign Up</button>
+                    </div>
                 </div>
 
-                <div id="auth-error" style="margin-top: 35px; color: #ff4444; font-size: 0.7rem; text-align: center; letter-spacing: 4px; opacity: 0; transition: all 0.8s ease;"></div>
-                
-                <p id="access-granted-msg" style="margin-top: 35px; color: var(--nexus-cyan); font-size: 0.7rem; text-align: center; letter-spacing: 4px; opacity: 0; transition: all 0.8s ease;">
-                    // SECURE ACCESS GRANTED
-                </p>
+                <div id="auth-error" style="margin-top: 12px; color: #ff4444; font-size: 0.75rem; text-align: center; letter-spacing: 1px; opacity: 0; transition: all 0.3s ease; min-height: 18px; font-weight: 500;"></div>
             </div>
         </div>
     </section>
@@ -139,9 +204,345 @@
     <script src="js/main.js"></script>
 
     <script>
-        function unlockPortal() {
-            const input = document.getElementById('auth-username');
-            const username = input.value.trim() || 'Explorer';
+        // Authentication State
+        let isLoginMode = true;
+        let isAuthenticating = false;
+
+        // DOM Elements
+        const authBtn = document.getElementById('auth-btn');
+        const modeBtn = document.getElementById('mode-btn');
+        const authError = document.getElementById('auth-error');
+        const confirmField = document.getElementById('confirm-password-field');
+        const modeIndicator = document.getElementById('auth-mode-indicator');
+        const usernameInput = document.getElementById('auth-username');
+        const passwordInput = document.getElementById('auth-password');
+        const confirmInput = document.getElementById('auth-confirm-password');
+
+        // Field validation state
+        const fieldStates = {
+            username: { valid: false, message: '' },
+            password: { valid: false, message: '' },
+            confirm: { valid: true, message: '' }
+        };
+
+        /**
+         * Set field visual state (success/error)
+         */
+        function setFieldStatus(fieldElement, status, message = '') {
+            const fieldWrapper = fieldElement.closest('.auth-field');
+            const existingIcon = fieldWrapper.querySelector('.validation-icon');
+            const existingMsg = fieldWrapper.querySelector('.field-error-msg');
+
+            // Remove existing states
+            fieldWrapper.classList.remove('success', 'error');
+            if (existingIcon) existingIcon.remove();
+            if (existingMsg) existingMsg.remove();
+
+            if (status === 'validating') {
+                // Add spinner or neutral state if needed
+            } else if (status === 'valid') {
+                fieldWrapper.classList.add('success');
+                const check = document.createElement('span');
+                check.className = 'validation-icon';
+                check.textContent = '✓';
+                fieldWrapper.appendChild(check);
+            } else if (status === 'error') {
+                fieldWrapper.classList.add('error');
+                const icon = document.createElement('span');
+                icon.className = 'validation-icon';
+                icon.textContent = '✗';
+                fieldWrapper.appendChild(icon);
+                if (message) {
+                    const msgEl = document.createElement('div');
+                    msgEl.className = 'field-error-msg';
+                    msgEl.textContent = message;
+                    fieldWrapper.appendChild(msgEl);
+                }
+            }
+        }
+
+        /**
+         * Validate username with real-time checks
+         */
+        function validateUsernameField() {
+            const username = usernameInput.value.trim();
+
+            if (!username) {
+                setFieldStatus(usernameInput, 'error', 'Username is required');
+                fieldStates.username = { valid: false, message: 'Username is required' };
+                return false;
+            }
+
+            if (username.length < 3) {
+                setFieldStatus(usernameInput, 'error', 'At least 3 characters');
+                fieldStates.username = { valid: false, message: 'At least 3 characters' };
+                return false;
+            }
+
+            if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+                setFieldStatus(usernameInput, 'error', 'Only letters, numbers, _, - allowed');
+                fieldStates.username = { valid: false, message: 'Invalid characters' };
+                return false;
+            }
+
+            setFieldStatus(usernameInput, 'valid');
+            fieldStates.username = { valid: true, message: '' };
+            return true;
+        }
+
+        /**
+         * Validate password with real-time checks
+         */
+        function validatePasswordField() {
+            const password = passwordInput.value;
+
+            if (!password) {
+                setFieldStatus(passwordInput, 'error', 'Password is required');
+                fieldStates.password = { valid: false, message: 'Password is required' };
+                return false;
+            }
+
+            if (password.length < 6) {
+                setFieldStatus(passwordInput, 'error', 'At least 6 characters');
+                fieldStates.password = { valid: false, message: 'Too short' };
+                return false;
+            }
+
+            // Optional: Check complexity (can be relaxed for user convenience)
+            // For now just length
+
+            setFieldStatus(passwordInput, 'valid');
+            fieldStates.password = { valid: true, message: '' };
+
+            // Also revalidate confirm if visible
+            if (confirmField.style.display !== 'none' && confirmInput.value) {
+                validateConfirmField();
+            }
+
+            return true;
+        }
+
+        /**
+         * Validate confirm password
+         */
+        function validateConfirmField() {
+            const confirm = confirmInput.value;
+            const password = passwordInput.value;
+
+            if (confirmField.style.display === 'none') {
+                fieldStates.confirm = { valid: true, message: '' };
+                return true;
+            }
+
+            if (!confirm) {
+                setFieldStatus(confirmInput, 'error', 'Please confirm password');
+                fieldStates.confirm = { valid: false, message: 'Required' };
+                return false;
+            }
+
+            if (confirm !== password) {
+                setFieldStatus(confirmInput, 'error', 'Passwords do not match');
+                fieldStates.confirm = { valid: false, message: 'Mismatch' };
+                return false;
+            }
+
+            setFieldStatus(confirmInput, 'valid');
+            fieldStates.confirm = { valid: true, message: '' };
+            return true;
+        }
+
+        /**
+         * Real-time validation as user types
+         */
+        function setupRealtimeValidation() {
+            usernameInput.addEventListener('input', () => {
+                // Debounce slightly for performance
+                clearTimeout(window.usernameValidateTimer);
+                window.usernameValidateTimer = setTimeout(validateUsernameField, 200);
+            });
+
+            usernameInput.addEventListener('blur', validateUsernameField);
+
+            passwordInput.addEventListener('input', () => {
+                clearTimeout(window.passwordValidateTimer);
+                window.passwordValidateTimer = setTimeout(validatePasswordField, 200);
+            });
+
+            passwordInput.addEventListener('blur', validatePasswordField);
+
+            confirmInput.addEventListener('input', validateConfirmField);
+            confirmInput.addEventListener('blur', validateConfirmField);
+        }
+
+        // Call setup on page load
+        document.addEventListener('DOMContentLoaded', setupRealtimeValidation);
+
+        /**
+         * Toggle between Login and Signup modes
+         */
+        function toggleAuthMode() {
+            isLoginMode = !isLoginMode;
+            const usernameInput = document.getElementById('auth-username');
+            const passwordInput = document.getElementById('auth-password');
+            const confirmInput = document.getElementById('auth-confirm-password');
+
+            if (isLoginMode) {
+                // Switch to Login
+                modeIndicator.textContent = 'LOGIN';
+                modeBtn.textContent = 'Need an account? Sign Up';
+                confirmField.style.display = 'none';
+                confirmInput.required = false;
+                authBtn.textContent = 'Enter the Nexus';
+                // For login, don't require minlength (user might have old shorter password)
+                passwordInput.minLength = '';
+            } else {
+                // Switch to Signup
+                modeIndicator.textContent = 'SIGN UP';
+                modeBtn.textContent = 'Already have an account? Login';
+                confirmField.style.display = 'block';
+                confirmInput.required = true;
+                authBtn.textContent = 'Create Account';
+                // Require minimum password length for new accounts
+                passwordInput.minLength = '6';
+            }
+
+            // Clear any previous errors
+            hideError();
+            // Clear inputs
+            usernameInput.value = '';
+            passwordInput.value = '';
+            confirmInput.value = '';
+            usernameInput.focus();
+        }
+
+        /**
+         * Show error message
+         */
+        function showError(msg) {
+            authError.textContent = msg;
+            authError.style.opacity = '1';
+        }
+
+        /**
+         * Hide error message
+         */
+        function hideError() {
+            authError.style.opacity = '0';
+        }
+
+        /**
+         * Validate all fields (for submit)
+         * @returns {string|null} First validation error or null if all valid
+         */
+        function validateAll() {
+            const usernameValid = validateUsernameField();
+            const passwordValid = validatePasswordField();
+            const confirmValid = validateConfirmField();
+
+            if (!usernameValid) return fieldStates.username.message;
+            if (!passwordValid) return fieldStates.password.message;
+            if (!isLoginMode && !confirmValid) return fieldStates.confirm.message;
+
+            return null;
+        }
+
+        /**
+         * Main authentication handler
+         */
+        async function handleAuth() {
+            if (isAuthenticating) return; // Prevent double submission
+
+            // Run full validation and show inline errors
+            const validationError = validateAll();
+            if (validationError) {
+                showError(validationError);
+                Toast.error(validationError, 4000);
+                return;
+            }
+
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+
+            hideError();
+            isAuthenticating = true;
+            authBtn.disabled = true;
+            const originalBtnText = authBtn.textContent;
+            authBtn.innerHTML = '<span class="spinner"></span> ' + (isLoginMode ? 'Authenticating...' : 'Creating account...');
+
+            try {
+                // Call backend API
+                const endpoint = isLoginMode ? '/api/auth/login' : '/api/auth/signup';
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    // Authentication failed - provide specific feedback for signup, generic for login
+                    let errorMsg = 'Authentication failed';
+                    if (isLoginMode) {
+                        // For login, keep generic message for security (don't reveal if username exists)
+                        errorMsg = 'Invalid username or password';
+                    } else {
+                        // For signup, we can be more specific
+                        if (data.detail) {
+                            if (typeof data.detail === 'string') {
+                                if (data.detail.includes('already exists') || data.detail.includes('duplicate')) {
+                                    errorMsg = 'Username is already taken';
+                                    // Highlight username field
+                                    setFieldStatus(usernameInput, 'error', 'Username taken');
+                                } else if (data.detail.includes('password')) {
+                                    errorMsg = 'Password does not meet requirements';
+                                    setFieldStatus(passwordInput, 'error', 'Invalid password');
+                                } else {
+                                    errorMsg = data.detail;
+                                }
+                            } else if (data.detail.message) {
+                                errorMsg = data.detail.message;
+                            }
+                        }
+                    }
+                    showError(errorMsg);
+                    Toast.error(errorMsg, 5000);
+                    isAuthenticating = false;
+                    authBtn.disabled = false;
+                    authBtn.textContent = originalBtnText;
+                    return;
+                }
+
+                // Success!
+                Toast.success(isLoginMode ? `Welcome back, ${data.username}!` : `Account created! Welcome, ${data.username}`, 3000);
+                isAuthenticating = false;
+                completeAuthentication(data.username);
+
+            } catch (error) {
+                console.error('Auth error:', error);
+                showError('Network error. Please check your connection.');
+                Toast.error('Cannot connect to server', 5000);
+                isAuthenticating = false;
+                authBtn.disabled = false;
+                authBtn.textContent = originalBtnText;
+            }
+        }
+
+        /**
+         * Complete authentication and transition to hub
+         * @param {string} username - Authenticated username
+         */
+        function completeAuthentication(username) {
+            // Clear sensitive data from form
+            document.getElementById('auth-username').value = '';
+            document.getElementById('auth-password').value = '';
+            document.getElementById('auth-confirm-password').value = '';
+
             const auth = document.getElementById('crystal-auth-portal');
             const hub = document.getElementById('master-hub-container');
             const successMsg = document.getElementById('access-granted-msg');
@@ -155,15 +556,15 @@
             if (profilePic) {
                 const seed = username + Math.floor(Math.random() * 9999);
                 profilePic.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
+                sessionStorage.setItem('playnexus_avatar', profilePic.src);
             }
-
-            // Show success message
-            successMsg.style.opacity = '1';
-            successMsg.style.letterSpacing = '10px';
 
             // Store session
             sessionStorage.setItem('playnexus_user', username);
-            if (profilePic) sessionStorage.setItem('playnexus_avatar', profilePic.src);
+
+            // Show success message briefly
+            successMsg.style.opacity = '1';
+            successMsg.style.letterSpacing = '10px';
 
             // Transition to Hub
             setTimeout(() => {
@@ -173,50 +574,124 @@
                     auth.remove();
                     hub.classList.remove('hidden');
                     hub.style.opacity = '1';
-                    hub.style.transition = 'opacity 2s ease';
-                    if (window.startGravity) window.startGravity();
+                    // Start physics when hub becomes visible
+                    if (window.PlayNexus && window.PlayNexus.startPhysics) {
+                        window.PlayNexus.startPhysics();
+                    }
                 }, 1000);
-            }, 1000);
+            }, 800);
         }
 
-        // Allow Enter key to login
+        // Allow Enter key to submit
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                const btn = document.getElementById('auth-btn');
-                if (btn) btn.click();
+            if (e.key === 'Enter' && !e.repeat) {
+                const authForm = document.getElementById('auth-form-container');
+                if (authForm && !authForm.classList.contains('hidden')) {
+                    const btn = document.getElementById('auth-btn');
+                    if (btn && !btn.disabled) {
+                        handleAuth();
+                    }
+                }
             }
         });
 
-        // Instant Session Recovery (Bypass Login)
+        // Helper: Set input field validation status
+        function setFieldStatus(input, status) {
+            const colors = {
+                '': 'var(--border)',
+                'valid': 'var(--nexus-cyan)',
+                'error': '#ff4444'
+            };
+            input.style.setProperty('--input-border', colors[status] || colors['']);
+            input.style.borderColor = colors[status] || colors[''];
+        }
+
+        // Input event listeners for real-time validation feedback
+        const usernameInput = document.getElementById('auth-username');
+        const passwordInput = document.getElementById('auth-password');
+        const confirmInput = document.getElementById('auth-confirm-password');
+
+        usernameInput.addEventListener('input', () => {
+            const value = usernameInput.value.trim();
+            const feedback = document.getElementById('username-feedback');
+
+            if (!value) {
+                setFieldStatus(usernameInput, '');
+                feedback.textContent = '';
+                feedback.style.opacity = '0';
+            } else if (value.length < 3) {
+                setFieldStatus(usernameInput, 'error');
+                feedback.textContent = 'Min 3 characters';
+                feedback.style.opacity = '1';
+            } else if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
+                setFieldStatus(usernameInput, 'error');
+                feedback.textContent = 'Use letters, numbers, _, - only';
+                feedback.style.opacity = '1';
+            } else {
+                setFieldStatus(usernameInput, 'valid');
+                feedback.textContent = '✓ Available';
+                feedback.style.opacity = '1';
+                feedback.style.color = 'var(--nexus-cyan)';
+            }
+        });
+
+        passwordInput.addEventListener('input', () => {
+            const value = passwordInput.value;
+            const feedback = document.getElementById('password-feedback');
+
+            if (!value) {
+                setFieldStatus(passwordInput, '');
+                feedback.textContent = '';
+                feedback.style.opacity = '0';
+            } else if (value.length < 6) {
+                setFieldStatus(passwordInput, 'error');
+                feedback.textContent = `Too short (${value.length}/6)`;
+                feedback.style.opacity = '1';
+            } else {
+                setFieldStatus(passwordInput, 'valid');
+                feedback.textContent = '✓ Strong enough';
+                feedback.style.opacity = '1';
+                feedback.style.color = 'var(--nexus-cyan)';
+            }
+        });
+
+        confirmInput.addEventListener('input', () => {
+            const value = confirmInput.value;
+            const password = passwordInput.value;
+            const feedback = document.getElementById('confirm-feedback');
+
+            if (!value) {
+                setFieldStatus(confirmInput, '');
+                feedback.textContent = '';
+                feedback.style.opacity = '0';
+            } else if (value !== password) {
+                setFieldStatus(confirmInput, 'error');
+                feedback.textContent = 'Passwords don\'t match';
+                feedback.style.opacity = '1';
+            } else {
+                setFieldStatus(confirmInput, 'valid');
+                feedback.textContent = '✓ Match';
+                feedback.style.opacity = '1';
+                feedback.style.color = 'var(--nexus-cyan)';
+            }
+        });
+
+        // Clear validation status on input for all fields
+        usernameInput.addEventListener('input', hideError);
+        passwordInput.addEventListener('input', hideError);
+        confirmInput.addEventListener('input', hideError);
+
+        // Session recovery check
         document.addEventListener('DOMContentLoaded', () => {
             const savedUser = sessionStorage.getItem('playnexus_user');
             if (savedUser) {
-                // Kill intro systems
-                const auth = document.getElementById('crystal-auth-portal');
-                const hub = document.getElementById('master-hub-container');
-                const canvas = document.getElementById('cinematic-bg');
-                const bloom = document.getElementById('logo-bloom');
-
-                if (auth) auth.remove();
-                if (bloom) bloom.remove();
-                // 🌌 We explicitly purposely DO NOT remove the canvas. We leave it running permanently to provide the PlayStation 5 cinematic stars behind the main hub. ROOM FOR STARS.
-
-                // Restore Identity
-                document.getElementById('display-username').innerText = savedUser;
-                const avatar = sessionStorage.getItem('playnexus_avatar');
-                if (avatar) document.getElementById('user-avatar').src = avatar;
-
-                // Show Hub immediately
-                hub.classList.remove('hidden');
-                hub.style.opacity = '1';
-
-                // Init physics instantly
-                setTimeout(() => { if (window.startGravity) window.startGravity(); }, 100);
+                // Directly transition to hub with saved session
+                completeAuthentication(savedUser);
             }
         });
 
-        // 🌗 Theme Toggle
-        (function() {
+        // 🌗 Theme Toggle (kept separate for modularity)
+        (function initThemeToggle() {
             const themeToggle = document.getElementById('theme-toggle');
             const savedTheme = localStorage.getItem('playnexus_theme') || 'dark';
             if (savedTheme === 'light') {

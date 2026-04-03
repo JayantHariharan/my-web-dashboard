@@ -10,7 +10,16 @@
         .header { background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; padding:40px 20px; text-align:center; }
         .header h1 { font-size:2.5em; margin-bottom:10px; font-weight:700; }
         .header p { font-size:1.2em; opacity:0.9; max-width:800px; margin:0 auto; }
-        .container { max-width:1200px; margin:0 auto; padding:40px 20px; }
+        .container { max-width:1200px; margin:0 auto; padding:40px 20px; display:flex; gap:30px; }
+        .sidebar { position:sticky; top:20px; width:250px; flex-shrink:0; }
+        .sidebar nav { background:white; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); padding:20px; }
+        .sidebar h3 { font-size:1em; color:#667eea; margin-bottom:15px; text-transform:uppercase; letter-spacing:1px; }
+        .sidebar ul { list-style:none; }
+        .sidebar li { margin-bottom:8px; }
+        .sidebar a { color:#555; text-decoration:none; display:block; padding:6px 10px; border-radius:4px; transition:all 0.2s; }
+        .sidebar a:hover { background:#e3f2fd; color:#1976d2; }
+        .sidebar a.active { background:#667eea; color:white; }
+        .main-content { flex:1; min-width:0; }
         .info-box { background:#e3f2fd; border-left:4px solid #2196f3; padding:20px; margin-bottom:30px; border-radius:0 8px 8px 0; }
         .info-box strong { color:#1976d2; }
         .endpoint { background:white; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); margin-bottom:25px; overflow:hidden; }
@@ -35,6 +44,8 @@
         ul { margin-left:20px; margin-bottom:15px; }
         .footer { text-align:center; padding:30px; color:#666; font-size:0.9em; }
         @media (max-width:768px) {
+            .container { flex-direction:column; }
+            .sidebar { width:100%; position:static; }
             .endpoint-header { flex-direction:column; align-items:flex-start; gap:10px; }
             .path { font-size:1em; }
         }
@@ -45,21 +56,51 @@
         <h1>PlayNexus API</h1>
         <p>Multi-App Platform – Complete Reference</p>
         <p style="margin-top:20px;font-size:0.9em;">
-            Base URL: <code style="background:rgba(255,255,255,0.2);padding:4px 8px;border-radius:4px;">http://localhost:8000</code> (dev) |
-            <code style="background:rgba(255,255,255,0.2);padding:4px 8px;border-radius:4px;">https://your-app.onrender.com</code> (prod)
+            <strong>Base URLs:</strong><br>
+            <code style="background:rgba(255,255,255,0.2);padding:4px 8px;border-radius:4px;">http://localhost:8000</code> (local dev) |
+            <code style="background:rgba(255,255,255,0.2);padding:4px 8px;border-radius:4px;">https://playnexus-test.onrender.com</code> (staging) |
+            <code style="background:rgba(255,255,255,0.2);padding:4px 8px;border-radius:4px;">https://playnexus.onrender.com</code> (production)
         </p>
     </div>
 
     <div class="container">
         <div class="info-box">
             <strong>⚡ Quick Links:</strong>
-            Interactive Swagger docs available at <code>/docs</code> (when server running) |
-            ReDoc at <code>/redoc</code> |
-            Raw OpenAPI schema at <code>/openapi.json</code>
+            Interactive Swagger docs at <code>/docs</code> | ReDoc at <code>/redoc</code> | OpenAPI JSON at <code>/openapi.json</code>
         </div>
 
+        <div class="sidebar">
+            <nav>
+                <h3>Navigation</h3>
+                <ul>
+                    <li><a href="#intro">Introduction</a></li>
+                    <li><a href="#auth-endpoints">Authentication</a></li>
+                    <li><a href="#login">POST /api/auth/login</a></li>
+                    <li><a href="#signup">POST /api/auth/signup</a></li>
+                    <li><a href="#me">GET /api/auth/me</a></li>
+                </ul>
+            </nav>
+        </div>
+
+        <div class="main-content">
+
+        <!-- Introduction -->
+        <section id="intro" style="margin-bottom:40px; padding:20px; background:white; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+            <h2 style="color:#667eea; margin-bottom:15px;">Introduction</h2>
+            <p>The PlayNexus API is a RESTful JSON API built with FastAPI. All requests must include appropriate <code>Content-Type: application/json</code> headers for POST/PUT requests.</p>
+            <p>Authentication is required for most endpoints. Use the <code>/api/auth/login</code> or <code>/api/auth/signup</code> endpoints to obtain a session.</p>
+            <h3 style="margin-top:20px;">Base URL</h3>
+            <ul>
+                <li><strong>Local Development:</strong> <code>http://localhost:8000</code></li>
+                <li><strong>Staging:</strong> <code>https://playnexus-test.onrender.com</code></li>
+                <li><strong>Production:</strong> <code>https://playnexus.onrender.com</code></li>
+            </ul>
+            <h3>Rate Limiting</h3>
+            <p>Authentication endpoints are limited to <strong>20 requests per hour per IP address</strong> to prevent abuse.</p>
+        </section>
+
         <!-- Auth: Login -->
-        <div class="endpoint">
+        <div id="login" class="endpoint">
             <div class="endpoint-header">
                 <span class="method post">POST</span>
                 <span class="path">/api/auth/login</span>
@@ -113,8 +154,10 @@
             </div>
         </div>
 
+        <h2 id="auth-endpoints" style="color:#667eea; margin:40px 0 20px 0; padding-bottom:10px; border-bottom:2px solid #667eea;">Authentication Endpoints</h2>
+
         <!-- Auth: Signup -->
-        <div class="endpoint">
+        <div id="signup" class="endpoint">
             <div class="endpoint-header">
                 <span class="method post">POST</span>
                 <span class="path">/api/auth/signup</span>
@@ -163,7 +206,7 @@
         </div>
 
         <!-- Auth: Get Current User -->
-        <div class="endpoint">
+        <div id="me" class="endpoint">
             <div class="endpoint-header">
                 <span class="method get">GET</span>
                 <span class="path">/api/auth/me</span>
@@ -650,8 +693,9 @@ curl "http://localhost:8000/api/games/tic-tac-toe/leaderboard?limit=10"</code></
                 <pre><code>curl http://localhost:8000/health</code></pre>
             </div>
         </div>
+        </div> <!-- close .main-content -->
 
-    </div>
+    </div> <!-- close .container -->
 
     <div class="footer">
         <p><strong>PlayNexus API</strong> v1.0.0 – Multi-App Platform</p>

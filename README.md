@@ -1,6 +1,6 @@
 # PlayNexus Auth
 
-> **Authentication-Only Backend** – Secure, minimal API for user management with automated CI/CD.
+> **Authentication-Only Backend** – Secure, minimal API with automated CI/CD and quality checks.
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://python.org)
@@ -14,10 +14,10 @@
 
 - 🔐 **Secure authentication** – bcrypt + pepper, rate limiting, IP audit logging
 - 🚀 **Automated CI/CD** – GitHub Actions → Render deployment (staging + production)
-- 🗄️ **Versioned migrations** – Flyway-style SQL scripts (auto-applied)
+- 🗄️ **Versioned migrations** – SQL-based migrations via Python script
 - 📱 **Static frontend** – Cinematic UI with Matter.js physics (served by backend)
-- ⚡ **Simplified architecture** – Auth-only, no unnecessary complexity
-- 🔒 **Production-ready** – Branch protection, smoke tests, health checks
+- ⚡ **Simplified architecture** – Auth-only backend, focused and maintainable
+- 🔒 **Production-ready** – Branch protection, smoke tests, health checks, concurrency control
 
 ---
 
@@ -25,8 +25,11 @@
 
 | Document | Description |
 |----------|-------------|
+| [DEVELOPER.md](docs/DEVELOPER.md) | Claude Code integration, development workflow, git hooks |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design, modular architecture, security |
-| [FLYWOW.md](docs/FLYWAY.md) | Database migrations guide |
+| [FLYWAY.md](docs/FLYWAY.md) | Database migrations guide (Flyway-based) |
+| [MIGRATIONS.md](docs/MIGRATIONS.md) | Migration philosophy & best practices |
+| [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions |
 | [API-REFERENCE.html](docs/API-REFERENCE.html) | **Static HTML API reference** (offline-capable) |
 
 **Interactive API docs** (when server running):
@@ -88,20 +91,6 @@ curl -X POST http://localhost:8000/api/auth/login \
 # Get current user
 curl "http://localhost:8000/api/auth/me?username=test"
 
-# List apps
-curl http://localhost:8000/api/apps/
-
-# List games
-curl http://localhost:8000/api/games/
-
-# Submit score
-curl -X POST "http://localhost:8000/api/games/tic-tac-toe/scores?username=test" \
-  -H "Content-Type: application/json" \
-  -d '{"score":1500,"metadata":{"won":true}}'
-
-# Get leaderboard
-curl "http://localhost:8000/api/games/tic-tac-toe/leaderboard?limit=10"
-
 # Health check
 curl http://localhost:8000/health
 ```
@@ -117,7 +106,7 @@ curl http://localhost:8000/health
 
 ```
 main        – production (auto-deploys on merge)
-  └─ develop  – staging/Test (auto-deploys on push)
+  └─ develop  – staging (auto-deploys on push)
        └─ feature/<name>  – feature branches (short-lived)
 ```
 
@@ -125,7 +114,7 @@ main        – production (auto-deploys on merge)
 
 1. **Development**: Create feature branches from `develop`
 2. **Staging**: Push to `develop` → auto-deploys to **staging** environment
-3. **Testing**: Test features in staging (https://your-app.onrender.com)
+3. **Testing**: Test features in staging (https://playnexus-test.onrender.com)
 4. **Production**: Create PR from `develop` → `main`, merge → auto-deploys to **production**
 
 > **Note**: Direct pushes to `main` are blocked by branch protection. Only PR merges trigger production deployment.
@@ -138,6 +127,12 @@ main        – production (auto-deploys on merge)
 | Merge PR to `main` | main | ✅ Deploy to production |
 | Push to `main` | main | ❌ Blocked by branch protection |
 | PR to `main` | any → main | ✅ Run quality checks only |
+
+### CI/CD Workflows
+
+- **`.github/workflows/quality.yml`** – Code quality, security scans, smoke tests
+- **`.github/workflows/flyway-migrate.yml`** – Database migrations (reusable)
+- **`.github/workflows/deploy.yml`** – Deployment orchestration with monitoring
 
 ---
 
@@ -170,31 +165,22 @@ This ensures:
 
 The CI/CD pipeline (in `.github/workflows/deploy.yml`) automatically:
 
-1. **On push to `develop`**:
-   - Sets `APP_ENV=test`
-   - Uses `RENDER_SERVICE_ID_TEST` (or `RENDER_SERVICE_ID` if using single service)
-   - Deploys to Render staging service
-   - Runs smoke tests
-   - Access staging at: `https://your-staging-service.onrender.com`
+1. **Precheck** – validates secrets and database connectivity
+2. **Migrate database** – applies Flyway migrations via `scripts/migrate.py` (reusable workflow)
+3. **Deploy** – triggers Render deployment, monitors for up to 60 minutes, runs health checks
+4. **Smoke test** – verifies frontend loads, takes screenshot for debugging
 
-2. **On merge to `main`**:
-   - Sets `APP_ENV=production`
-   - Uses `RENDER_SERVICE_ID_PROD` (or `RENDER_SERVICE_ID`)
-   - Deploys to Render production service
-   - Runs smoke tests
-   - Access production at: `https://your-prod-service.onrender.com`
+**On push to `develop`**:
+- Sets `APP_ENV=test`
+- Uses `RENDER_SERVICE_ID_TEST` (or `RENDER_SERVICE_ID`)
+- Deploys to staging
+- Smoke test falls back to `https://playnexus-test.onrender.com` if `SITE_URL` not provided
 
-### Environment Groups (Optional)
-
-Render Environment Groups allow you to:
-- Share environment variables across multiple services
-- Have consistent staging/production configs
-- Switch services between groups easily
-
-**If using Environment Groups**:
-- Set `RENDER_ENV_GROUP_ID` (production) and `RENDER_ENV_GROUP_ID_TEST` (staging) secrets
-- The workflow auto-associates your service with the correct group
-- If not set, the workflow continues normally (no association)
+**On merge to `main`**:
+- Sets `APP_ENV=production`
+- Uses `RENDER_SERVICE_ID_PROD` (or `RENDER_SERVICE_ID`)
+- Deploys to production
+- Smoke test uses `https://playnexus.onrender.com` as fallback
 
 ### Render Service Setup
 
@@ -207,13 +193,13 @@ You need **one or two Render services**:
 
 | Environment | Service Name | Branch | Render Variables |
 |-------------|--------------|--------|------------------|
-| Staging | `playnexus-staging` | develop | `APP_ENV=test` |
+| Staging | `playnexus-test` | develop | `APP_ENV=test` |
 | Production | `playnexus` | main | `APP_ENV=production` |
 
 **Configure each service**:
-- Disable "Auto-Deploy" (set to Manual)
+- Disable "Auto-Deploy" (set to Manual) – GitHub Actions triggers deploys
 - Add environment variables (see below)
-- The GitHub Actions workflow will trigger deploys via Render API
+- Health checks enabled (target: `/health` and `/api/auth/login`)
 
 ---
 
@@ -246,12 +232,10 @@ Add these secrets in: **Settings** → **Secrets and variables** → **Actions**
 **Staging secrets**:
 - `RENDER_API_KEY_TEST` - Render API key (same key can be used for both)
 - `RENDER_SERVICE_ID_TEST` - Staging service ID (e.g., `srv-staging-xxx`)
-- `RENDER_ENV_GROUP_ID_TEST` - (Optional) Environment Group ID for staging
 
 **Production secrets**:
 - `RENDER_API_KEY` - Render API key
 - `RENDER_SERVICE_ID_PROD` - Production service ID (e.g., `srv-prod-xxx`)
-- `RENDER_ENV_GROUP_ID_PROD` - (Optional) Environment Group ID for production
 
 ### Option B: Single Service
 
@@ -260,7 +244,6 @@ If using the same Render service for both staging and production (switching only
 **Both branches use the same service**:
 - `RENDER_API_KEY` - Render API key
 - `RENDER_SERVICE_ID` - Service ID (same for staging and production)
-- `RENDER_ENV_GROUP_ID` - (Optional) Environment Group ID (if used)
 
 The workflow will:
 - On `develop`: Use `RENDER_SERVICE_ID` and set `APP_ENV=test`
@@ -316,18 +299,19 @@ The workflow will:
 
 ## 🐛 Troubleshooting
 
-See the full troubleshooting guide in `docs/CI-CD-SETUP.md`.
+See the full troubleshooting guide in `docs/TROUBLESHOOTING.md`.
 
 Common issues:
 - Missing GitHub secrets → Validate in workflow step "Validate secrets"
-- Environment group association failure → Not critical, will continue
-- Health check failure → Check Render environment variables, database connection
-- Smoke test failure → Verify frontend built correctly, Playwright dependencies
+- Database connection fails → Verify PostgreSQL variables, network access
+- Migration failure → Check SQL syntax, constraints (see `docs/MIGRATIONS.md`)
+- Health check failure → Check Render environment variables, database
+- Smoke test failure → Verify Playwright deps installed, frontend accessible
 - Deployment timeout → Check Render build queue, cancel stuck deploys
 
 ---
 
-**Last updated**: 2025-03-30
+**Last updated**: 2026-04-03
 
 ---
 
@@ -366,17 +350,18 @@ Production deployment is **fully automated** via GitHub Actions to Render.
    **For Production** (main branch):
    - `RENDER_API_KEY` (from Render Account → API Keys)
    - `RENDER_SERVICE_ID_PROD` (from Render service URL: srv-xxx)
-   - `RENDER_ENV_GROUP_ID_PROD` (from Render Environment Groups: evm-xxx)
 
    **For Test/Development** (develop branch):
    - `RENDER_API_KEY_TEST` (API key from a separate Render account or same account)
    - `RENDER_SERVICE_ID_TEST` (service ID for test service)
-   - `RENDER_ENV_GROUP_ID_TEST` (environment group ID for TEST group)
 
 5. **Disable Auto-Deploy on Render** (set to Manual)
    - GitHub Actions will trigger deploys manually
 
-6. **Push to main** → First deployment starts automatically
+6. **Initial deployment**:
+   - Push to `develop` branch → triggers staging deployment
+   - Create PR from `develop` → `main`, merge → triggers production deployment
+   - (Direct pushes to `main` are blocked by branch protection)
 
 ---
 
@@ -384,21 +369,21 @@ Production deployment is **fully automated** via GitHub Actions to Render.
 
 ### Rate Limits
 
-Rate limits are per IP address and vary by app category:
+Rate limits are per IP address:
 
 | Category | Endpoints | Limit | Block |
 |----------|-----------|-------|-------|
 | Auth | `/api/auth/*` | 20/hr | 15min |
-| Games | `/api/games/*` | 100/hr | 10min |
-| Apps | `/apps/*` | 200/hr | 10min |
 | Health | `/health` | Unlimited | - |
+
+*Note: Multi-app endpoints (games, apps) are currently disabled as the system focuses on authentication-only.*
 
 ### Database
 
 - **Development**: SQLite (`sqlite:///./data/playnexus.db`) – no setup needed
 - **Production**: PostgreSQL (recommended: Supabase or Render PostgreSQL)
 
-Migrations are auto-applied on startup via `migrator.py` (also run in CI before deploy).
+Migrations are applied via GitHub Actions using Python script (see `flyway-migrate.yml` workflow). Locally, SQLite auto-creates the schema; for PostgreSQL, run `python scripts/migrate.py` manually or deploy via CI.
 
 ### Environment Variables
 
@@ -414,6 +399,7 @@ All configuration is via environment variables (set in Render environment groups
 | `PGPASSWORD` | Yes* | Database password |
 | `PGDATABASE` | Yes* | Database name |
 | `DATABASE_URL` | Alternative | Full connection string (overrides PG*) |
+| `DB_SCHEMA` | No | PostgreSQL schema name (default: `public`). Useful for custom schemas like `playnexus`. |
 
 #### Application
 
@@ -436,18 +422,19 @@ my-web-dashboard/
 │   ├── backend/          # Auth-only FastAPI application
 │   │   ├── shared/       # Database, security, schemas, exceptions
 │   │   ├── auth/         # Authentication module
-│   │   ├── core/         # App factory, middlewares, migrator
+│   │   ├── core/         # App factory, middlewares
 │   │   └── main.py       # Entry point
 │   └── frontend/         # Static HTML/CSS/JS (served by backend)
 ├── docs/                 # Documentation
+│   ├── DEVELOPER.md      # Claude Code guidance, development workflow
 │   ├── ARCHITECTURE.md   # Architecture deep-dive
 │   ├── FLYWAY.md        # Migration guide
+│   ├── MIGRATIONS.md    # Migration philosophy & best practices
 │   └── API-REFERENCE.html  # Static API reference
 ├── flyway/sql/           # Database migrations (V1-V2)
 ├── tests/                # Smoke tests (Playwright)
 ├── .github/workflows/    # CI/CD pipeline
 ├── README.md             # This file
-├── CLAUDE.md             # Claude Code guidance
 ├── requirements.txt      # Python dependencies
 ├── runtime.txt          # Python version (3.12)
 └── .env.example         # Environment template
@@ -491,43 +478,37 @@ Run with `pytest tests/`.
 
 ## 🛠️ Development
 
-### Adding a New App
+### Extending the System
 
-1. **Backend**: Create module in `src/backend/apps/` or new category
-   - Add `router.py` with endpoints
-   - Register app in `app_registry` table (new migration or admin API)
-
-2. **Frontend**: Create page in `src/frontend/app/`
-   - `myapp.html` + `js/myapp.js`
-   - Link from hub grid (auto-fetched from `/api/apps`)
-
-3. **Documentation**: Update API docs (Swagger automatically picks up endpoints)
-
-4. **Rate Limit**: Choose appropriate limiter (auth/games/apps) or create new
+**Note**: Multi-app features (apps, games, social) are currently on hold. The system is intentionally simplified to authentication-only. If adding multi-app support in the future, refer to `docs/DEVELOPER.md` for migration guidance.
 
 ### Code Quality
 
-Pre-commit hooks enforce:
+The project uses **comprehensive quality checks** via git hooks:
+
+**Pre-commit hooks** (automatic on `git commit`):
 - Python syntax check
-- Flake8 linting (critical errors)
-- Secret scanning (no leaked credentials)
-- Auto-update doc timestamps
+- Hardcoded secrets detection (fast pattern match)
+- Check for TODO/FIXME comments in staged files
+- Workflow validation (YAML syntax, concurrency, artifact retention)
+- Auto-update documentation timestamps
 
-Pre-push hooks run full suite:
+**Pre-push hooks** (automatic on `git push`):
 - All pre-commit checks
-- MyPy type checking
-- Bandit security scan
-- Black code formatting check
-- Smoke test (if backend running)
+- Branch up-to-date validation (feature branches)
+- Comprehensive manual quality scan (`./scripts/run-quality-checks.sh`)
+- Optional smoke test (if backend accessible)
 
-Run manually:
+**Manual quality checks**:
 ```bash
-# Individual checks
-flake8 src/backend/main.py --count --select=E9,F63,F7,F82 --show-source --statistics
-mypy src/backend/main.py
-black --check src/backend/
-bandit -r src/backend/
+# Run comprehensive quality & security checks
+./scripts/run-quality-checks.sh
+
+# Individual Python check
+python -m py_compile src/backend/main.py  # syntax check
 ```
+
+See `docs/DEVELOPER.md` for complete details on git hooks and development workflow.
 
 ---
 
@@ -552,7 +533,7 @@ bandit -r src/backend/
 
 ## 🎮 Future: Re-adding Multi-App Support
 
-If multi-app functionality (apps, games) is needed later, refer to `CLAUDE.md` "Extending the System" section for migration guidance.
+If multi-app functionality (apps, games) is needed later, refer to `docs/DEVELOPER.md` "Extending the System" section for migration guidance.
 
 ---
 
@@ -560,7 +541,7 @@ If multi-app functionality (apps, games) is needed later, refer to `CLAUDE.md` "
 
 ## 🤝 Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [docs/DEVELOPER.md](docs/DEVELOPER.md) for development guidelines, git hooks, and Claude Code integration.
 
 ---
 
@@ -580,4 +561,4 @@ Built with ❤️ using:
 
 ---
 
-**Last updated**: 2025-03-30
+**Last updated**: 2026-04-03
