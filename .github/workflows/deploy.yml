@@ -9,6 +9,9 @@ concurrency:
   group: deploy-${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
   cancel-in-progress: true
 
+permissions:
+  contents: read  # Checkout repository
+
 jobs:
   precheck:
     runs-on: ubuntu-latest

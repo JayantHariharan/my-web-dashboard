@@ -28,6 +28,9 @@ concurrency:
   group: migrate-${{ inputs.environment }}
   cancel-in-progress: true
 
+permissions:
+  contents: read  # Checkout repository
+
 jobs:
   migrate:
     runs-on: ubuntu-latest
