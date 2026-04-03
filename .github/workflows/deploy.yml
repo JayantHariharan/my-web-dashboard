@@ -349,17 +349,13 @@ jobs:
       - name: Smoke test
         if: success()
         env:
-          SITE_URL: ${{ steps.get-url.outputs.service_url }}
           APP_ENV: ${{ needs.precheck.outputs.environment }}
         run: |
-          # If SITE_URL is empty or null, use environment-specific fallback
-          if [ -z "$SITE_URL" ] || [ "$SITE_URL" = "null" ]; then
-            echo "SITE_URL not available, using fallback based on APP_ENV=$APP_ENV"
-            if [ "$APP_ENV" = "production" ] || [ "$APP_ENV" = "prod" ]; then
-              SITE_URL="https://playnexus.onrender.com"
-            else
-              SITE_URL="https://playnexus-test.onrender.com"
-            fi
+          # Determine site URL based purely on branch (no Render API call)
+          if [ "$APP_ENV" = "production" ] || [ "$APP_ENV" = "prod" ]; then
+            SITE_URL="https://playnexus.onrender.com"
+          else
+            SITE_URL="https://playnexus-test.onrender.com"
           fi
           echo "Running smoke test on: $SITE_URL"
           SITE_URL="$SITE_URL" node tests/smoke.test.js

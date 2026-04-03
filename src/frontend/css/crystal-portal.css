@@ -443,3 +443,69 @@ h3 {
 .featured-item-hero:active {
   transform: scale(0.98);
 }
+
+/* 📱 Responsive Adjustments */
+@media (max-width: 600px) {
+  .crystal-auth-card {
+    padding: 30px 24px;
+    max-width: 100%;
+  }
+
+  .hero-login-container {
+    padding: 20px;
+  }
+
+  .system-categories-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+    padding: 0 15px;
+  }
+
+  .sys-category-card {
+    aspect-ratio: 16/9;
+    min-height: 120px;
+  }
+
+  .sys-category-title {
+    font-size: 1.2rem;
+  }
+}
+
+/* Smooth theme transitions */
+.crystal-auth-card,
+.hub-dark-theme,
+.hub-dark-theme::before {
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+/* Light Theme Overrides for Auth Portal */
+.light-theme .crystal-auth-card {
+  --crystal-bg: rgba(255, 255, 255, 0.8);
+  --crystal-border: rgba(0, 0, 0, 0.15);
+  background: var(--crystal-bg);
+  border-color: var(--crystal-border);
+}
+
+.light-theme .floating-input {
+  background: rgba(255, 255, 255, 0.9);
+  color: #333;
+  border-color: var(--crystal-border);
+}
+
+.light-theme .floating-input::placeholder {
+  color: rgba(0, 0, 0, 0.4);
+}
+
+.light-theme .floating-input:focus {
+  background: #fff;
+  border-color: var(--nexus-cyan);
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.2);
+}
+
+.light-theme .password-toggle-btn {
+  color: rgba(0, 0, 0, 0.6);
+}
+
+.light-theme .password-toggle-btn:hover {
+  color: rgba(0, 0, 0, 0.9);
+}
