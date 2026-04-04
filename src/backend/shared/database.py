@@ -26,6 +26,28 @@ class ConnectionError(DatabaseError):
     pass
 
 
+# Global Pool for PostgreSQL (Singleton-like)
+_pg_pool = None
+
+
+def get_pg_pool():
+    """Retrieve or initialize the PostgreSQL connection pool."""
+    global _pg_pool
+    if settings.database.is_postgres and _pg_pool is None:
+        from psycopg2.pool import SimpleConnectionPool
+        try:
+            logger.info(f"Initializing PG Pool (size={settings.database.pool_size})")
+            _pg_pool = SimpleConnectionPool(
+                1,  # minconn
+                settings.database.pool_size,  # maxconn
+                settings.database.url
+            )
+        except Exception as e:
+            logger.error(f"Failed to initialize PG Pool: {e}")
+            # Fallback will occur in get_connection if pool fails
+    return _pg_pool
+
+
 def configure_sqlite_connection(conn: sqlite3.Connection) -> sqlite3.Connection:
     """Apply SQLite pragmas that are safer for this local runtime environment."""
     conn.execute("PRAGMA foreign_keys = ON")
@@ -51,7 +73,13 @@ def get_connection(is_postgres: bool, db_url: str, schema: str = "public"):
             import psycopg2
             from psycopg2.extras import RealDictCursor
 
-            conn = psycopg2.connect(db_url)
+            pool = get_pg_pool()
+            if pool:
+                conn = pool.getconn()
+                conn._pool = pool
+            else:
+                import psycopg2
+                conn = psycopg2.connect(db_url)
             conn.cursor_factory = RealDictCursor
             # Set search_path to use custom schema (falls back to public)
             conn.cursor().execute(f"SET search_path TO {schema}, public")
@@ -106,7 +134,11 @@ class BaseRepository:
         finally:
             if cursor:
                 cursor.close()
-            conn.close()
+            if conn:
+                if self._is_postgres and hasattr(conn, '_pool'):
+                    conn._pool.putconn(conn)
+                else:
+                    conn.close()
 
     def get_all(self) -> List[Dict[str, Any]]:
         """Retrieve all records from the table."""
@@ -371,7 +403,11 @@ class UserRepository(BaseRepository):
             if not users:
                 logger.info("No plain-text passwords found.")
                 cursor.close()
-                conn.close()
+                if conn:
+                if self._is_postgres and hasattr(conn, '_pool'):
+                    conn._pool.putconn(conn)
+                else:
+                    conn.close()
                 return 0
 
             logger.warning(f"Found {len(users)} plain-text passwords. Migrating...")
@@ -391,7 +427,11 @@ class UserRepository(BaseRepository):
             conn.commit()
             logger.info(f"Migration complete: {migrated_count} updated.")
             cursor.close()
-            conn.close()
+            if conn:
+                if self._is_postgres and hasattr(conn, '_pool'):
+                    conn._pool.putconn(conn)
+                else:
+                    conn.close()
             return migrated_count
         except Exception as e:
             if conn:
