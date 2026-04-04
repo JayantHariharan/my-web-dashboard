@@ -26,6 +26,15 @@ class ConnectionError(DatabaseError):
     pass
 
 
+def configure_sqlite_connection(conn: sqlite3.Connection) -> sqlite3.Connection:
+    """Apply SQLite pragmas that are safer for this local runtime environment."""
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = MEMORY")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA temp_store = MEMORY")
+    return conn
+
+
 def get_connection(is_postgres: bool, db_url: str, schema: str = "public"):
     """
     Get a raw database connection.
@@ -51,8 +60,7 @@ def get_connection(is_postgres: bool, db_url: str, schema: str = "public"):
             # SQLite connection
             db_path = db_url.replace("sqlite:///", "")
             conn = sqlite3.connect(db_path)
-            conn.execute("PRAGMA foreign_keys = ON")
-            return conn
+            return configure_sqlite_connection(conn)
     except Exception as e:
         logger.error(f"Failed to connect to database: {e}")
         raise ConnectionError(f"Database connection failed: {e}") from e
@@ -69,6 +77,10 @@ class BaseRepository:
 
     def _get_connection(self):
         """Get a database connection."""
+        # Keep repository handles aligned with any runtime recovery that repoints
+        # the active local SQLite database.
+        self._db_url = settings.database.url
+        self._db_schema = settings.database.db_schema
         return get_connection(self._is_postgres, self._db_url, self._db_schema)
 
     @contextmanager

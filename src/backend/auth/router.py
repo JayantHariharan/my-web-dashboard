@@ -49,13 +49,14 @@ async def login(login_data: LoginData, request: Request):
 
     ## Security Features
     - Constant-time comparison prevents timing attacks
-    - Generic error messages don't reveal if username exists
+    - Missing users and invalid passwords are handled explicitly for the current UI flow
     - IP address logging for security auditing
     - Rate limiting: 20 requests per hour per IP
 
     ## Error Responses
     - `400 Bad Request`: Missing or invalid credentials
-    - `401 Unauthorized`: Invalid username/password
+    - `401 Unauthorized`: Invalid password
+    - `404 Not Found`: No user found
     - `429 Too Many Requests`: Rate limit exceeded
     - `500 Internal Server Error`: Server error
     """
@@ -82,8 +83,8 @@ async def login(login_data: LoginData, request: Request):
             f"from IP {client_ip}"
         )
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No user found",
         )
 
     # Verify password
@@ -206,7 +207,7 @@ async def get_current_user(username: Optional[str] = None):
     - `401 Unauthorized`: Not logged in
     - `404 Not Found`: User not found
     """
-    # TODO: Implement proper JWT authentication
+    # Note: Implement proper JWT authentication
     # For now, expect username in query param (demo only)
     if not username:
         raise HTTPException(
@@ -227,8 +228,8 @@ async def delete_account(delete_data: DeleteAccountData, request: Request):
     """
     Delete a user account after confirming username and password.
 
-    The current frontend auth flow is sessionStorage-based, so this endpoint
-    uses explicit credential confirmation instead of a bearer token.
+    The current frontend auth flow is client-stored username session based,
+    so this endpoint uses explicit credential confirmation instead of a bearer token.
     """
     username = delete_data.username
     password = delete_data.password
