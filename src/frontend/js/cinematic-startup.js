@@ -170,8 +170,9 @@ const CinematicGateway = {
         
         if (auth) {
             auth.classList.remove('hidden');
-            auth.classList.add('fade-in');
+            auth.style.transition = 'opacity 1.5s ease-out, transform 1.5s cubic-bezier(0.19, 1, 0.22, 1)';
             auth.style.opacity = '1';
+            auth.style.transform = 'scale(1)';
         }
 
         if (logo) {

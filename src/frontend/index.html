@@ -1664,7 +1664,7 @@
             }
         }
 
-        function showAuthPortal() {
+        function showAuthPortal(immediate = true) {
             const hub = document.getElementById('master-hub-container');
 
             if (window.PlayNexus && window.PlayNexus.stopPhysics) {
@@ -1684,15 +1684,22 @@
                 authPortalSection.style.display = 'block';
             }
             if (authPortalCard) {
-                authPortalCard.style.opacity = '1';
-                authPortalCard.style.transform = 'scale(1)';
+                if (immediate) {
+                    authPortalCard.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+                    authPortalCard.style.opacity = '1';
+                    authPortalCard.style.transform = 'scale(1)';
+                } else {
+                    authPortalCard.style.transition = 'none';
+                    authPortalCard.style.opacity = '0';
+                    authPortalCard.style.transform = 'scale(0.95)';
+                }
             }
         }
 
         async function restorePersistedSession() {
             const savedSession = getStoredAuthSession();
             if (!savedSession || !savedSession.username) {
-                showAuthPortal();
+                showAuthPortal(false); // Delay animation so cinematic-startup handles it
                 return;
             }
 
