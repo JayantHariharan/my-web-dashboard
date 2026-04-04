@@ -79,9 +79,10 @@ Only the auth experience is the active engineering priority right now. The other
 3. Login with a non-existent username returns `404 No user found`.
 4. Login with a wrong password returns `401 Invalid username or password`.
 5. On success, the frontend stores a lightweight client session in `sessionStorage` and mirrors it in `localStorage` for restore.
-6. The UI transitions from the auth portal into the hub view without needing a full page reload.
-7. On reload, the frontend restores the saved session immediately and validates it against `GET /api/auth/me` when the backend is reachable.
+6. The UI transitions from the auth portal into the hub view with a **creative ticket animation** (Identity Verified) and a scanning line effect.
+7. The hub view is revealed after a short transition, and the frontend restores the saved session automatically upon page reload.
 8. Account deletion is credential-confirmed via `DELETE /api/auth/account`.
+9. **Deletion Flow**: After successful deletion, the UI shows a success state with a 3-second countdown before redirecting the user back to the login state.
 
 ## Database Notes
 
@@ -89,6 +90,7 @@ Only the auth experience is the active engineering priority right now. The other
 - If the primary local SQLite file is unhealthy, startup now recovers to `data/playnexus-recovered.db` so auth can still boot.
 - Hosted environments can use PostgreSQL via `DATABASE_URL` or `PG*` variables.
 - Table names may gain `_test` or `_prod` suffixes depending on `ENV` or `APP_ENV`.
+- **Planned Optimization**: For faster database lookups and uniqueness enforcement, consider using a deterministic hash of `username + password_salt` as the Primary Key (PK). This would allow for O(1) existence checks and simplify distributed key management if the system scales.
 
 ## Security Notes
 
