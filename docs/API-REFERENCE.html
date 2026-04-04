@@ -411,8 +411,8 @@
                     <ul class="flat-list">
                         <li>The frontend currently stores the active username in <code>sessionStorage</code>.</li>
                         <li><code>/api/auth/me</code> is a username-based lookup, not full token auth.</li>
-                        <li>Passwords are normalized with an HMAC-SHA256 step keyed by <code>SECRET_KEY</code> before adaptive hashing.</li>
-                        <li>The backend prefers <code>bcrypt</code> and falls back to <code>pbkdf2_sha256</code> if needed.</li>
+                        <li>Passwords are combined with <code>SECRET_KEY</code> and hashed with adaptive password schemes.</li>
+                        <li>The backend prefers <code>bcrypt_sha256</code>, then <code>bcrypt</code>, and falls back to <code>pbkdf2_sha256</code> if needed.</li>
                         <li>Keep <code>SECRET_KEY</code> stable per Render environment or existing account verification can break.</li>
                         <li>All auth endpoints share the same in-memory rate limiter.</li>
                     </ul>

@@ -119,5 +119,5 @@ After the auth foundation is stable, PlayNexus can grow back into a larger app h
 
 - The frontend currently keeps the active username in `sessionStorage`.
 - `GET /api/auth/me` is still a simple username-based lookup, not full token auth yet.
-- Passwords are normalized with an HMAC-SHA256 step keyed by `SECRET_KEY`, then hashed with `bcrypt` when available or `pbkdf2_sha256` as a fallback.
+- Passwords are combined with `SECRET_KEY` and hashed with adaptive password schemes, using `bcrypt_sha256` when available or `pbkdf2_sha256` as a fallback.
 - The static `docs/API-REFERENCE.html` file may lag behind the code and should be treated as secondary to the source code and the docs above.

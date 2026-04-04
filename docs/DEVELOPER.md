@@ -88,9 +88,9 @@ Only the auth experience is the active engineering priority right now. The other
 
 ## Security Notes
 
-- Passwords are first normalized with an HMAC-SHA256 digest keyed by `SECRET_KEY`, then hashed with an adaptive scheme.
-- The backend prefers `bcrypt` and falls back to `pbkdf2_sha256` if that backend is unavailable in the runtime.
-- The HMAC preprocessing avoids bcrypt's 72-byte input limit while keeping a server-side secret in the flow.
+- Passwords are combined with `SECRET_KEY` and hashed with adaptive password schemes.
+- The backend prefers `bcrypt_sha256`, then `bcrypt`, and falls back to `pbkdf2_sha256` if that backend is unavailable in the runtime.
+- `bcrypt_sha256` avoids bcrypt's 72-byte input limit without custom weak pre-hashing in application code.
 - Auth endpoints are rate limited in memory.
 - The current auth model is transitional and not token-based yet.
 - `SECRET_KEY` must be set in production-like environments such as Render.

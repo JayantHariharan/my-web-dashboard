@@ -133,7 +133,7 @@ Configuration is environment-driven.
 ### Current protections
 
 - adaptive password hashing with `bcrypt` preferred and `pbkdf2_sha256` fallback
-- fixed-length HMAC-SHA256 preprocessing keyed by `SECRET_KEY` before hashing
+- `SECRET_KEY`-peppered adaptive password hashing with `bcrypt_sha256` preferred
 - auth rate limiting by IP
 - request ID tracing
 - security headers
