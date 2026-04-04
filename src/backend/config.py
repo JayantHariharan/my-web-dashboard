@@ -51,6 +51,8 @@ class DatabaseConfig:
     is_postgres: bool
     table_suffix: str = ""  # Suffix for table names (e.g., "_test", "_prod")
     db_schema: str = "public"  # PostgreSQL schema (default: public). Ignored for SQLite.
+    pool_size: int = 5  # Recommended for Supabase free tier (max 10-20 connections total)
+    max_overflow: int = 10
 
     @classmethod
     def from_env(cls) -> "DatabaseConfig":
@@ -106,12 +108,16 @@ class DatabaseConfig:
 
         # Get custom schema (PostgreSQL only). Default: 'public'
         db_schema = os.environ.get("DB_SCHEMA", "public")
+        
+        # Max pool size for free tier (default 5 to stay safe)
+        pool_size = int(os.environ.get("DB_POOL_SIZE", "5"))
 
         return cls(
             url=raw_url,
             is_postgres=is_postgres,
             table_suffix=table_suffix,
             db_schema=db_schema,
+            pool_size=pool_size
         )
 
 
