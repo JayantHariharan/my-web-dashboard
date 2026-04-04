@@ -50,7 +50,9 @@ def get_connection(is_postgres: bool, db_url: str, schema: str = "public"):
         else:
             # SQLite connection
             db_path = db_url.replace("sqlite:///", "")
-            return sqlite3.connect(db_path)
+            conn = sqlite3.connect(db_path)
+            conn.execute("PRAGMA foreign_keys = ON")
+            return conn
     except Exception as e:
         logger.error(f"Failed to connect to database: {e}")
         raise ConnectionError(f"Database connection failed: {e}") from e
@@ -237,6 +239,24 @@ class BaseRepository:
             rows = cursor.fetchall()
             return [dict(row) for row in rows] if rows else []
 
+    def delete_where(self, conditions: Dict[str, Any]) -> bool:
+        """Delete rows that match the given conditions."""
+        if not conditions:
+            raise ValueError("Conditions required")
+
+        where_clauses = []
+        values = []
+        for col, val in conditions.items():
+            placeholder = "%s" if self._is_postgres else "?"
+            where_clauses.append(f"{col} = {placeholder}")
+            values.append(val)
+
+        where_str = " AND ".join(where_clauses)
+        sql = f"DELETE FROM {self.table_name} WHERE {where_str}"
+        with self.get_cursor() as cursor:
+            cursor.execute(sql, tuple(values))
+            return cursor.rowcount > 0
+
 
 class UserRepository(BaseRepository):
     """Repository for user-specific operations."""
@@ -310,6 +330,10 @@ class UserRepository(BaseRepository):
             cursor.execute(sql, (new_password_hash, username))
             return cursor.rowcount > 0
 
+    def delete_user_by_username(self, username: str) -> bool:
+        """Delete a user account by username."""
+        return self.delete_where({"username": username})
+
     def migrate_plain_passwords(self) -> int:
         """
         Migrate plain-text passwords to bcrypt hashes (with pepper).
@@ -327,6 +351,7 @@ class UserRepository(BaseRepository):
                 WHERE password NOT LIKE '$2b$%'
                   AND password NOT LIKE '$2a$%'
                   AND password NOT LIKE '$2y$%'
+                  AND password NOT LIKE '$pbkdf2-sha256$%'
             """
             cursor.execute(query)
             users = cursor.fetchall()
@@ -402,9 +427,23 @@ class UserProfileRepository(BaseRepository):
         if not update_data:
             return False
 
-        return self.update(
-            user_id, update_data
-        )  # Assuming user_id = profile id (will adjust later)
+        where_clauses = []
+        values = []
+        for key, value in update_data.items():
+            placeholder = "%s" if self._is_postgres else "?"
+            where_clauses.append(f"{key} = {placeholder}")
+            values.append(value)
+
+        placeholder = "%s" if self._is_postgres else "?"
+        values.append(user_id)
+        sql = (
+            f"UPDATE {self.table_name} SET {', '.join(where_clauses)} "
+            f"WHERE user_id = {placeholder}"
+        )
+
+        with self.get_cursor() as cursor:
+            cursor.execute(sql, tuple(values))
+            return cursor.rowcount > 0
 
 
 # Global repository instances (auth-related only)

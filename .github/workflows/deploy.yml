@@ -20,6 +20,15 @@ jobs:
     steps:
       - name: Determine environment and validate secrets
         id: check
+        env:
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPORT: ${{ secrets.PGPORT }}
+          PGUSER: ${{ secrets.PGUSER }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          PGDATABASE: ${{ secrets.PGDATABASE }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID_PROD: ${{ secrets.RENDER_SERVICE_ID_PROD }}
+          RENDER_SERVICE_ID_TEST: ${{ secrets.RENDER_SERVICE_ID_TEST }}
         run: |
           # Determine environment
           if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
@@ -35,36 +44,6 @@ jobs:
 
           echo "✅ Environment: $ENV"
           echo "   Service ID secret: $SERVICE_ID_SECRET"
-
-      - name: Debug secrets availability
-        env:
-          PGHOST: ${{ secrets.PGHOST }}
-          PGPORT: ${{ secrets.PGPORT }}
-          PGUSER: ${{ secrets.PGUSER }}
-          PGPASSWORD: ${{ secrets.PGPASSWORD }}
-          PGDATABASE: ${{ secrets.PGDATABASE }}
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-          RENDER_SERVICE_ID_PROD: ${{ secrets.RENDER_SERVICE_ID_PROD }}
-          RENDER_SERVICE_ID_TEST: ${{ secrets.RENDER_SERVICE_ID_TEST }}
-          ALL_SECRETS_JSON: ${{ toJSON(secrets) }}
-        run: |
-          echo "🔍 DEBUG: Full environment dump (all variables):"
-          env | sort
-          echo ""
-          echo "🔍 Checking PG and RENDER variables:"
-          env | grep -E '^(PG|RENDER)' || echo "  (none found)"
-          echo ""
-          echo "🔍 Checking specific secret variables:"
-          for var in PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE RENDER_API_KEY RENDER_SERVICE_ID_PROD RENDER_SERVICE_ID_TEST; do
-            value="${!var}"
-            if [ -n "$value" ]; then
-              echo "  ✅ $var=*** (length=${#value})"
-            else
-              echo "  ❌ $var is empty or unset"
-            fi
-          done
-          echo ""
-          echo " Continuing to validation..."
 
           # Check PostgreSQL secrets
           missing=()
@@ -123,7 +102,7 @@ jobs:
       PGDATABASE: ${{ secrets.PGDATABASE }}
 
   deploy:
-    needs: migrate-database
+    needs: [precheck, migrate-database]
     if: needs.migrate-database.outputs.success == 'true'
     runs-on: ubuntu-latest
     concurrency:
@@ -310,11 +289,11 @@ jobs:
           fi
           echo "Service URL: $base_url"
 
-          endpoints=("/health" "/api/auth/login")
+          endpoints=("/health" "/api/auth/me")
           for endpoint in "${endpoints[@]}"; do
             echo "Checking $base_url$endpoint..."
             code=$(curl -s -o /dev/null -w "%{http_code}" "$base_url$endpoint")
-            if [[ "$code" =~ ^(200|302|401)$ ]]; then
+            if [[ "$code" =~ ^(200|401)$ ]]; then
               echo "  ✅ OK ($code)"
             else
               echo "  ❌ FAILED ($code)"
@@ -328,7 +307,7 @@ jobs:
         if: success()
         run: |
           echo "📦 Installing test dependencies..."
-          npm ci --only=dev 2>/dev/null || npm install --save-dev playwright
+          npm install --no-save playwright
           npx playwright install chromium --with-deps
           echo "✅ Dependencies installed"
 

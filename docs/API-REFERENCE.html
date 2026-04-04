@@ -164,7 +164,7 @@
                 <span class="tag">Authentication</span>
             </div>
             <div class="endpoint-body">
-                <p>Register a new user account. Checks for duplicate usernames and stores password securely with bcrypt + pepper.</p>
+                <p>Register a new user account. Checks for duplicate usernames and stores password securely with adaptive hashing plus pepper.</p>
 
                 <h3 class="section-title">Request Body</h3>
                 <table>
@@ -699,7 +699,7 @@ curl "http://localhost:8000/api/games/tic-tac-toe/leaderboard?limit=10"</code></
 
     <div class="footer">
         <p><strong>PlayNexus API</strong> v1.0.0 – Multi-App Platform</p>
-        <p>Built with FastAPI • Secure with bcrypt + pepper • Modular architecture</p>
+        <p>Built with FastAPI • Secure with adaptive hashing + pepper • Modular architecture</p>
         <p style="margin-top:20px;font-size:0.85em;color:#999;">
             This documentation was generated from the OpenAPI schema.<br>
             For the most up-to-date interactive docs, visit <code>/docs</code> when the server is running.

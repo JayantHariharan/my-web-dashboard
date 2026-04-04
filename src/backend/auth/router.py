@@ -3,15 +3,18 @@ Authentication API router.
 Handles user login, signup, and session management.
 """
 
+import logging
 from fastapi import APIRouter, Request, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional
 
 from ..shared.database import user_repo
-from ..shared.security import hash_password, verify_password
-from ..shared.schemas import LoginData, RegisterData, UserResponse
+from ..shared.security import get_dummy_password_hash, hash_password, verify_password
+from ..shared.schemas import DeleteAccountData, LoginData, RegisterData, UserResponse
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
 class AuthSuccess(BaseModel):
@@ -63,8 +66,6 @@ async def login(login_data: LoginData, request: Request):
     try:
         user = user_repo.get_user_by_username(username)
     except Exception as e:
-        from ..shared.log_config import logger
-
         logger.error(f"Login error for user '{username}' from IP {client_ip}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -74,40 +75,34 @@ async def login(login_data: LoginData, request: Request):
     if not user:
         # Use constant-time comparison by always calling verify_password
         # even if user doesn't exist
-        dummy_hash = "$2b$12$dummyhashdummyhashdummyhashdu"  # bcrypt dummy
-        verify_password(password, dummy_hash)
-        from ..shared.log_config import logger
+        verify_password(password, get_dummy_password_hash())
 
         logger.warning(
             f"Failed login attempt for non-existent user: {username} "
             f"from IP {client_ip}"
         )
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Username not found"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
         )
 
     # Verify password
     if not verify_password(password, user["password"]):
-        from ..shared.log_config import logger
-
         logger.warning(
             f"Failed login attempt (wrong password) for user: {username} "
             f"from IP {client_ip}"
         )
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password"
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
         )
 
     # Update login tracking (last_login_at, last_login_ip)
     try:
         user_repo.update_login_tracking(username, client_ip)
     except Exception as e:
-        from ..shared.log_config import logger
-
         logger.error(f"Failed to update login tracking for {username}: {e}")
         # Don't fail login if tracking update fails
-
-    from ..shared.log_config import logger
 
     logger.info(f"User logged in: {username} from IP {client_ip}")
     return AuthSuccess(
@@ -161,8 +156,6 @@ async def signup(register_data: RegisterData, request: Request):
     try:
         password_hash = hash_password(password)
     except Exception as e:
-        from ..shared.log_config import logger
-
         logger.error(f"Password hashing failed for {username} from IP {client_ip}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -171,22 +164,16 @@ async def signup(register_data: RegisterData, request: Request):
 
     try:
         user_id = user_repo.create_user(username, password_hash, created_ip=client_ip)
-        from ..shared.log_config import logger
-
         logger.info(
             f"New user registered: {username} (ID: {user_id}) from IP {client_ip}"
         )
     except ValueError as e:
         # Username already exists
-        from ..shared.log_config import logger
-
         logger.warning(
             f"Signup attempt with existing username: {username} from IP {client_ip}"
         )
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except Exception as e:
-        from ..shared.log_config import logger
-
         logger.error(f"Signup error for user '{username}' from IP {client_ip}: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -233,6 +220,46 @@ async def get_current_user(username: Optional[str] = None):
         )
 
     return UserResponse(**user)
+
+
+@router.delete("/account", response_model=AuthSuccess)
+async def delete_account(delete_data: DeleteAccountData, request: Request):
+    """
+    Delete a user account after confirming username and password.
+
+    The current frontend auth flow is sessionStorage-based, so this endpoint
+    uses explicit credential confirmation instead of a bearer token.
+    """
+    username = delete_data.username
+    password = delete_data.password
+    client_ip = get_client_ip(request)
+
+    user = user_repo.get_user_by_username(username)
+    if not user or not verify_password(password, user["password"]):
+        logger.warning(
+            f"Failed delete-account attempt for user '{username}' from IP {client_ip}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid username or password",
+        )
+
+    deleted = user_repo.delete_user_by_username(username)
+    if not deleted:
+        logger.error(
+            f"Delete-account operation could not remove user '{username}' from IP {client_ip}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Unable to delete account",
+        )
+
+    logger.info(f"User deleted account: {username} from IP {client_ip}")
+    return AuthSuccess(
+        message="Account deleted successfully",
+        username=username,
+        user_id=user["id"],
+    )
 
 
 def get_client_ip(request: Request) -> str:

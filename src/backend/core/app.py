@@ -1,7 +1,4 @@
-"""
-FastAPI application factory.
-Creates and configures the PlayNexus API application.
-"""
+"""FastAPI application factory for the auth-first PlayNexus backend."""
 
 import logging
 from fastapi import FastAPI, Request, HTTPException
@@ -14,16 +11,12 @@ from starlette.status import (
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import Response
-
 from ..config import settings
 from ..log_config import setup_logging
 from .middlewares import (
     RequestIdMiddleware,
     RateLimitMiddleware,
     auth_rate_limiter,
-    games_rate_limiter,
-    apps_rate_limiter,
 )
 
 # Configure logging early
@@ -41,24 +34,22 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="PlayNexus API",
         description="""
-Backend API for PlayNexus gaming hub - Multi-App Platform.
+Backend API for the current PlayNexus auth-first phase.
 
 ## Features
-- Modular app architecture (auth, games, utilities)
-- Secure authentication with bcrypt + pepper
-- Rate limiting per app category
+- Account authentication and account lifecycle endpoints
+- Secure authentication with adaptive password hashing + pepper
+- Request tracing and security headers
 - IP audit logging
 - Versioned database migrations
 - Health monitoring endpoint
 
 ## Authentication
-Currently uses stateless authentication with username in sessionStorage.
-Future: JWT tokens for persistent sessions.
+The frontend currently stores the active username in sessionStorage.
+JWT or server-backed sessions can be added later.
 
 ## Rate Limits (per IP)
 - **Auth endpoints** (`/api/auth/*`): 20 requests/hour, 15min block
-- **Games endpoints** (`/api/games/*`): 100 requests/hour, 10min block
-- **General apps** (`/apps/*`): 200 requests/hour, 10min block
 
 ## Environment
 - **Development**: DEBUG=true, SQLite database
@@ -77,7 +68,12 @@ Future: JWT tokens for persistent sessions.
     # 2. CORS - allow cross-origin requests (configure per environment)
     # For security, avoid wildcard with credentials. Use specific origins.
     if settings.debug:
-        allow_origins = ["http://localhost:8000", "http://127.0.0.1:8000"]
+        allow_origins = [
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
     else:
         # In production, should be your domain(s)
         allow_origins = ["https://playnexus.onrender.com"]
@@ -131,17 +127,10 @@ Future: JWT tokens for persistent sessions.
 
     app.add_middleware(CacheControlMiddleware)
 
-    # 4. Rate limiting - per app category
-    # Auth endpoints (strict limit)
+    # 4. Rate limiting - auth endpoints only in the current phase
     app.add_middleware(
         RateLimitMiddleware, limiter=auth_rate_limiter, paths=["/api/auth"]
     )
-    # Games endpoints (moderate limit)
-    app.add_middleware(
-        RateLimitMiddleware, limiter=games_rate_limiter, paths=["/api/games"]
-    )
-    # General apps (higher limit)
-    app.add_middleware(RateLimitMiddleware, limiter=apps_rate_limiter, paths=["/apps"])
 
     # Health check endpoint (no rate limit)
     @app.get("/health", tags=["Health"])

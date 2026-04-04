@@ -30,12 +30,14 @@ secrets.json
 /build/
 /out/
 /logs/
+/src/logs/
 
 # ── Claude Code ───────────────────────────
-.claude/
 
 # ── Database (dev) ────────────────────────
 *.db
+*.db-journal
+data/
 
 # ── Python cache ─────────────────────────
 __pycache__/
