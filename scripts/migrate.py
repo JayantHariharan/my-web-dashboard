@@ -93,8 +93,8 @@ def get_connection(db_url, is_postgres, db_schema="public"):
         # Set search_path to use custom schema (falls back to public)
         try:
             conn.cursor().execute(f"SET search_path TO {db_schema}, public")
-        except Exception as e:
-            print(f"[WARN] Failed to set search_path to '{db_schema}': {e}")
+        except Exception:
+            print(f"[WARN] Failed to set search_path to '{db_schema}'")
         return conn, True
     else:
         db_path = db_url.replace("sqlite:///", "")
@@ -180,7 +180,7 @@ def apply_migration(conn, migration_file, is_postgres, dry_run=False, table_suff
 
     if dry_run:
         print(f"  [DRY RUN] Would apply: {script_name}")
-        print(f"    SQL: {sql[:100]}...")
+        print("    SQL: [query executing...]")
         return True
 
     cursor = conn.cursor()
@@ -256,18 +256,6 @@ def main():
     db_url, is_postgres, table_suffix, db_schema = get_database_config()
 
     print(f"[DB] Database: {'PostgreSQL' if is_postgres else 'SQLite'}")
-    # Mask password in URL for logging
-    if '://' in db_url and '@' in db_url:
-        parts = db_url.split('://', 1)
-        auth_part, rest = parts[1].split('@', 1) if '@' in parts[1] else (parts[1], '')
-        if ':' in auth_part:
-            user, pwd = auth_part.split(':', 1)
-            display_url = f"{parts[0]}://{user}:***@{rest}" if rest else f"{parts[0]}://{user}:***"
-        else:
-            display_url = db_url
-    else:
-        display_url = db_url
-    print(f"   URL: {display_url}")
     print(f"   Table suffix: '{table_suffix}'" if table_suffix else "   Table suffix: (none)")
     if is_postgres and db_schema != "public":
         print(f"   Schema: '{db_schema}'")
