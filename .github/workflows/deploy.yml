@@ -5,6 +5,9 @@ on:
     branches: [main, develop]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 concurrency:
   group: deploy-${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
   cancel-in-progress: true
