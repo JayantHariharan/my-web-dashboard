@@ -1036,7 +1036,7 @@
             }
         </style>
 
-        <div class="auth-hub">
+        <div id="crystal-auth-portal" class="auth-hub">
             <!-- Animated Background (only visible on auth page) -->
                 <div class="global-bg">
                     <div class="orb orb-1"></div>
@@ -1357,10 +1357,8 @@
         const deleteAccountError = document.getElementById('delete-account-error');
         const deleteAccountErrorText = document.getElementById('delete-account-error-text');
         const deleteAccountSubmitBtn = document.getElementById('delete-account-submit');
-        const authSuccessOverlay = document.getElementById('auth-success-overlay');
-        const authSuccessLabel = document.getElementById('auth-success-label');
-        const authSuccessTitle = document.getElementById('auth-success-title');
         const authSuccessCopy = document.getElementById('auth-success-copy');
+        const authPortal = document.getElementById('crystal-auth-portal');
         const AUTH_SESSION_KEY = 'playnexus_session';
 
         // Field validation state
@@ -1636,11 +1634,12 @@
                 authSuccessOverlay.setAttribute('aria-hidden', 'true');
             }
 
-            if (auth) {
-                auth.style.opacity = '0';
-                auth.classList.add('hidden');
-                auth.setAttribute('aria-hidden', 'true');
-                auth.style.pointerEvents = 'none';
+            if (authPortal) {
+                authPortal.style.opacity = '0';
+                authPortal.classList.add('hidden');
+                authPortal.setAttribute('aria-hidden', 'true');
+                authPortal.style.pointerEvents = 'none';
+                authPortal.style.display = 'none'; // Ensure it's fully gone
             }
 
             if (hub) {
@@ -1670,11 +1669,12 @@
                 hub.style.opacity = '0';
             }
 
-            if (auth) {
-                auth.classList.remove('hidden');
-                auth.style.opacity = '1';
-                auth.setAttribute('aria-hidden', 'false');
-                auth.style.pointerEvents = 'auto';
+            if (authPortal) {
+                authPortal.classList.remove('hidden');
+                authPortal.style.opacity = '1';
+                authPortal.setAttribute('aria-hidden', 'false');
+                authPortal.style.pointerEvents = 'auto';
+                authPortal.style.display = 'block';
             }
         }
 
