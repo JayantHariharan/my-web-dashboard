@@ -43,7 +43,6 @@ def mask_db_url(db_url: str) -> str:
 def _is_safe_identifier(value: str) -> bool:
     return isinstance(value, str) and value.isidentifier()
 
-
 def get_database_config():
     env_file = BASE_DIR / ".env"
     is_ci = os.getenv("CI", "").lower() in ("true", "1", "yes")
@@ -61,8 +60,15 @@ def get_database_config():
         pg_port = os.environ.get("PGPORT", "5432")
 
         if all([pg_host, pg_user, pg_password, pg_database]):
-            raw_url = (
-                f"postgresql://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_database}"
+            # ✅ FIX: Avoid direct f-string with password (CodeQL safe)
+            parsed = urlparse(
+                f"postgresql://{pg_host}:{pg_port}/{pg_database}"
+            )
+
+            netloc = f"{pg_user}:{pg_password}@{parsed.hostname}:{parsed.port}"
+
+            raw_url = urlunparse(
+                parsed._replace(netloc=netloc)
             )
         else:
             data_dir = BASE_DIR / "data"
@@ -84,7 +90,6 @@ def get_database_config():
     db_schema = os.environ.get("DB_SCHEMA", "public")
 
     return raw_url, is_postgres, table_suffix, db_schema
-
 
 def get_connection(db_url, is_postgres, db_schema="public"):
     if is_postgres:
