@@ -1692,6 +1692,7 @@
         async function restorePersistedSession() {
             const savedSession = getStoredAuthSession();
             if (!savedSession || !savedSession.username) {
+                showAuthPortal();
                 return;
             }
 
