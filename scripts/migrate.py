@@ -256,9 +256,7 @@ def main():
     db_url, is_postgres, table_suffix, db_schema = get_database_config()
 
     print(f"[DB] Database: {'PostgreSQL' if is_postgres else 'SQLite'}")
-    print(f"   Table suffix: '{table_suffix}'" if table_suffix else "   Table suffix: (none)")
-    if is_postgres and db_schema != "public":
-        print(f"   Schema: '{db_schema}'")
+    print("[DB] Connection configuration loaded")
 
     migrations = find_migrations()
     if not migrations:
@@ -289,7 +287,7 @@ def main():
         conn.commit()
         create_schema_version_table(conn, is_postgres, table_suffix)
         applied = set()
-        print(f"[OK]  {schema_table} reset")
+        print("[OK]  Schema version tracking reset")
 
     if args.dry_run:
         print("\n[TEST] DRY RUN - no changes will be made\n")
