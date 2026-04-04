@@ -19,9 +19,6 @@ except ImportError:  # pragma: no cover - depends on installed environment
         "bcrypt backend not available; falling back to pbkdf2_sha256 for password hashing"
     )
 
-pwd_context = CryptContext(schemes=PASSWORD_SCHEMES, deprecated="auto")
-
-
 def _normalize_password_input(password: str, pepper: str) -> str:
     """
     Convert the password+pepper pair into a fixed-length digest.
@@ -42,9 +39,30 @@ def _legacy_password_input(password: str, pepper: str) -> str:
     return password + pepper
 
 
-_dummy_password_hash = pwd_context.hash(
-    _normalize_password_input("playnexus-dummy", settings.secret_key)
-)
+def _build_password_context() -> CryptContext:
+    """
+    Build the adaptive hashing context and actively verify the preferred scheme.
+
+    Some Render/Python environments expose a partially working bcrypt backend:
+    passlib can import it, but the first real hash call fails during backend
+    self-checks. If that happens, fall back to pbkdf2_sha256 so the app can
+    still start and authentication keeps working.
+    """
+    preferred_context = CryptContext(schemes=PASSWORD_SCHEMES, deprecated="auto")
+
+    try:
+        preferred_context.hash(_normalize_password_input("playnexus-self-test", "init"))
+        return preferred_context
+    except Exception as exc:  # pragma: no cover - environment dependent
+        logger.warning(
+            "bcrypt backend failed runtime self-test; falling back to pbkdf2_sha256: %s",
+            exc,
+        )
+        return CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+
+
+pwd_context = _build_password_context()
+_dummy_password_hash: Optional[str] = None
 
 
 def hash_password(password: str, pepper: Optional[str] = None) -> str:
@@ -97,4 +115,11 @@ def verify_password(
 
 def get_dummy_password_hash() -> str:
     """Return a valid hash for timing-safe dummy verification."""
+    global _dummy_password_hash
+
+    if _dummy_password_hash is None:
+        _dummy_password_hash = pwd_context.hash(
+            _normalize_password_input("playnexus-dummy", settings.secret_key)
+        )
+
     return _dummy_password_hash
