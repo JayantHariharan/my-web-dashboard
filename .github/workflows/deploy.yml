@@ -1,435 +1,337 @@
-name: CI/CD Pipeline
+name: Deploy to Render
 
 on:
   push:
     branches: [main, develop]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
 
-env:
-  PYTHON_VERSION: '3.12'
+permissions:
+  contents: read
+
+concurrency:
+  group: workflow-deploy-${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+  cancel-in-progress: true
 
 jobs:
-  # ============================================================================
-  # QUALITY GATE - Runs on all branches
-  # ============================================================================
-  quality:
+  precheck:
     runs-on: ubuntu-latest
+    concurrency:
+      group: precheck-${{ github.ref }}
+      cancel-in-progress: true
+    outputs:
+      environment: ${{ steps.check.outputs.environment }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-          cache-dependency-path: requirements.txt
-
-      - name: Cleanup build artifacts
+      - name: Determine environment and validate secrets
+        id: check
+        env:
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPORT: ${{ secrets.PGPORT }}
+          PGUSER: ${{ secrets.PGUSER }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
+          PGDATABASE: ${{ secrets.PGDATABASE }}
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID_PROD: ${{ secrets.RENDER_SERVICE_ID_PROD }}
+          RENDER_SERVICE_ID_TEST: ${{ secrets.RENDER_SERVICE_ID_TEST }}
         run: |
-          echo "🧹 Cleaning build artifacts and cache..."
-          python -m pip cache purge
-          find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-          find . -type f -name "*.pyc" -delete
-          rm -rf .mypy_cache .pytest_cache .coverage htmlcov 2>/dev/null || true
-          echo "✅ Cleanup complete"
-
-      - name: Install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install flake8 mypy black bandit
-
-      - name: Syntax check
-        run: python -m py_compile src/backend/main.py
-
-      - name: Lint (critical errors)
-        run: |
-          echo "🔍 Running critical flake8 checks..."
-          flake8 src/backend/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        continue-on-error: false
-
-      - name: Lint (full)
-        run: |
-          echo "🔍 Running full flake8 linting..."
-          flake8 src/backend/ --max-line-length=88 --extend-ignore=E203,W503
-        continue-on-error: true  # Allow warnings
-
-      - name: Type check (MyPy)
-        run: |
-          echo "🔍 Running MyPy type checking..."
-          mypy src/backend/main.py --ignore-missing-imports --no-strict-optional
-        continue-on-error: true  # Allow warnings
-
-      - name: Security scan (Bandit)
-        run: |
-          echo "🔒 Running security scan..."
-          bandit -r src/backend/ -f json -o bandit-report.json || true
-          # Fail on high severity issues only
-          if grep -q '"issue_severity": "HIGH"' bandit-report.json 2>/dev/null; then
-            echo "❌ High severity security issues found!"
-            cat bandit-report.json
-            exit 1
-          fi
-        continue-on-error: true
-
-      - name: Format check (Black)
-        run: |
-          echo "🎨 Checking code formatting..."
-          black --check src/backend/
-
-      - name: Upload quality reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: quality-reports
-          path: |
-            bandit-report.json
-            . Coverage reports would go here if pytest added
-          retention-days: 7
-
-  # ============================================================================
-  # DEPLOYMENT - Only for main and develop branches (not PRs)
-  # ============================================================================
-  deploy:
-    needs: quality
-    if: |
-      github.event_name == 'push' &&
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
-    runs-on: ubuntu-latest
-    environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Configure deployment environment
-        id: env-config
-        run: |
-          echo "=========================================="
-          echo "⚙️  Configuring deployment environment"
-          echo "Branch: ${GITHUB_REF##*/}"
-          echo "=========================================="
-
-          # Determine environment based on branch
-          if [ "${GITHUB_REF##*/}" = "main" ]; then
-            echo "deploy_env=production" >> $GITHUB_OUTPUT
-            echo "display_env=Production" >> $GITHUB_OUTPUT
-            echo "app_env=production" >> $GITHUB_OUTPUT
-            # Secrets for production branch
-            echo "render_api_key=${{ secrets.RENDER_API_KEY }}" >> $GITHUB_ENV
-            echo "render_service_id=${{ secrets.RENDER_SERVICE_ID_PROD }}" >> $GITHUB_ENV
-            echo "render_env_group_id=${{ secrets.RENDER_ENV_GROUP_ID }}" >> $GITHUB_ENV
+          # Determine environment
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            ENV="production"
+            SERVICE_ID_SECRET="RENDER_SERVICE_ID_PROD"
           else
-            echo "deploy_env=staging" >> $GITHUB_OUTPUT
-            echo "display_env=Staging/Test" >> $GITHUB_OUTPUT
-            echo "app_env=test" >> $GITHUB_OUTPUT
-            # Secrets for develop branch - single API key setup
-            echo "render_api_key=${{ secrets.RENDER_API_KEY }}" >> $GITHUB_ENV
-            echo "render_service_id=${{ secrets.RENDER_SERVICE_ID_TEST }}" >> $GITHUB_ENV
-            echo "render_env_group_id=${{ secrets.RENDER_ENV_GROUP_ID_TEST }}" >> $GITHUB_ENV
+            ENV="staging"
+            SERVICE_ID_SECRET="RENDER_SERVICE_ID_TEST"
           fi
 
-          echo "APP_ENV=${{ steps.env-config.outputs.app_env }}" >> $GITHUB_ENV
+          echo "environment=$ENV" >> $GITHUB_OUTPUT
+          echo "service_id_secret=$SERVICE_ID_SECRET" >> $GITHUB_OUTPUT
 
-      - name: Validate secrets
-        run: |
-          echo "🔐 Validating required secrets..."
+          echo "✅ Environment: $ENV"
+          echo "   Service ID secret: $SERVICE_ID_SECRET"
 
-          missing_secrets=()
+          # Check PostgreSQL secrets
+          missing=()
+          if [ -z "$PGHOST" ]; then missing+=("PGHOST"); fi
+          if [ -z "$PGPORT" ]; then missing+=("PGPORT"); fi
+          if [ -z "$PGUSER" ]; then missing+=("PGUSER"); fi
+          if [ -z "$PGPASSWORD" ]; then missing+=("PGPASSWORD"); fi
+          if [ -z "$PGDATABASE" ]; then missing+=("PGDATABASE"); fi
 
-          if [ -z "$render_api_key" ]; then
-            missing_secrets+=("RENDER_API_KEY (required for all environments)")
+          # Check Render secrets
+          if [ -z "$RENDER_API_KEY" ]; then missing+=("RENDER_API_KEY"); fi
+
+          # Check service ID based on environment from previous step
+          ENV="${{ steps.check.outputs.environment }}"
+          if [ "$ENV" = "production" ]; then
+            if [ -z "$RENDER_SERVICE_ID_PROD" ]; then missing+=("RENDER_SERVICE_ID_PROD"); fi
+          else
+            if [ -z "$RENDER_SERVICE_ID_TEST" ]; then missing+=("RENDER_SERVICE_ID_TEST"); fi
           fi
-          if [ -z "$render_service_id" ]; then
-            if [ "${GITHUB_REF##*/}" = "main" ]; then
-              missing_secrets+=("RENDER_SERVICE_ID_PROD (production)")
-            else
-              missing_secrets+=("RENDER_SERVICE_ID_TEST (staging)")
-            fi
-          fi
 
-          if [ ${#missing_secrets[@]} -gt 0 ]; then
-            echo "❌ Missing required secrets:"
-            for secret in "${missing_secrets[@]}"; do
-              echo "   - $secret"
-            done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "❌ Missing required secrets: ${missing[*]}"
             echo ""
-            echo "Please add these secrets in GitHub repository settings:"
-            echo "Settings → Secrets and variables → Actions"
+            echo "Please add these secrets in GitHub:"
+            echo "  Settings → Secrets and variables → Actions → New repository secret"
+            echo ""
+            echo "Required (PostgreSQL):"
+            echo "  - PGHOST"
+            echo "  - PGPORT (usually 5432)"
+            echo "  - PGUSER"
+            echo "  - PGPASSWORD"
+            echo "  - PGDATABASE"
+            echo ""
+            echo "Required (Render):"
+            echo "  - RENDER_API_KEY"
+            echo "  - RENDER_SERVICE_ID_TEST (for staging)"
+            echo "  - RENDER_SERVICE_ID_PROD (for production)"
             exit 1
           fi
 
           echo "✅ All required secrets present"
-          echo "   API Key: ${render_api_key:0:10}... (masked)"
-          echo "   Service ID: ${render_service_id:0:12}..."
-          echo "   Env Group ID: ${render_env_group_id:-Not set}"
 
-      - name: Associate Environment Group
-        if: env.render_env_group_id != ''
-        env:
-          RENDER_API_KEY: ${{ env.render_api_key }}
-          RENDER_SERVICE_ID: ${{ env.render_service_id }}
-          RENDER_ENV_GROUP_ID: ${{ env.render_env_group_id }}
+  migrate-database:
+    needs: precheck
+    concurrency:
+      group: caller-migrate-${{ needs.precheck.outputs.environment }}
+      cancel-in-progress: true
+    uses: ./.github/workflows/flyway-migrate.yml
+    with:
+      environment: ${{ needs.precheck.outputs.environment }}
+    secrets:
+      PGHOST: ${{ secrets.PGHOST }}
+      PGPORT: ${{ secrets.PGPORT }}
+      PGUSER: ${{ secrets.PGUSER }}
+      PGPASSWORD: ${{ secrets.PGPASSWORD }}
+      PGDATABASE: ${{ secrets.PGDATABASE }}
+
+  deploy:
+    needs: [precheck, migrate-database]
+    if: needs.migrate-database.outputs.success == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: render-deploy-${{ needs.precheck.outputs.environment }}
+      cancel-in-progress: true
+    environment: ${{ needs.precheck.outputs.environment }}
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_SERVICE_ID: ${{ needs.precheck.outputs.environment == 'production' && secrets.RENDER_SERVICE_ID_PROD || secrets.RENDER_SERVICE_ID_TEST }}
+      DISPLAY_ENV: ${{ needs.precheck.outputs.environment == 'production' && 'Production' || 'Staging' }}
+      APP_ENV: ${{ needs.precheck.outputs.environment == 'production' && 'production' || 'test' }}
+      ENV: ${{ needs.precheck.outputs.environment == 'production' && 'prod' || 'test' }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup environment
+        if: success()
         run: |
-          echo "🔗 Associating service with environment group..."
+          sudo apt-get update
+          sudo apt-get install -y jq curl
 
-          response=$(curl -s \
-            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}")
-
-          current_groups=$(echo "$response" | jq -r '.envVarsIncludeFromGroup // []')
-
-          if echo "$current_groups" | grep -q "$RENDER_ENV_GROUP_ID"; then
-            echo "✅ Already associated with environment group"
-          else
-            echo "📋 Current groups: $current_groups"
-            echo "🎯 Adding group: $RENDER_ENV_GROUP_ID"
-
-            patch_response=$(curl -s -w "\n%{http_code}" -X PATCH \
-              "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
-              -H "Authorization: Bearer ${RENDER_API_KEY}" \
-              -H "Content-Type: application/json" \
-              -d "{\"envVarsIncludeFromGroup\":[\"$RENDER_ENV_GROUP_ID\"]}")
-
-            http_code=$(echo "$patch_response" | tail -n1)
-            patch_body=$(echo "$patch_response" | sed '$d')
-
-            if [[ "$http_code" =~ ^(200|201|204)$ ]]; then
-              echo "✅ Environment group associated successfully"
-            else
-              echo "❌ Association failed (HTTP $http_code)"
-              echo "Response: $patch_body"
-              exit 1
-            fi
+      - name: Validate Render configuration
+        if: success()
+        run: |
+          if [ -z "$RENDER_API_KEY" ]; then
+            echo "ERROR: RENDER_API_KEY is not set"
+            exit 1
           fi
+          if [ -z "$RENDER_SERVICE_ID" ]; then
+            echo "ERROR: RENDER_SERVICE_ID is not set"
+            exit 1
+          fi
+          echo "✅ Render configuration validated"
+          echo "   Environment: $DISPLAY_ENV"
+          echo "   Service ID: $RENDER_SERVICE_ID"
 
       - name: Trigger Render deployment
-        id: trigger-deploy
+        id: trigger
+        if: success()
         env:
-          RENDER_API_KEY: ${{ env.render_api_key }}
-          RENDER_SERVICE_ID: ${{ env.render_service_id }}
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
         run: |
-          set -e
+          set -euo pipefail
 
-          echo "=========================================="
-          echo "🚀 Starting deployment to ${{ steps.env-config.outputs.display_env }}"
-          echo "Service: ${RENDER_SERVICE_ID:0:16}..."
-          echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          echo "=========================================="
+          echo "🚀 Triggering deployment for $DISPLAY_ENV..."
 
-          # Check for in-progress deploys
-          echo "🔍 Checking for in-progress deployments..."
-          max_wait_attempts=30  # 15 minutes max (30 * 30s)
-          wait_attempts=0
+          # Wait for any existing in-progress deployment to finish (max 15 min)
+          max_wait=30
+          for i in $(seq 1 $max_wait); do
+            echo "Checking for in-progress deployments (attempt $i/$max_wait)..."
+            response=$(curl -s \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" || true)
 
-          while [ $wait_attempts -lt $max_wait_attempts ]; do
-            deploys=$(curl -s \
-              "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
-              -H "Authorization: Bearer ${RENDER_API_KEY}")
-
-            latest_deploy=$(echo "$deploys" | jq -r '.[0] // empty')
-            if [ -z "$latest_deploy" ] || [ "$latest_deploy" = "null" ]; then
-              echo "   No deploy history found"
-              break
-            fi
-
-            status=$(echo "$latest_deploy" | jq -r '.status // empty')
-            deploy_id=$(echo "$latest_deploy" | jq -r '.id // empty')
-
-            if [[ "$status" =~ ^(live|succeeded|errored|failed|canceled)$ ]]; then
-              echo "   ✅ Previous deploy ($deploy_id) is $status - ready"
-              break
+            # Check if response is valid JSON array
+            if echo "$response" | jq -e 'type == "array"' >/dev/null 2>&1; then
+              deploy_status=$(echo "$response" | jq -r '.[0].status // "empty"')
+              if [ "$deploy_status" = "empty" ]; then
+                echo "  No existing deployments found, proceeding..."
+                break
+              fi
+              if [[ "$deploy_status" =~ ^(live|succeeded|errored|failed|canceled|build_failed|update_failed|upload_failed)$ ]]; then
+                echo "  Latest deployment is in terminal state: $deploy_status, proceeding..."
+                break
+              fi
+              echo "  Deployment still in progress (status: $deploy_status), waiting 30s..."
             else
-              echo "   ⏳ Deploy $deploy_id is $status - waiting 30s..."
-              sleep 30
-              wait_attempts=$((wait_attempts + 1))
+              echo " ⚠️  Unexpected response format, assuming no in-progress deployments"
+              echo "  Response: ${response:0:200}"
             fi
+            sleep 30
           done
 
-          if [ $wait_attempts -ge $max_wait_attempts ]; then
-            echo "❌ TIMEOUT: Previous deploy still in progress after 15 minutes"
-            echo "   Please check Render dashboard and cancel if necessary"
-            exit 1
-          fi
-
           # Trigger new deployment
-          echo "📤 Triggering new deployment..."
-          trigger_response=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST \
-            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}" \
-            -H "Content-Type: application/json")
+          echo "Triggering new deployment..."
+          response=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys")
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
 
-          http_status=$(echo "$trigger_response" | grep "HTTP_STATUS:" | cut -d: -f2)
-          response_body=$(echo "$trigger_response" | sed '/HTTP_STATUS:/d')
-
-          echo "📨 Trigger response (HTTP $http_status):"
-          echo "$response_body" | jq '.' 2>/dev/null || echo "$response_body"
-
-          deploy_id=$(echo "$response_body" | jq -r '.id // empty')
-          if [ -z "$deploy_id" ]; then
-            error_msg=$(echo "$response_body" | jq -r '.error // .message // empty')
-            echo "❌ Failed to create deployment"
-            [ -n "$error_msg" ] && echo "Error: $error_msg"
-            echo "Check Render dashboard for in-progress deploys"
+          if [[ ! "$http_code" =~ ^(200|201|202)$ ]]; then
+            echo "❌ Deploy trigger failed (HTTP $http_code):"
+            echo "$body" | jq . 2>/dev/null || echo "${body:0:500}"
             exit 1
           fi
 
-          echo "✅ Deployment triggered: $deploy_id"
+          # Validate response is JSON and extract deploy_id
+          if ! echo "$body" | jq -e 'type == "object" and .id' >/dev/null 2>&1; then
+            echo "❌ Response is not a valid deployment object or missing 'id':"
+            echo "$body" | jq . 2>/dev/null || echo "${body:0:500}"
+            exit 1
+          fi
+
+          deploy_id=$(echo "$body" | jq -r -e '.id')
           echo "deploy_id=$deploy_id" >> $GITHUB_OUTPUT
+          echo "✅ Deployment triggered: $deploy_id"
 
       - name: Monitor deployment
         id: monitor
+        if: success()
         env:
-          RENDER_API_KEY: ${{ env.render_api_key }}
-          RENDER_SERVICE_ID: ${{ env.render_service_id }}
+          RENDER_API_KEY: ${{ env.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ env.RENDER_SERVICE_ID }}
         run: |
-          set -e
-          deploy_id="${{ steps.trigger-deploy.outputs.deploy_id }}"
+          set -euo pipefail
 
-          echo "⏳ Monitoring deployment progress..."
-          echo "Deploy ID: $deploy_id"
-          echo ""
+          deploy_id="${{ steps.trigger.outputs.deploy_id }}"
+          echo "Monitoring deployment: $deploy_id"
 
-          for i in $(seq 1 60); do
-            response=$(curl -s \
-              "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys/${deploy_id}" \
-              -H "Authorization: Bearer ${RENDER_API_KEY}")
-
-            status=$(echo "$response" | jq -r '.status')
-            description=$(echo "$response" | jq -r '.description // ""')
-
-            # Log progress with timestamps
-            timestamp=$(date -u +%H:%M:%S)
-            echo "[$timestamp] Attempt $i/60 - Status: $status"
-            [ -n "$description" ] && echo "   ➜ $description"
-
-            case $status in
-              live|succeeded)
-                echo ""
-                echo "✅ Deployment completed successfully!"
-                service_url=$(echo "$response" | jq -r '.service.url // "N/A"')
-                echo "🌐 Service URL: https://$service_url"
-                echo "DEPLOY_URL=https://$service_url" >> $GITHUB_ENV
-                break
-                ;;
-              errored|failed|canceled|build_failed)
-                echo ""
-                echo "❌ Deployment failed - status: $status"
-                echo "📋 Failure details:"
-                echo "$response" | jq '.' 2>/dev/null || echo "$response"
-                exit 1
-                ;;
-              *)
-                sleep 30
-                ;;
-            esac
-          done
-
-          # Final status check
-          final_response=$(curl -s \
-            "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys/${deploy_id}" \
-            -H "Authorization: Bearer ${RENDER_API_KEY}")
-          final_status=$(echo "$final_response" | jq -r '.status')
-
-          if ! [[ "$final_status" =~ ^(live|succeeded)$ ]]; then
-            echo "❌ Deployment incomplete. Final status: $final_status"
+          if [ -z "$deploy_id" ] || [ "$deploy_id" = "null" ]; then
+            echo "❌ Invalid deploy_id from trigger step: '$deploy_id'"
+            echo "   Trigger step output: ${{ steps.trigger.outputs }}"
             exit 1
           fi
+
+          # Poll for status, up to 120 checks (60 minutes)
+          for i in $(seq 1 120); do
+            echo "[$i/120] Checking deployment status..."
+
+            # Fetch deployment details with error handling
+            response=$(curl -s -w "\n%{http_code}" \
+              -H "Authorization: Bearer $RENDER_API_KEY" \
+              "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys/$deploy_id")
+            http_code=$(echo "$response" | tail -n1)
+            body=$(echo "$response" | sed '$d')
+
+            # Check for HTTP errors
+            if [[ ! "$http_code" =~ ^(200)$ ]]; then
+              echo "❌ API request failed (HTTP $http_code):"
+              echo "$body" | jq . 2>/dev/null || echo "${body:0:500}"
+              exit 1
+            fi
+
+            # Validate response is JSON object
+            if ! echo "$body" | jq -e 'type == "object"' >/dev/null 2>&1; then
+              echo "❌ Response is not a valid JSON object:"
+              echo "${body:0:500}"
+              exit 1
+            fi
+
+            # Extract status safely
+            status=$(echo "$body" | jq -r -e '.status' 2>/dev/null || echo "unknown")
+            echo "   Status: $status"
+
+            # Success conditions
+            if [[ "$status" == "live" ]] || [[ "$status" == "succeeded" ]]; then
+              echo "✅ Deployment successful!"
+              exit 0
+            fi
+
+            # Failure conditions (terminal states)
+            if [[ "$status" =~ ^(errored|failed|canceled|build_failed|update_failed|upload_failed)$ ]]; then
+              echo "❌ Deployment failed with status: $status"
+              echo "Deployment details:"
+              echo "$body" | jq .
+              exit 1
+            fi
+
+            # Still in progress, wait before next check
+            echo "   Still in progress (status: $status), waiting 30 seconds..."
+            sleep 30
+          done
+
+          echo "❌ TIMEOUT: Deployment did not complete within 60 minutes"
+          echo "Last known status: $status"
+          exit 1
 
       - name: Health check
         if: success()
         env:
-          RENDER_API_KEY: ${{ env.render_api_key }}
-          RENDER_SERVICE_ID: ${{ env.render_service_id }}
-          DEPLOY_URL: ${{ env.DEPLOY_URL }}
+          APP_ENV: ${{ needs.precheck.outputs.environment == 'production' && 'production' || 'test' }}
         run: |
-          echo "🏥 Performing health checks on ${{ steps.env-config.outputs.display_env }}..."
-          echo "🌐 URL: ${DEPLOY_URL:-Retrieving...}"
-
-          # Get service URL if not already set
-          if [ -z "$DEPLOY_URL" ]; then
-            url=$(curl -s \
-              "https://api.render.com/v1/services/${RENDER_SERVICE_ID}" \
-              -H "Authorization: Bearer ${RENDER_API_KEY}" | jq -r '.service.url')
-            DEPLOY_URL="https://$url"
+          # Determine service URL based on environment (same as smoke test)
+          if [ "$APP_ENV" = "production" ] || [ "$APP_ENV" = "prod" ]; then
+            base_url="https://playnexus-prod.onrender.com"
+          else
+            base_url="https://playnexus-test.onrender.com"
           fi
+          echo "Service URL: $base_url"
 
-          endpoints=(/health /api/auth/login)
-          failed_endpoints=()
-
+          endpoints=("/health" "/api/auth/me")
           for endpoint in "${endpoints[@]}"; do
-            echo "  Checking ${DEPLOY_URL}${endpoint}..."
-            success=false
-
-            for attempt in $(seq 1 30); do
-              http_code=$(curl -s -o /dev/null -w "%{http_code}" "${DEPLOY_URL}${endpoint}" 2>/dev/null || echo "000")
-
-              if [[ "$http_code" =~ ^(200|302|401)$ ]]; then
-                echo "    ✅ OK (HTTP $http_code)"
-                success=true
-                break
-              elif [[ "$http_code" =~ ^(5..)$ ]]; then
-                echo "    ⚠️  Server error (HTTP $http_code) - retrying..."
-              else
-                echo "    ⚠️  Unexpected code $http_code - retrying..."
-              fi
-
-              sleep 5
-            done
-
-            if [ "$success" = false ]; then
-              echo "    ❌ FAILED after 30 attempts"
-              failed_endpoints+=("$endpoint")
+            echo "Checking $base_url$endpoint..."
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$base_url$endpoint")
+            if [[ "$code" =~ ^(200|401)$ ]]; then
+              echo "  ✅ OK ($code)"
+            else
+              echo "  ❌ FAILED ($code)"
+              exit 1
             fi
           done
 
-          if [ ${#failed_endpoints[@]} -gt 0 ]; then
-            echo ""
-            echo "❌ Health check failed for endpoints: ${failed_endpoints[*]}"
-            exit 1
-          fi
+          echo "All health checks passed!"
 
-          echo ""
-          echo "✅ All health checks passed!"
+      - name: Install Node.js dependencies
+        if: success()
+        run: |
+          echo "📦 Installing test dependencies..."
+          npm install --no-save playwright
+          npx playwright install chromium --with-deps
+          echo "✅ Dependencies installed"
 
-      - name: Smoke test (deployed URL)
+      - name: Smoke test
         if: success()
         env:
-          DEPLOY_URL: ${{ env.DEPLOY_URL }}
+          APP_ENV: ${{ needs.precheck.outputs.environment }}
         run: |
-          echo "🧪 Running smoke test on deployed site..."
-
-          if [ -z "$DEPLOY_URL" ]; then
-            echo "❌ DEPLOY_URL not set"
-            exit 1
+          # Determine site URL based purely on branch (no Render API call)
+          if [ "$APP_ENV" = "production" ] || [ "$APP_ENV" = "prod" ]; then
+            SITE_URL="https://playnexus-prod.onrender.com"
+          else
+            SITE_URL="https://playnexus-test.onrender.com"
           fi
+          echo "Running smoke test on: $SITE_URL"
+          SITE_URL="$SITE_URL" node tests/smoke.test.js
 
-          # Install Playwright dependencies
-          echo "📦 Installing test dependencies..."
-          npm init -y
-          npm install playwright
-          npx playwright install chromium --with-deps 2>&1 | grep -E "(Downloading|Installed|✓)" || true
-
-          # Run smoke test
-          echo "▶️  Executing smoke test..."
-          SITE_URL="$DEPLOY_URL" node tests/smoke.test.js
-
-          echo "✅ Smoke test passed!"
-
-      - name: Deployment summary
+      - name: Upload smoke test screenshot
         if: always()
-        run: |
-          echo "=========================================="
-          echo "📊 DEPLOYMENT SUMMARY"
-          echo "=========================================="
-          echo "Branch:        ${GITHUB_REF##*/}"
-          echo "Environment:   ${{ steps.env-config.outputs.display_env }}"
-          echo "App Env:       $APP_ENV"
-          echo "Service ID:    ${{ env.render_service_id }}"
-          echo "Deploy ID:     ${{ steps.trigger-deploy.outputs.deploy_id }}"
-          echo "Service URL:   ${DEPLOY_URL:-N/A}"
-          echo "Commit:        ${{ github.sha }}"
-          echo "Actor:         ${{ github.actor }}"
-          echo "=========================================="
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-test-screenshot-${{ needs.precheck.outputs.environment }}
+          path: screenshot.png
+          retention-days: 7

@@ -2,5 +2,6 @@ fastapi==0.115.6
 uvicorn[standard]==0.32.1
 psycopg2-binary==2.9.10
 passlib[bcrypt]==1.7.4
+bcrypt==4.0.1  # pin to last version compatible with passlib 1.7.4 (__about__ removed in 4.1+)
 python-multipart==0.0.9  # for form data
 python-dotenv==1.0.1  # optional: for local .env loading

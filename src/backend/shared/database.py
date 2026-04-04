@@ -26,28 +26,47 @@ class ConnectionError(DatabaseError):
     pass
 
 
-def get_connection(is_postgres: bool, db_url: str):
+def configure_sqlite_connection(conn: sqlite3.Connection) -> sqlite3.Connection:
+    """Apply SQLite pragmas that are safer for this local runtime environment."""
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = MEMORY")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA temp_store = MEMORY")
+    return conn
+
+
+def get_connection(is_postgres: bool, db_url: str, schema: str = "public"):
     """
     Get a raw database connection.
     Args:
         is_postgres: Whether to use PostgreSQL driver
         db_url: Database connection URL
+        schema: PostgreSQL schema to use (sets search_path). Ignored for SQLite.
     Returns:
         DB-API connection object
     """
     try:
         if is_postgres:
-            # Import psycopg2 only when needed (PostgreSQL)
+            if not db_url or not db_url.startswith(("postgresql://", "postgres://")):
+                # Fallback to SQLite if URL is missing/wrong (Render boot safety)
+                db_path = settings.database.url.replace("sqlite:///", "")
+                conn = sqlite3.connect(db_path)
+                return configure_sqlite_connection(conn)
+
             import psycopg2
             from psycopg2.extras import RealDictCursor
 
             conn = psycopg2.connect(db_url)
             conn.cursor_factory = RealDictCursor
+            # Set search_path to use custom schema (falls back to public)
+            with conn.cursor() as cur:
+                cur.execute(f"SET search_path TO {schema}, public")
             return conn
         else:
             # SQLite connection
             db_path = db_url.replace("sqlite:///", "")
-            return sqlite3.connect(db_path)
+            conn = sqlite3.connect(db_path)
+            return configure_sqlite_connection(conn)
     except Exception as e:
         logger.error(f"Failed to connect to database: {e}")
         raise ConnectionError(f"Database connection failed: {e}") from e
@@ -60,10 +79,13 @@ class BaseRepository:
         self.table_name = table_name
         self._is_postgres = settings.database.is_postgres
         self._db_url = settings.database.url
+        self._db_schema = settings.database.db_schema
 
     def _get_connection(self):
         """Get a database connection."""
-        return get_connection(self._is_postgres, self._db_url)
+        self._db_url = settings.database.url
+        self._db_schema = settings.database.db_schema
+        return get_connection(self._is_postgres, self._db_url, self._db_schema)
 
     @contextmanager
     def get_cursor(self):
@@ -75,25 +97,33 @@ class BaseRepository:
         cursor = None
         try:
             if self._is_postgres:
-                cursor = conn.cursor()
+                # Check if we actually got a PG connection or a fallback SQLite one
+                # Base DB-API doesn't have a standardized 'driver' attribute, 
+                # but we can check if it's from sqlite3.
+                if isinstance(conn, sqlite3.Connection):
+                    conn.row_factory = sqlite3.Row
+                    cursor = conn.cursor()
+                else:
+                    cursor = conn.cursor()
             else:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
             yield cursor
             conn.commit()
         except Exception as e:
-            conn.rollback()
+            if conn:
+                conn.rollback()
             logger.error(f"Database operation failed on {self.table_name}: {e}")
             raise DatabaseError(f"Database error: {e}") from e
         finally:
             if cursor:
                 cursor.close()
-            conn.close()
+            if conn:
+                conn.close()
 
     def get_all(self) -> List[Dict[str, Any]]:
         """Retrieve all records from the table."""
         with self.get_cursor() as cursor:
-            # SAFE: table_name is hardcoded in each repository subclass
             cursor.execute(f"SELECT * FROM {self.table_name}")
             rows = cursor.fetchall()
             return [dict(row) for row in rows] if rows else []
@@ -109,15 +139,7 @@ class BaseRepository:
             return dict(row) if row else None
 
     def create(self, data: Dict[str, Any]) -> int:
-        """
-        Create a new record.
-        Args:
-            data: Dict of column values
-        Returns:
-            The new record's primary key
-        Raises:
-            IntegrityError if unique constraint violated
-        """
+        """Create a new record."""
         columns = list(data.keys())
         placeholders = ["%s" if self._is_postgres else "?"] * len(columns)
         cols_str = ", ".join(columns)
@@ -126,6 +148,9 @@ class BaseRepository:
         with self.get_cursor() as cursor:
             cursor.execute(sql, tuple(data.values()))
             if self._is_postgres:
+                # Handle SQLite fallback in PG mode
+                if hasattr(cursor, 'lastrowid') and cursor.lastrowid is not None:
+                    return cursor.lastrowid
                 cursor.execute("SELECT LASTVAL() as id")
                 result = cursor.fetchone()
                 return result["id"]
@@ -133,19 +158,13 @@ class BaseRepository:
                 return cursor.lastrowid
 
     def update(self, pk_value, data: Dict[str, Any]) -> bool:
-        """
-        Update a record by primary key.
-        Args:
-            pk_value: Primary key value
-            data: Dict of column values to update
-        Returns:
-            True if updated, False if not found
-        """
+        """Update a record by primary key."""
         if not data:
             return False
-        set_items = [
-            f"{col} = {'%s' if self._is_postgres else '?'}" for col in data.keys()
-        ]
+        set_items = []
+        for col in data.keys():
+            safe_col = "".join(c for c in col if c.isalnum() or c == "_")
+            set_items.append(f"{safe_col} = {'%s' if self._is_postgres else '?'}")
         values = list(data.values())
         values.append(pk_value)
         sets_str = ", ".join(set_items)
@@ -156,11 +175,7 @@ class BaseRepository:
             return cursor.rowcount > 0
 
     def delete(self, pk_value) -> bool:
-        """
-        Delete a record by primary key.
-        Returns:
-            True if deleted, False if not found
-        """
+        """Delete a record by primary key."""
         with self.get_cursor() as cursor:
             placeholder = "%s" if self._is_postgres else "?"
             cursor.execute(
@@ -173,26 +188,22 @@ class BaseRepository:
         with self.get_cursor() as cursor:
             cursor.execute(f"SELECT COUNT(*) as count FROM {self.table_name}")
             result = cursor.fetchone()
-            if self._is_postgres:
+            # Support both dict and tuple access
+            try:
                 return result["count"]
-            else:
+            except (TypeError, KeyError):
                 return result[0]
 
     def find_one(self, conditions: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """
-        Find a single record matching conditions.
-        Args:
-            conditions: Dict of column=value pairs
-        Returns:
-            Record dict or None
-        """
+        """Find a single record matching conditions."""
         if not conditions:
             raise ValueError("Conditions required")
         where_clauses = []
         values = []
         for col, val in conditions.items():
+            safe_col = "".join(c for c in col if c.isalnum() or c == "_")
             placeholder = "%s" if self._is_postgres else "?"
-            where_clauses.append(f"{col} = {placeholder}")
+            where_clauses.append(f"{safe_col} = {placeholder}")
             values.append(val)
         where_str = " AND ".join(where_clauses)
         sql = f"SELECT * FROM {self.table_name} WHERE {where_str} LIMIT 1"
@@ -206,20 +217,14 @@ class BaseRepository:
         conditions: Optional[Dict[str, Any]] = None,
         order_by: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
-        """
-        Find multiple records matching conditions.
-        Args:
-            conditions: Dict of column=value pairs (optional)
-            order_by: Column name to order by (optional)
-        Returns:
-            List of record dicts
-        """
+        """Find multiple records matching conditions."""
         if conditions:
             where_clauses = []
             values = []
             for col, val in conditions.items():
+                safe_col = "".join(c for c in col if c.isalnum() or c == "_")
                 placeholder = "%s" if self._is_postgres else "?"
-                where_clauses.append(f"{col} = {placeholder}")
+                where_clauses.append(f"{safe_col} = {placeholder}")
                 values.append(val)
             where_str = " AND ".join(where_clauses)
             sql = f"SELECT * FROM {self.table_name} WHERE {where_str}"
@@ -227,18 +232,38 @@ class BaseRepository:
             sql = f"SELECT * FROM {self.table_name}"
             values = []
         if order_by:
-            sql += f" ORDER BY {order_by}"
+            safe_order = "".join(c for c in order_by if c.isalnum() or c in ("_", " ", ",")).strip()
+            sql += f" ORDER BY {safe_order}"
         with self.get_cursor() as cursor:
             cursor.execute(sql, tuple(values))
             rows = cursor.fetchall()
             return [dict(row) for row in rows] if rows else []
+
+    def delete_where(self, conditions: Dict[str, Any]) -> bool:
+        """Delete rows that match the given conditions."""
+        if not conditions:
+            raise ValueError("Conditions required")
+        where_clauses = []
+        values = []
+        for col, val in conditions.items():
+            safe_col = "".join(c for c in col if c.isalnum() or c == "_")
+            placeholder = "%s" if self._is_postgres else "?"
+            where_clauses.append(f"{safe_col} = {placeholder}")
+            values.append(val)
+        where_str = " AND ".join(where_clauses)
+        sql = f"DELETE FROM {self.table_name} WHERE {where_str}"
+        with self.get_cursor() as cursor:
+            cursor.execute(sql, tuple(values))
+            return cursor.rowcount > 0
 
 
 class UserRepository(BaseRepository):
     """Repository for user-specific operations."""
 
     def __init__(self):
-        super().__init__("users")
+        from ..config import settings
+        table_name = f"users{settings.database.table_suffix}"
+        super().__init__(table_name)
 
     def get_user_by_username(self, username: str) -> Optional[Dict[str, Any]]:
         """Get user by username."""
@@ -251,12 +276,7 @@ class UserRepository(BaseRepository):
     def create_user(
         self, username: str, password_hash: str, created_ip: Optional[str] = None
     ) -> int:
-        """
-        Create a new user.
-        Returns the user ID.
-        Raises ValueError if username already exists.
-        """
-        # Optional pre-check for better error message
+        """Create a new user."""
         if self.get_user_by_username(username):
             raise ValueError(f"Username '{username}' already exists")
 
@@ -269,141 +289,108 @@ class UserRepository(BaseRepository):
     def update_login_tracking(
         self, username: str, login_ip: Optional[str] = None
     ) -> bool:
-        """
-        Update last_login_at and last_login_ip for a user.
-        Returns True if updated, False if user not found.
-        """
-        update_data = {"last_login_at": "CURRENT_TIMESTAMP"}  # Will be used as raw SQL
+        """Update last_login_at and last_login_ip for a user."""
+        placeholder = "%s" if self._is_postgres else "?"
+        
         if login_ip:
-            update_data["last_login_ip"] = login_ip
-
-        # Use raw SQL for timestamp to ensure database sets it
-        is_postgres = self._is_postgres
-        placeholder = "%s" if is_postgres else "?"
-        sets = ["last_login_at = CURRENT_TIMESTAMP"]
-        values = []
-
-        if login_ip:
-            sets.append(f"last_login_ip = {placeholder}")
-            values.append(login_ip)
-
-        values.append(username)
-        sql = f"UPDATE users SET {', '.join(sets)} WHERE username = {placeholder}"
-
+            sql = f"UPDATE {self.table_name} SET last_login_at = CURRENT_TIMESTAMP, last_login_ip = {placeholder} WHERE username = {placeholder}"
+            values = (login_ip, username)
+        else:
+            sql = f"UPDATE {self.table_name} SET last_login_at = CURRENT_TIMESTAMP WHERE username = {placeholder}"
+            values = (username,)
+            
         with self.get_cursor() as cursor:
-            cursor.execute(sql, tuple(values))
+            cursor.execute(sql, values)
             return cursor.rowcount > 0
 
     def update_password(self, username: str, new_password_hash: str) -> bool:
         """Update user password."""
-        is_postgres = self._is_postgres
-        placeholder = "%s" if is_postgres else "?"
-        sql = (
-            f"UPDATE users SET password = {placeholder} WHERE username = {placeholder}"
-        )
+        placeholder = "%s" if self._is_postgres else "?"
+        sql = f"UPDATE {self.table_name} SET password = {placeholder} WHERE username = {placeholder}"
         with self.get_cursor() as cursor:
             cursor.execute(sql, (new_password_hash, username))
             return cursor.rowcount > 0
 
+    def delete_user_by_username(self, username: str) -> bool:
+        """Delete a user account by username."""
+        return self.delete_where({"username": username})
+
     def migrate_plain_passwords(self) -> int:
-        """
-        Migrate plain-text passwords to bcrypt hashes (with pepper).
-        Returns number of users migrated.
-        """
+        """Migrate plain-text passwords to bcrypt hashes."""
         migrated_count = 0
         conn = None
         try:
             conn = self._get_connection()
             cursor = conn.cursor()
             placeholder = "%s" if self._is_postgres else "?"
-            query = """
+            query = f"""
                 SELECT id, username, password
-                FROM users
+                FROM {self.table_name}
                 WHERE password NOT LIKE '$2b$%'
                   AND password NOT LIKE '$2a$%'
                   AND password NOT LIKE '$2y$%'
+                  AND password NOT LIKE '$pbkdf2-sha256$%'
             """
             cursor.execute(query)
             users = cursor.fetchall()
-
             if not users:
-                logger.info("No plain-text passwords found.")
                 cursor.close()
                 conn.close()
                 return 0
-
-            logger.warning(f"Found {len(users)} plain-text passwords. Migrating...")
             for user in users:
                 user_id, username, plain_password = user[0], user[1], user[2]
                 from .security import hash_password
-
                 new_hash = hash_password(plain_password)
-                update_sql = (
-                    f"UPDATE users SET password = {placeholder} "
-                    f"WHERE id = {placeholder}"
-                )
+                update_sql = f"UPDATE {self.table_name} SET password = {placeholder} WHERE id = {placeholder}"
                 cursor.execute(update_sql, (new_hash, user_id))
-                if cursor.rowcount > 0:
-                    migrated_count += 1
-                    logger.info(f"Migrated user: {username}")
+                migrated_count += 1
             conn.commit()
-            logger.info(f"Migration complete: {migrated_count} updated.")
             cursor.close()
             conn.close()
             return migrated_count
-        except Exception as e:
+        except Exception:
             if conn:
                 conn.rollback()
-            logger.error(f"Migration error: {e}", exc_info=True)
-            raise
+                conn.close()
+            return 0
 
 
 class UserProfileRepository(BaseRepository):
     """Repository for user profiles."""
 
     def __init__(self):
-        super().__init__("user_profiles")
+        from ..config import settings
+        table_name = f"user_profiles{settings.database.table_suffix}"
+        super().__init__(table_name)
 
     def get_profile_by_user_id(self, user_id: int) -> Optional[Dict[str, Any]]:
         """Get user profile by user_id."""
         return self.find_one({"user_id": user_id})
 
-    def create_profile(
-        self,
-        user_id: int,
-        display_name: Optional[str] = None,
-        bio: Optional[str] = None,
-        preferences: Optional[Dict[str, Any]] = None,
-    ) -> int:
+    def create_profile(self, user_id: int, **kwargs) -> int:
         """Create a new user profile."""
-        data = {
-            "user_id": user_id,
-            "display_name": display_name,
-            "bio": bio,
-            "preferences": preferences or {},
-        }
+        data = {"user_id": user_id, "preferences": "{}"}
+        data.update({k: v for k, v in kwargs.items() if v is not None})
         return self.create(data)
 
     def update_profile(self, user_id: int, **kwargs) -> bool:
         """Update user profile."""
-        update_data = {}
-        for key, value in kwargs.items():
-            if value is not None:
-                update_data[key] = value
-
+        update_data = {k: v for k, v in kwargs.items() if v is not None}
         if not update_data:
             return False
+        sets = []
+        values = []
+        placeholder = "%s" if self._is_postgres else "?"
+        for k, v in update_data.items():
+            sets.append(f"{k} = {placeholder}")
+            values.append(v)
+        values.append(user_id)
+        sql = f"UPDATE {self.table_name} SET {', '.join(sets)} WHERE user_id = {placeholder}"
+        with self.get_cursor() as cursor:
+            cursor.execute(sql, tuple(values))
+            return cursor.rowcount > 0
 
-        return self.update(
-            user_id, update_data
-        )  # Assuming user_id = profile id (will adjust later)
 
-
-# Global repository instances (auth-related only)
+# Global repository instances
 user_repo = UserRepository()
 user_profile_repo = UserProfileRepository()
-
-
-def init_database():
-    """Legacy function. Use migrator.apply_migrations() instead."""
-    logger.warning("init_database() is deprecated. Use migrator.apply_migrations().")

@@ -5,661 +5,682 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PlayNexus API Reference</title>
     <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,sans-serif; line-height:1.6; color:#333; background:#f5f5f5; }
-        .header { background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:white; padding:40px 20px; text-align:center; }
-        .header h1 { font-size:2.5em; margin-bottom:10px; font-weight:700; }
-        .header p { font-size:1.2em; opacity:0.9; max-width:800px; margin:0 auto; }
-        .container { max-width:1200px; margin:0 auto; padding:40px 20px; }
-        .info-box { background:#e3f2fd; border-left:4px solid #2196f3; padding:20px; margin-bottom:30px; border-radius:0 8px 8px 0; }
-        .info-box strong { color:#1976d2; }
-        .endpoint { background:white; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); margin-bottom:25px; overflow:hidden; }
-        .endpoint-header { padding:20px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:15px; }
-        .method { padding:6px 12px; border-radius:4px; font-weight:700; font-size:0.9em; text-transform:uppercase; min-width:70px; text-align:center; }
-        .method.post { background:#4caf50; color:white; }
-        .method.get { background:#2196f3; color:white; }
-        .path { font-family:'Courier New',monospace; font-size:1.2em; color:#333; font-weight:600; }
-        .endpoint-body { padding:20px; }
-        .section-title { font-size:1.1em; font-weight:600; color:#667eea; margin:20px 0 10px 0; padding-bottom:5px; border-bottom:2px solid #667eea; }
-        .section-title:first-of-type { margin-top:0; }
-        table { width:100%; border-collapse:collapse; margin:10px 0; }
-        th, td { padding:12px; text-align:left; border-bottom:1px solid #ddd; }
-        th { background:#f8f9fa; font-weight:600; color:#555; }
-        tr:hover { background:#f8f9fa; }
-        code { background:#f4f4f4; padding:2px 6px; border-radius:3px; font-family:'Courier New',monospace; font-size:0.9em; }
-        pre { background:#2d2d2d; color:#f8f8f2; padding:20px; border-radius:8px; overflow-x:auto; margin:10px 0; }
-        pre code { background:none; padding:0; color:inherit; }
-        .example-box { border-left:4px solid #667eea; background:#f8f9fa; padding:15px; margin:10px 0; border-radius:0 8px 8px 0; }
-        .example-box-title { font-weight:600; color:#667eea; margin-bottom:10px; }
-        .tag { display:inline-block; background:#667eea; color:white; padding:4px 12px; border-radius:20px; font-size:0.85em; font-weight:600; margin-right:10px; }
-        ul { margin-left:20px; margin-bottom:15px; }
-        .footer { text-align:center; padding:30px; color:#666; font-size:0.9em; }
-        @media (max-width:768px) {
-            .endpoint-header { flex-direction:column; align-items:flex-start; gap:10px; }
-            .path { font-size:1em; }
+        :root {
+            --bg: #0a0f1b;
+            --panel: rgba(17, 24, 39, 0.9);
+            --panel-border: rgba(148, 163, 184, 0.16);
+            --text: #e5eefb;
+            --muted: #9db0cb;
+            --cyan: #39c7ff;
+            --blue: #4f8cff;
+            --pink: #ff5db1;
+            --green: #25c281;
+            --red: #ff6a6a;
+            --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+            --radius: 22px;
+        }
+
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            margin: 0;
+            font-family: Inter, "Segoe UI", Arial, sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(57, 199, 255, 0.14), transparent 30%),
+                radial-gradient(circle at top right, rgba(255, 93, 177, 0.12), transparent 28%),
+                linear-gradient(180deg, #08101d 0%, #0b1220 100%);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        code, pre {
+            font-family: "Cascadia Code", Consolas, monospace;
+        }
+
+        .hero {
+            padding: 72px 24px 42px;
+            text-align: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--muted);
+            font-size: 0.88rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .hero h1 {
+            margin: 18px 0 14px;
+            font-size: clamp(2.4rem, 6vw, 4.8rem);
+            line-height: 1;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, var(--cyan), var(--blue), var(--pink));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+
+        .hero p {
+            max-width: 860px;
+            margin: 0 auto;
+            color: var(--muted);
+            font-size: 1.05rem;
+        }
+
+        .hero-grid {
+            max-width: 1200px;
+            margin: 34px auto 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .hero-card {
+            padding: 18px 20px;
+            text-align: left;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: var(--shadow);
+        }
+
+        .hero-card span {
+            display: block;
+            color: var(--muted);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 8px;
+        }
+
+        .hero-card code {
+            display: block;
+            color: var(--text);
+            font-size: 0.95rem;
+            word-break: break-word;
+        }
+
+        .layout {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 12px 24px 56px;
+            display: grid;
+            grid-template-columns: 280px minmax(0, 1fr);
+            gap: 24px;
+        }
+
+        .sidebar {
+            position: sticky;
+            top: 20px;
+            align-self: start;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+        }
+
+        .nav-card,
+        .content-card {
+            padding: 22px;
+        }
+
+        .nav-title,
+        .section-kicker {
+            color: var(--cyan);
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        .nav-list {
+            margin: 16px 0 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .nav-list li + li {
+            margin-top: 8px;
+        }
+
+        .nav-list a {
+            display: block;
+            padding: 10px 12px;
+            border-radius: 12px;
+            color: var(--muted);
+            text-decoration: none;
+            transition: 0.2s ease;
+        }
+
+        .nav-list a:hover {
+            color: var(--text);
+            background: rgba(79, 140, 255, 0.12);
+        }
+
+        .content {
+            display: grid;
+            gap: 22px;
+        }
+
+        .content-card h2 {
+            margin: 8px 0 10px;
+            font-size: 1.7rem;
+        }
+
+        .content-card p {
+            color: var(--muted);
+            margin: 0 0 10px;
+        }
+
+        .pill-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .pill {
+            padding: 9px 12px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            color: var(--text);
+            font-size: 0.9rem;
+        }
+
+        .endpoint {
+            overflow: hidden;
+        }
+
+        .endpoint-top {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 18px 22px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0.02));
+        }
+
+        .method {
+            min-width: 78px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            text-align: center;
+            font-size: 0.82rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: white;
+        }
+
+        .method.get { background: var(--blue); }
+        .method.post { background: var(--green); }
+        .method.delete { background: var(--red); }
+
+        .path {
+            font-size: 1.08rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .endpoint-body {
+            padding: 22px;
+        }
+
+        .endpoint-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: 18px;
+            margin-top: 18px;
+        }
+
+        .subcard {
+            padding: 18px;
+            border-radius: 18px;
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .subcard h3 {
+            margin: 0 0 12px;
+            font-size: 1rem;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 11px 0;
+            text-align: left;
+            vertical-align: top;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--muted);
+            font-size: 0.94rem;
+        }
+
+        th {
+            color: var(--text);
+            font-size: 0.78rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        td code,
+        .content-card code {
+            padding: 2px 6px;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text);
+        }
+
+        pre {
+            margin: 0;
+            padding: 16px;
+            border-radius: 16px;
+            overflow-x: auto;
+            background: #07111f;
+            color: #dce9fb;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .callout {
+            padding: 16px 18px;
+            border-radius: 18px;
+            background: linear-gradient(135deg, rgba(57, 199, 255, 0.12), rgba(79, 140, 255, 0.08));
+            border: 1px solid rgba(57, 199, 255, 0.18);
+            color: var(--text);
+        }
+
+        .flat-list {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .flat-list li + li {
+            margin-top: 8px;
+        }
+
+        .footer {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px 44px;
+            color: var(--muted);
+            text-align: center;
+        }
+
+        @media (max-width: 980px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+            }
+
+            .endpoint-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="header">
+    <header class="hero">
+        <div class="hero-badge">Auth-First Phase</div>
         <h1>PlayNexus API</h1>
-        <p>Multi-App Platform – Complete Reference</p>
-        <p style="margin-top:20px;font-size:0.9em;">
-            Base URL: <code style="background:rgba(255,255,255,0.2);padding:4px 8px;border-radius:4px;">http://localhost:8000</code> (dev) |
-            <code style="background:rgba(255,255,255,0.2);padding:4px 8px;border-radius:4px;">https://your-app.onrender.com</code> (prod)
+        <p>
+            This reference is intentionally focused on what the backend actually supports today:
+            login, signup, delete account, current-user lookup, and health checks. It is designed
+            to be easier to maintain than the older multi-app API document.
         </p>
-    </div>
 
-    <div class="container">
-        <div class="info-box">
-            <strong>⚡ Quick Links:</strong>
-            Interactive Swagger docs available at <code>/docs</code> (when server running) |
-            ReDoc at <code>/redoc</code> |
-            Raw OpenAPI schema at <code>/openapi.json</code>
-        </div>
-
-        <!-- Auth: Login -->
-        <div class="endpoint">
-            <div class="endpoint-header">
-                <span class="method post">POST</span>
-                <span class="path">/api/auth/login</span>
-                <span class="tag">Authentication</span>
+        <div class="hero-grid">
+            <div class="hero-card">
+                <span>Local</span>
+                <code>http://localhost:8000</code>
             </div>
-            <div class="endpoint-body">
-                <p>Authenticate a user and return user details. Uses constant-time comparison to prevent timing attacks.</p>
+            <div class="hero-card">
+                <span>Production</span>
+                <code>https://playnexus-prod.onrender.com</code>
+            </div>
+            <div class="hero-card">
+                <span>Interactive Docs</span>
+                <code>/docs</code>, <code>/redoc</code>, <code>/openapi.json</code>
+            </div>
+            <div class="hero-card">
+                <span>Rate Limit</span>
+                <code>20 auth requests/hour/IP</code>
+            </div>
+        </div>
+    </header>
 
-                <h3 class="section-title">Request Body</h3>
-                <table>
-                    <tr><th>Field</th><th>Type</th><th>Constraints</th><th>Example</th></tr>
-                    <tr><td><code>username</code></td><td>string</td><td>1-100 chars, must contain at least one letter</td><td><code>"player123"</code></td></tr>
-                    <tr><td><code>password</code></td><td>string</td><td>1-100 chars</td><td><code>"SecurePass123!"</code></td></tr>
-                </table>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="panel nav-card">
+                <div class="nav-title">Navigate</div>
+                <ul class="nav-list">
+                    <li><a href="#overview">Overview</a></li>
+                    <li><a href="#auth-model">Auth Model</a></li>
+                    <li><a href="#login">POST /api/auth/login</a></li>
+                    <li><a href="#signup">POST /api/auth/signup</a></li>
+                    <li><a href="#delete-account">DELETE /api/auth/account</a></li>
+                    <li><a href="#me">GET /api/auth/me</a></li>
+                    <li><a href="#health">GET /health</a></li>
+                    <li><a href="#schema">Data Model</a></li>
+                    <li><a href="#examples">Quick cURL</a></li>
+                </ul>
+            </div>
+        </aside>
 
-                <div class="example-box">
-                    <div class="example-box-title">Request Example</div>
-                    <pre><code>{
+        <main class="content">
+            <section id="overview" class="panel content-card">
+                <div class="section-kicker">Overview</div>
+                <h2>Current API Surface</h2>
+                <p>
+                    The current backend is intentionally narrow. The frontend auth page talks to these
+                    endpoints directly, and the broader app/game platform APIs are not part of the
+                    active backend scope yet.
+                </p>
+                <div class="pill-row">
+                    <div class="pill"><code>POST /api/auth/login</code></div>
+                    <div class="pill"><code>POST /api/auth/signup</code></div>
+                    <div class="pill"><code>DELETE /api/auth/account</code></div>
+                    <div class="pill"><code>GET /api/auth/me</code></div>
+                    <div class="pill"><code>GET /health</code></div>
+                </div>
+            </section>
+
+            <section id="auth-model" class="panel content-card">
+                <div class="section-kicker">Auth Model</div>
+                <h2>How Authentication Works Today</h2>
+                <div class="callout">
+                    <ul class="flat-list">
+                        <li>The frontend stores a lightweight client session in <code>sessionStorage</code> and mirrors it in <code>localStorage</code> for restore.</li>
+                        <li><code>/api/auth/me</code> is a username-based lookup, not full token auth.</li>
+                        <li>Passwords are combined with <code>SECRET_KEY</code> and hashed with adaptive password schemes.</li>
+                        <li>The backend prefers <code>bcrypt_sha256</code>, then <code>bcrypt</code>, and falls back to <code>pbkdf2_sha256</code> if needed.</li>
+                        <li>Local SQLite startup can recover to <code>data/playnexus-recovered.db</code> if the primary file is unhealthy.</li>
+                        <li>Keep <code>SECRET_KEY</code> stable per Render environment or existing account verification can break.</li>
+                        <li>All auth endpoints share the same in-memory rate limiter.</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="login" class="panel endpoint">
+                <div class="endpoint-top">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/auth/login</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Authenticates a user and returns the username plus numeric user ID.</p>
+                    <div class="endpoint-grid">
+                        <div class="subcard">
+                            <h3>Request Body</h3>
+                            <table>
+                                <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+                                <tr><td><code>username</code></td><td>string</td><td>1-100 chars, must contain at least one letter</td></tr>
+                                <tr><td><code>password</code></td><td>string</td><td>1-100 chars</td></tr>
+                            </table>
+                            <pre><code>{
   "username": "player123",
   "password": "SecurePass123!"
 }</code></pre>
-                </div>
-
-                <h3 class="section-title">Response</h3>
-                <p><strong>Success (200 OK)</strong></p>
-                <div class="example-box">
-                    <div class="example-box-title">Response Example</div>
-                    <pre><code>{
+                        </div>
+                        <div class="subcard">
+                            <h3>Success Response</h3>
+                            <pre><code>{
   "message": "Login successful",
   "username": "player123",
   "user_id": 1
 }</code></pre>
+                            <h3 style="margin-top:14px;">Typical Errors</h3>
+                            <ul class="flat-list">
+                                <li><code>404</code> No user found</li>
+                                <li><code>401</code> Invalid username or password</li>
+                                <li><code>429</code> Rate limit exceeded</li>
+                                <li><code>500</code> Authentication service unavailable</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
+            </section>
 
-                <h3 class="section-title">Error Responses</h3>
-                <table>
-                    <tr><th>Status</th><th>Description</th></tr>
-                    <tr><td><code>400 Bad Request</code></td><td>Missing or invalid credentials</td></tr>
-                    <tr><td><code>401 Unauthorized</code></td><td>Invalid username/password (generic message)</td></tr>
-                    <tr><td><code>429 Too Many Requests</code></td><td>Rate limit exceeded (20 attempts per hour)</td></tr>
-                    <tr><td><code>500 Internal Server Error</code></td><td>Database or server error</td></tr>
-                </table>
-
-                <h3 class="section-title">Security Features</h3>
-                <ul>
-                    <li><strong>Constant-time comparison:</strong> Prevents timing attacks</li>
-                    <li><strong>Generic errors:</strong> Doesn't reveal if username exists</li>
-                    <li><strong>IP logging:</strong> Tracks <code>last_login_ip</code> and <code>last_login_at</code></li>
-                    <li><strong>Rate limiting:</strong> 20 requests per hour per IP (shared with signup)</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- Auth: Signup -->
-        <div class="endpoint">
-            <div class="endpoint-header">
-                <span class="method post">POST</span>
-                <span class="path">/api/auth/signup</span>
-                <span class="tag">Authentication</span>
-            </div>
-            <div class="endpoint-body">
-                <p>Register a new user account. Checks for duplicate usernames and stores password securely with bcrypt + pepper.</p>
-
-                <h3 class="section-title">Request Body</h3>
-                <table>
-                    <tr><th>Field</th><th>Type</th><th>Constraints</th><th>Example</th></tr>
-                    <tr><td><code>username</code></td><td>string</td><td>3-100 chars, must contain letters</td><td><code>"newplayer123"</code></td></tr>
-                    <tr><td><code>password</code></td><td>string</td><td>Min 8 characters</td><td><code>"SecurePass123!"</code></td></tr>
-                    <tr><td><code>confirm_password</code></td><td>string</td><td>Must match password</td><td><code>"SecurePass123!"</code></td></tr>
-                </table>
-
-                <div class="example-box">
-                    <div class="example-box-title">Request Example</div>
-                    <pre><code>{
+            <section id="signup" class="panel endpoint">
+                <div class="endpoint-top">
+                    <span class="method post">POST</span>
+                    <span class="path">/api/auth/signup</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>Creates a new account, hashes the password, and records signup IP metadata.</p>
+                    <div class="endpoint-grid">
+                        <div class="subcard">
+                            <h3>Request Body</h3>
+                            <table>
+                                <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+                                <tr><td><code>username</code></td><td>string</td><td>3-100 chars, letters required</td></tr>
+                                <tr><td><code>password</code></td><td>string</td><td>Minimum 8 characters</td></tr>
+                                <tr><td><code>confirm_password</code></td><td>string</td><td>Must exactly match <code>password</code></td></tr>
+                            </table>
+                            <pre><code>{
   "username": "newplayer123",
   "password": "SecurePass123!",
   "confirm_password": "SecurePass123!"
 }</code></pre>
-                </div>
-
-                <h3 class="section-title">Response</h3>
-                <p><strong>Success (200 OK)</strong></p>
-                <div class="example-box">
-                    <div class="example-box-title">Response Example</div>
-                    <pre><code>{
+                        </div>
+                        <div class="subcard">
+                            <h3>Success Response</h3>
+                            <pre><code>{
   "message": "Signup successful",
   "username": "newplayer123",
   "user_id": 2
 }</code></pre>
+                            <h3 style="margin-top:14px;">Typical Errors</h3>
+                            <ul class="flat-list">
+                                <li><code>409</code> Username already exists</li>
+                                <li><code>422</code> Validation error</li>
+                                <li><code>429</code> Rate limit exceeded</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
+            </section>
 
-                <h3 class="section-title">Error Responses</h3>
-                <table>
-                    <tr><th>Status</th><th>Description</th></tr>
-                    <tr><td><code>400 Bad Request</code></td><td>Validation error (empty fields, password mismatch, weak username)</td></tr>
-                    <tr><td><code>409 Conflict</code></td><td>Username already exists</td></tr>
-                    <tr><td><code>429 Too Many Requests</code></td><td>Rate limit exceeded (20 attempts per hour)</td></tr>
-                    <tr><td><code>500 Internal Server Error</code></td><td>Database or hashing error</td></tr>
-                </table>
-            </div>
-        </div>
+            <section id="delete-account" class="panel endpoint">
+                <div class="endpoint-top">
+                    <span class="method delete">DELETE</span>
+                    <span class="path">/api/auth/account</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>
+                        Permanently removes a user after verifying username and password. The current
+                        frontend sends the username and password, and the backend also accepts an optional
+                        <code>confirm_username</code> field for compatibility.
+                    </p>
+                    <div class="endpoint-grid">
+                        <div class="subcard">
+                            <h3>Request Body</h3>
+                            <table>
+                                <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+                                <tr><td><code>username</code></td><td>string</td><td>Required</td></tr>
+                                <tr><td><code>password</code></td><td>string</td><td>Required</td></tr>
+                                <tr><td><code>confirm_username</code></td><td>string</td><td>Optional compatibility field</td></tr>
+                            </table>
+                            <pre><code>{
+  "username": "player123",
+  "password": "SecurePass123!"
+}</code></pre>
+                        </div>
+                        <div class="subcard">
+                            <h3>Success Response</h3>
+                            <pre><code>{
+  "message": "Account deleted successfully",
+  "username": "player123",
+  "user_id": 1
+}</code></pre>
+                            <h3 style="margin-top:14px;">Typical Errors</h3>
+                            <ul class="flat-list">
+                                <li><code>401</code> Invalid username or password</li>
+                                <li><code>500</code> Unable to delete account</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-        <!-- Auth: Get Current User -->
-        <div class="endpoint">
-            <div class="endpoint-header">
-                <span class="method get">GET</span>
-                <span class="path">/api/auth/me</span>
-                <span class="tag">Authentication</span>
-            </div>
-            <div class="endpoint-body">
-                <p>Get current user profile. Requires authentication (username in query or future JWT token).</p>
-
-                <h3 class="section-title">Query Parameters</h3>
-                <table>
-                    <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-                    <tr><td><code>username</code></td><td>string</td><td>Yes (demo mode)</td><td>Username to fetch</td></tr>
-                </table>
-
-                <h3 class="section-title">Response</h3>
-                <div class="example-box">
-                    <div class="example-box-title">Response Example</div>
-                    <pre><code>{
+            <section id="me" class="panel endpoint">
+                <div class="endpoint-top">
+                    <span class="method get">GET</span>
+                    <span class="path">/api/auth/me?username=&lt;name&gt;</span>
+                </div>
+                <div class="endpoint-body">
+                    <p>
+                        Returns the current user profile in the temporary username-based session model.
+                        This is a transitional endpoint until token-backed auth is added.
+                    </p>
+                    <div class="endpoint-grid">
+                        <div class="subcard">
+                            <h3>Query Parameters</h3>
+                            <table>
+                                <tr><th>Parameter</th><th>Type</th><th>Notes</th></tr>
+                                <tr><td><code>username</code></td><td>string</td><td>Required in the current implementation</td></tr>
+                            </table>
+                        </div>
+                        <div class="subcard">
+                            <h3>Success Response</h3>
+                            <pre><code>{
   "id": 1,
   "username": "player123",
   "created_at": "2025-03-29T10:30:00",
   "last_login_at": "2025-03-29T15:45:00",
-  "last_login_ip": "192.168.1.1",
   "profile": {}
 }</code></pre>
+                            <h3 style="margin-top:14px;">Typical Errors</h3>
+                            <ul class="flat-list">
+                                <li><code>401</code> Not authenticated</li>
+                                <li><code>404</code> User not found</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
+            </section>
 
-                <h3 class="section-title">Error Responses</h3>
-                <table>
-                    <tr><td><code>401 Unauthorized</code></td><td>Not authenticated (username missing)</td></tr>
-                    <tr><td><code>404 Not Found</code></td><td>User not found</td></tr>
-                </table>
-            </div>
-        </div>
-
-        <!-- Apps: List -->
-        <div class="endpoint">
-            <div class="endpoint-header">
-                <span class="method get">GET</span>
-                <span class="path">/api/apps/</span>
-                <span class="tag">Apps</span>
-            </div>
-            <div class="endpoint-body">
-                <p>List all active apps in the platform. Used by frontend hub to display app catalog.</p>
-
-                <h3 class="section-title">Response</h3>
-                <div class="example-box">
-                    <div class="example-box-title">Response Example</div>
-                    <pre><code>{
-  "success": true,
-  "apps": [
-    {
-      "id": 1,
-      "name": "tic-tac-toe",
-      "route_path": "/apps/tic-tac-toe",
-      "description": "Classic Tic-Tac-Toe with AI opponent",
-      "icon": "🎮",
-      "is_active": true
-    }
-  ]
-}</code></pre>
+            <section id="health" class="panel endpoint">
+                <div class="endpoint-top">
+                    <span class="method get">GET</span>
+                    <span class="path">/health</span>
                 </div>
-
-                <h3 class="section-title">Rate Limiting</h3>
-                <p>This endpoint is limited to <strong>200 requests per hour per IP</strong>.</p>
-            </div>
-        </div>
-
-        <!-- Apps: Get Details -->
-        <div class="endpoint">
-            <div class="endpoint-header">
-                <span class="method get">GET</span>
-                <span class="path">/api/apps/{id}</span>
-                <span class="tag">Apps</span>
-            </div>
-            <div class="endpoint-body">
-                <p>Get details for a specific app by ID.</p>
-
-                <h3 class="section-title">Path Parameters</h3>
-                <table>
-                    <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
-                    <tr><td><code>id</code></td><td>integer</td><td>App ID from app_registry</td></tr>
-                </table>
-
-                <h3 class="section-title">Response</h3>
-                <p>Returns app info (id, name, route_path, description, icon, is_active).</p>
-
-                <h3 class="section-title">Error Responses</h3>
-                <table>
-                    <tr><td><code>404 Not Found</code></td><td>App not found or inactive</td></tr>
-                </table>
-            </div>
-        </div>
-
-        <!-- Apps: Launch -->
-        <div class="endpoint">
-            <div class="endpoint-header">
-                <span class="method post">POST</span>
-                <span class="path">/api/apps/{id}/launch</span>
-                <span class="tag">Apps</span>
-            </div>
-            <div class="endpoint-body">
-                <p>Track app launch activity. Call when user opens an app.</p>
-
-                <h3 class="section-title">Path Parameters</h3>
-                <table>
-                    <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
-                    <tr><td><code>id</code></td><td>integer</td><td>App ID</td></tr>
-                </table>
-
-                <h3 class="section-title">Query Parameters</h3>
-                <table>
-                    <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-                    <tr><td><code>username</code></td><td>string</td><td>Yes (header or query)</td><td>Authenticated username</td></tr>
-                    <tr><td><code>session_id</code></td><td>string</td><td>No</td><td>Session identifier (generated if omitted)</td></tr>
-                </table>
-
-                <div class="example-box">
-                    <div class="example-box-title">Request Example</div>
-                    <pre><code>POST /api/apps/1/launch?username=player123&session_id=abc123</code></pre>
-                </div>
-
-                <h3 class="section-title">Response</h3>
-                <pre><code>{
-  "success": true,
-  "session_id": "abc123",
-  "message": "App launch recorded"
-}</code></pre>
-
-                <h3 class="section-title">Error Responses</h3>
-                <table>
-                    <tr><td><code>401 Unauthorized</code></td><td>No username provided</td></tr>
-                    <tr><td><code>404 Not Found</code></td><td>User not found</td></tr>
-                </table>
-            </div>
-        </div>
-
-        <!-- Games: List -->
-        <div class="endpoint">
-            <div class="endpoint-header">
-                <span class="method get">GET</span>
-                <span class="path">/api/games/</span>
-                <span class="tag">Games</span>
-            </div>
-            <div class="endpoint-body">
-                <p>List all available games on the platform.</p>
-
-                <h3 class="section-title">Response</h3>
-                <div class="example-box">
-                    <div class="example-box-title">Response Example</div>
-                    <pre><code>{
-  "success": true,
-  "games": [
-    {
-      "id": 1,
-      "name": "tic-tac-toe",
-      "title": "Tic-Tac-Toe Crystal",
-      "description": "Classic Tic-Tac-Toe with AI opponent",
-      "icon": "🎮",
-      "route": "/apps/tic-tac-toe"
-    }
-  ]
-}</code></pre>
-                </div>
-            </div>
-        </div>
-
-        <!-- Games: Submit Score -->
-        <div class="endpoint">
-            <div class="endpoint-header">
-                <span class="method post">POST</span>
-                <span class="path">/api/games/{game_name}/scores</span>
-                <span class="tag">Games</span>
-            </div>
-            <div class="endpoint-body">
-                <p>Submit a score for a specific game. Score is recorded with metadata for leaderboards.</p>
-
-                <h3 class="section-title">Path Parameters</h3>
-                <table>
-                    <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
-                    <tr><td><code>game_name</code></td><td>string</td><td>Game identifier (e.g., "tic-tac-toe")</td></tr>
-                </table>
-
-                <h3 class="section-title">Request Body</h3>
-                <table>
-                    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
-                    <tr><td><code>score</code></td><td>integer</td><td>Yes</td><td>Numeric score (higher is better)</td></tr>
-                    <tr><td><code>metadata</code></td><td>object</td><td>No</td><td>Additional data (moves, opponent, won, etc.)</td></tr>
-                </table>
-
-                <div class="example-box">
-                    <div class="example-box-title">Request Example</div>
-                    <pre><code>{
-  "score": 1500,
-  "metadata": {
-    "moves": 15,
-    "opponent": "ai-easy",
-    "won": true
-  }
-}</code></pre>
-                </div>
-
-                <h3 class="section-title">Query Parameters</h3>
-                <table>
-                    <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-                    <tr><td><code>username</code></td><td>string</td><td>Yes (demo)</td><td>Authenticated username</td></tr>
-                </table>
-
-                <h3 class="section-title">Response</h3>
-                <div class="example-box">
-                    <div class="example-box-title">Response Example</div>
-                    <pre><code>{
-  "id": 123,
-  "user_id": 5,
-  "game_name": "tic-tac-toe",
-  "score": 1500,
-  "metadata": {"moves":15,"opponent":"ai-easy","won":true},
-  "created_at": "2025-03-29T16:30:00"
-}</code></pre>
-                </div>
-
-                <h3 class="section-title">Rate Limiting</h3>
-                <p><strong>100 requests per hour per IP</strong> (Games category)</p>
-            </div>
-        </div>
-
-        <!-- Games: Leaderboard -->
-        <div class="endpoint">
-            <div class="endpoint-header">
-                <span class="method get">GET</span>
-                <span class="path">/api/games/{game_name}/leaderboard</span>
-                <span class="tag">Games</span>
-            </div>
-            <div class="endpoint-body">
-                <p>Get top scores leaderboard for a specific game. Sorted by score descending.</p>
-
-                <h3 class="section-title">Path Parameters</h3>
-                <table>
-                    <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
-                    <tr><td><code>game_name</code></td><td>string</td><td>Game identifier</td></tr>
-                </table>
-
-                <h3 class="section-title">Query Parameters</h3>
-                <table>
-                    <tr><th>Parameter</th><th>Type</th><th>Default</th><th>Description</th></tr>
-                    <tr><td><code>limit</code></td><td>integer</td><td>10</td><td>Max entries (1-100)</td></tr>
-                </table>
-
-                <h3 class="section-title">Response</h3>
-                <div class="example-box">
-                    <div class="example-box-title">Response Example</div>
-                    <pre><code>{
-  "success": true,
-  "game_name": "tic-tac-toe",
-  "entries": [
-    {
-      "rank": 1,
-      "username": "champion123",
-      "score": 2500,
-      "created_at": "2025-03-29T14:20:00"
-    }
-  ],
-  "total_entries": 150
-}</code></pre>
-                </div>
-            </div>
-        </div>
-
-        <!-- Games: User Best Score -->
-        <div class="endpoint">
-            <div class="endpoint-header">
-                <span class="method get">GET</span>
-                <span class="path">/api/games/{game_name}/my-best</span>
-                <span class="tag">Games</span>
-            </div>
-            <div class="endpoint-body">
-                <p>Get the authenticated user's best score for a specific game.</p>
-
-                <h3 class="section-title">Path Parameters</h3>
-                <table>
-                    <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
-                    <tr><td><code>game_name</code></td><td>string</td><td>Game identifier</td></tr>
-                </table>
-
-                <h3 class="section-title">Query Parameters</h3>
-                <table>
-                    <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
-                    <tr><td><code>username</code></td><td>string</td><td>Yes (demo)</td><td>Authenticated username</td></tr>
-                </table>
-
-                <h3 class="section-title">Response</h3>
-                <div class="example-box">
-                    <div class="example-box-title">Response Example</div>
-                    <pre><code>{
-  "success": true,
-  "score": {
-    "id": 123,
-    "user_id": 5,
-    "game_name": "tic-tac-toe",
-    "score": 1500,
-    "metadata": {"won":true},
-    "created_at": "2025-03-29T16:30:00"
-  }
-}</code></pre>
-                </div>
-
-                <h3 class="section-title">Error Responses</h3>
-                <table>
-                    <tr><td><code>401 Unauthorized</code></td><td>Not authenticated</td></tr>
-                    <tr><td><code>404 Not Found</code></td><td>No scores submitted yet</td></tr>
-                </table>
-            </div>
-        </div>
-
-        <!-- Health Check -->
-        <div class="endpoint">
-            <div class="endpoint-header">
-                <span class="method get">GET</span>
-                <span class="path">/health</span>
-                <span class="tag" style="background:#607d8b;">Health</span>
-            </div>
-            <div class="endpoint-body">
-                <p>Health check endpoint for monitoring and deployment verification. Tests database connectivity. No authentication required.</p>
-
-                <h3 class="section-title">Response</h3>
-                <p><strong>Healthy (200 OK)</strong></p>
-                <div class="example-box">
-                    <div class="example-box-title">Response Example</div>
-                    <pre><code>{
+                <div class="endpoint-body">
+                    <p>Checks whether the API is up and whether the database connection succeeds.</p>
+                    <div class="endpoint-grid">
+                        <div class="subcard">
+                            <h3>Healthy Response</h3>
+                            <pre><code>{
   "status": "healthy",
   "service": "PlayNexus API",
   "database": "connected",
   "environment": "production"
 }</code></pre>
+                        </div>
+                        <div class="subcard">
+                            <h3>Notes</h3>
+                            <ul class="flat-list">
+                                <li>Used by deployment checks and uptime monitoring.</li>
+                                <li>Returns <code>503</code> when the database is unavailable.</li>
+                                <li>Not rate limited in the current app configuration.</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
+            </section>
 
-                <p><strong>Unhealthy (503 Service Unavailable)</strong></p>
-                <div class="example-box">
-                    <div class="example-box-title">Response Example</div>
-                    <pre><code>{
-  "status": "unhealthy",
-  "service": "PlayNexus API",
-  "database": "disconnected",
-  "environment": "production"
-}</code></pre>
+            <section id="schema" class="panel content-card">
+                <div class="section-kicker">Data Model</div>
+                <h2>Current Tables</h2>
+                <p>
+                    The active backend only depends on the auth-related tables below. Table names may
+                    gain an environment suffix like <code>_test</code> or <code>_prod</code>.
+                </p>
+                <div class="endpoint-grid">
+                    <div class="subcard">
+                        <h3><code>users</code></h3>
+                        <ul class="flat-list">
+                            <li><code>id</code>: primary key</li>
+                            <li><code>username</code>: unique login name</li>
+                            <li><code>password</code>: adaptive hash plus pepper</li>
+                            <li><code>created_at</code>: signup timestamp</li>
+                            <li><code>last_login_at</code>: most recent login time</li>
+                            <li><code>created_ip</code>: signup IP</li>
+                            <li><code>last_login_ip</code>: latest login IP</li>
+                        </ul>
+                    </div>
+                    <div class="subcard">
+                        <h3><code>user_profiles</code></h3>
+                        <ul class="flat-list">
+                            <li><code>user_id</code>: linked user ID</li>
+                            <li><code>display_name</code>: optional display name</li>
+                            <li><code>bio</code>: optional biography</li>
+                            <li><code>preferences</code>: JSON-like settings payload</li>
+                        </ul>
+                        <h3 style="margin-top:16px;"><code>schema_version</code></h3>
+                        <p>Tracks applied migration scripts.</p>
+                    </div>
+                    </div>
                 </div>
+                <h3 style="margin-top:20px; font-size:1.15rem;">Security Foundations</h3>
+                <div class="endpoint-grid" style="grid-template-columns: 1fr;">
+                    <div class="subcard">
+                        <ul class="flat-list">
+                            <li><strong>SQL Injection Hardened</strong>: Dynamic SQL builds enforce strict `isalnum()` plus underscore filtering on column schemas and ordering inputs, alongside full dynamic parameterization (`%s`/`?`).</li>
+                            <li><strong>Safe DB Migrations</strong>: Migration tooling is built to fully mask and sanitize connections, keeping credentials entirely out of CLI output and exception logs.</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
 
-                <h3 class="section-title">Usage</h3>
-                <ul>
-                    <li><strong>GitHub Actions:</strong> Verifies deployment success</li>
-                    <li><strong>Render Health Checks:</strong> Configure in Render dashboard</li>
-                    <li><strong>External Monitoring:</strong> UptimeRobot, Pingdom, Datadog</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- Rate Limits Summary -->
-        <div class="endpoint">
-            <div class="endpoint-header">
-                <span class="method" style="background:#ff9800;color:white;">INFO</span>
-                <span class="path">Rate Limits (Summary)</span>
-            </div>
-            <div class="endpoint-body">
-                <table>
-                    <tr><th>Category</th><th>Endpoints</th><th>Limit</th><th>Block Duration</th></tr>
-                    <tr><td><strong>Auth</strong></td><td><code>/api/auth/*</code></td><td>20 requests/hour per IP</td><td>15 minutes</td></tr>
-                    <tr><td><strong>Games</strong></td><td><code>/api/games/*</code></td><td>100 requests/hour per IP</td><td>10 minutes</td></tr>
-                    <tr><td><strong>Apps</strong></td><td><code>/apps/*</code></td><td>200 requests/hour per IP</td><td>10 minutes</td></tr>
-                    <tr><td><strong>Health</strong></td><td><code>/health</code></td><td>Unlimited</td><td>-</td></tr>
-                </table>
-                <p><strong>Note:</strong> Limits are per IP address and use sliding window algorithm. Exceeding limit returns <code>429 Too Many Requests</code>.</p>
-            </div>
-        </div>
-
-        <!-- Database Schema -->
-        <div class="endpoint">
-            <div class="endpoint-header">
-                <span class="method" style="background:#795548;color:white;">SCHEMA</span>
-                <span class="path">Database Tables</span>
-            </div>
-            <div class="endpoint-body">
-                <h3 class="section-title">users</h3>
-                <table>
-                    <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
-                    <tr><td><code>id</code></td><td>integer</td><td>PRIMARY KEY</td><td>Auto-increment ID</td></tr>
-                    <tr><td><code>username</code></td><td>varchar(255)</td><td>UNIQUE, NOT NULL</td><td>Login username</td></tr>
-                    <tr><td><code>password</code></td><td>text</td><td>NOT NULL</td><td>Bcrypt hash with pepper</td></tr>
-                    <tr><td><code>created_at</code></td><td>timestamp</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Registration time</td></tr>
-                    <tr><td><code>last_login_at</code></td><td>timestamp</td><td>NULL</td><td>Last login</td></tr>
-                    <tr><td><code>created_ip</code></td><td>text</td><td>NULL</td><td>IP at signup</td></tr>
-                    <tr><td><code>last_login_ip</code></td><td>text</td><td>NULL</td><td>IP at last login</td></tr>
-                </table>
-
-                <h3 class="section-title">user_profiles</h3>
-                <table>
-                    <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
-                    <tr><td><code>user_id</code></td><td>integer</td><td>FK → users.id, UNIQUE</td><td>Linked user</td></tr>
-                    <tr><td><code>display_name</code></td><td>varchar(100)</td><td>NULL</td><td>Show name</td></tr>
-                    <tr><td><code>bio</code></td><td>text</td><td>NULL</td><td>User biography</td></tr>
-                    <tr><td><code>avatar_url</code></td><td>text</td><td>NULL</td><td>Profile picture URL</td></tr>
-                    <tr><td><code>preferences</code></td><td>json</td><td>{}</td><td>User settings (JSON)</td></tr>
-                    <tr><td><code>created_at</code></td><td>timestamp</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Created</td></tr>
-                    <tr><td><code>updated_at</code></td><td>timestamp</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Last update</td></tr>
-                </table>
-
-                <h3 class="section-title">app_registry</h3>
-                <table>
-                    <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
-                    <tr><td><code>id</code></td><td>integer</td><td>PRIMARY KEY</td><td>App ID</td></tr>
-                    <tr><td><code>name</code></td><td>varchar(100)</td><td>UNIQUE, NOT NULL</td><td>Internal app name</td></tr>
-                    <tr><td><code>route_path</code></td><td>varchar(200)</td><td>UNIQUE, NOT NULL</td><td>URL path (e.g., /apps/tic-tac-toe)</td></tr>
-                    <tr><td><code>description</code></td><td>text</td><td>NULL</td><td>App description</td></tr>
-                    <tr><td><code>icon</code></td><td>varchar(50)</td><td>NULL</td><td>Emoji or icon name</td></tr>
-                    <tr><td><code>is_active</code></td><td>boolean</td><td>DEFAULT TRUE</td><td>Show in catalog</td></tr>
-                    <tr><td><code>created_at</code></td><td>timestamp</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Registered</td></tr>
-                </table>
-
-                <h3 class="section-title">user_app_activity</h3>
-                <table>
-                    <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
-                    <tr><td><code>id</code></td><td>integer</td><td>PRIMARY KEY</td><td>Activity ID</td></tr>
-                    <tr><td><code>user_id</code></td><td>integer</td><td>FK → users.id</td><td>User</td></tr>
-                    <tr><td><code>app_id</code></td><td>integer</td><td>FK → app_registry.id</td><td>App</td></tr>
-                    <tr><td><code>session_id</code></td><td>varchar(100)</td><td>NOT NULL</td><td>Session identifier</td></tr>
-                    <tr><td><code>metadata</code></td><td>json</td><td>{}</td><td>App-specific data</td></tr>
-                    <tr><td><code>created_at</code></td><td>timestamp</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Launch time</td></tr>
-                    <tr><td><code>last_accessed</code></td><td>timestamp</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>Last activity</td></tr>
-                </table>
-
-                <h3 class="section-title">game_scores</h3>
-                <table>
-                    <tr><th>Column</th><th>Type</th><th>Constraints</th><th>Description</th></tr>
-                    <tr><td><code>id</code></td><td>integer</td><td>PRIMARY KEY</td><td>Score ID</td></tr>
-                    <tr><td><code>user_id</code></td><td>integer</td><td>FK → users.id</td><td>Player</td></tr>
-                    <tr><td><code>game_name</code></td><td>varchar(100)</td><td>NOT NULL</td><td>Game identifier</td></tr>
-                    <tr><td><code>score</code></td><td>integer</td><td>NOT NULL</td><td>Numeric score</td></tr>
-                    <tr><td><code>metadata</code></td><td>json</td><td>{}</td><td>Game-specific stats</td></tr>
-                    <tr><td><code>created_at</code></td><td>timestamp</td><td>DEFAULT CURRENT_TIMESTAMP</td><td>When scored</td></tr>
-                </table>
-            </div>
-        </div>
-
-        <!-- Quick Test -->
-        <div class="endpoint">
-            <div class="endpoint-header">
-                <span class="method" style="background:#607d8b;color:white;">TEST</span>
-                <span class="path">Quick cURL Examples</span>
-            </div>
-            <div class="endpoint-body">
-                <h3 class="section-title">Auth</h3>
+            <section id="examples" class="panel content-card">
+                <div class="section-kicker">Quick cURL</div>
+                <h2>Fast Manual Checks</h2>
                 <pre><code># Signup
 curl -X POST http://localhost:8000/api/auth/signup \
   -H "Content-Type: application/json" \
-  -d '{"username":"test","password":"Test1234","confirm_password":"Test1234"}'
+  -d '{"username":"testuser","password":"Test1234","confirm_password":"Test1234"}'
 
 # Login
 curl -X POST http://localhost:8000/api/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"username":"test","password":"Test1234"}'
+  -d '{"username":"testuser","password":"Test1234"}'
 
-# Get profile
-curl "http://localhost:8000/api/auth/me?username=test"</code></pre>
+# Current user lookup
+curl "http://localhost:8000/api/auth/me?username=testuser"
 
-                <h3 class="section-title">Apps</h3>
-                <pre><code># List apps
-curl http://localhost:8000/api/apps/
-
-# Launch app
-curl -X POST "http://localhost:8000/api/apps/1/launch?username=test"</code></pre>
-
-                <h3 class="section-title">Games</h3>
-                <pre><code># List games
-curl http://localhost:8000/api/games/
-
-# Submit score
-curl -X POST "http://localhost:8000/api/games/tic-tac-toe/scores?username=test" \
+# Delete account
+curl -X DELETE http://localhost:8000/api/auth/account \
   -H "Content-Type: application/json" \
-  -d '{"score":1500,"metadata":{"won":true}}'
+  -d '{"username":"testuser","password":"Test1234"}'
 
-# Get leaderboard
-curl "http://localhost:8000/api/games/tic-tac-toe/leaderboard?limit=10"</code></pre>
-
-                <h3 class="section-title">Health</h3>
-                <pre><code>curl http://localhost:8000/health</code></pre>
-            </div>
-        </div>
-
+# Health
+curl http://localhost:8000/health</code></pre>
+            </section>
+        </main>
     </div>
 
-    <div class="footer">
-        <p><strong>PlayNexus API</strong> v1.0.0 – Multi-App Platform</p>
-        <p>Built with FastAPI • Secure with bcrypt + pepper • Modular architecture</p>
-        <p style="margin-top:20px;font-size:0.85em;color:#999;">
-            This documentation was generated from the OpenAPI schema.<br>
-            For the most up-to-date interactive docs, visit <code>/docs</code> when the server is running.
-        </p>
-    </div>
+    <footer class="footer">
+        <p><strong>PlayNexus API</strong> • Auth-first reference • Last updated 2026-04-04</p>
+        <p>For live interactive docs, open <code>/docs</code> when the server is running.</p>
+    </footer>
 </body>
 </html>

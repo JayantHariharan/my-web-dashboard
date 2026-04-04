@@ -1,10 +1,7 @@
-"""
-Shared Pydantic models and schemas for PlayNexus.
-Common models used across multiple app modules.
-"""
+"""Shared Pydantic models for the current PlayNexus backend."""
 
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field, field_validator
 
 # ============ Base Models ============
@@ -103,80 +100,36 @@ class RegisterData(LoginData):
         return v
 
 
-class AuthResponse(BaseModel):
-    """Authentication response model."""
+class DeleteAccountData(BaseModel):
+    """Delete-account request model."""
 
-    message: str
-    username: str
-    user_id: Optional[int] = None
+    username: str = Field(..., min_length=1, max_length=100)
+    password: str = Field(..., min_length=1, max_length=100)
+    confirm_username: Optional[str] = Field(default=None, min_length=1, max_length=100)
 
+    @field_validator("username", "confirm_username")
+    @classmethod
+    def validate_usernames(cls, value: Optional[str]) -> Optional[str]:
+        if value is None:
+            return value
+        value = value.strip()
+        if not value:
+            raise ValueError("Username cannot be empty")
+        return value
 
-# ============ App Registry Models ============
+    @field_validator("confirm_username")
+    @classmethod
+    def validate_confirm_username(cls, value: Optional[str], info) -> Optional[str]:
+        if value is None:
+            return value
+        if "username" in info.data and value != info.data["username"]:
+            raise ValueError("Usernames do not match")
+        return value
 
-
-class AppInfo(BaseModel):
-    """Information about an available app."""
-
-    id: int
-    name: str
-    route_path: str
-    description: str
-    icon: Optional[str] = None
-    is_active: bool = True
-
-    class Config:
-        from_attributes = True
-
-
-class AppListResponse(BaseResponse):
-    """Response for listing apps."""
-
-    apps: List[AppInfo]
-
-
-# ============ Game Models ============
-
-
-class GameScoreBase(BaseModel):
-    """Base score submission."""
-
-    game_name: str
-    score: int
-    metadata: Optional[Dict[str, Any]] = None
-
-
-class GameScoreCreate(GameScoreBase):
-    """Submit a new score."""
-
-    pass
-
-
-class GameScoreResponse(GameScoreBase):
-    """Returned score data."""
-
-    id: int
-    user_id: int
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class LeaderboardEntry(BaseModel):
-    """Entry in a leaderboard."""
-
-    rank: int
-    username: str
-    score: int
-    created_at: datetime
-
-
-class LeaderboardResponse(BaseResponse):
-    """Leaderboard data."""
-
-    game_name: str
-    entries: List[LeaderboardEntry]
-    total_entries: int
+    @field_validator("password")
+    @classmethod
+    def validate_delete_password(cls, value: str) -> str:
+        return value.strip()
 
 
 # ============ User Profile Models ============
@@ -201,22 +154,6 @@ class UserProfileResponse(BaseModel):
     preferences: Dict[str, Any] = {}
     created_at: datetime
     updated_at: Optional[datetime] = None
-
-    class Config:
-        from_attributes = True
-
-
-# ============ Activity Models ============
-
-
-class UserActivityResponse(BaseModel):
-    """User app activity."""
-
-    app_name: str
-    session_id: str
-    launched_at: datetime
-    last_accessed: Optional[datetime] = None
-    metadata: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True

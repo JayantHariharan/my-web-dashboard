@@ -1,307 +1,170 @@
 # System Architecture
 
-This document describes the technical architecture of PlayNexus.
-
----
-
 ## Overview
 
-PlayNexus is a **full-stack web application** with a FastAPI backend serving a static HTML/CSS/JavaScript frontend. It uses PostgreSQL for production (Render) and SQLite for local development.
+PlayNexus currently runs as an auth-first web application.
 
-```
-┌──────────────────────────────────────────────────────────┐
-│                     User's Browser                        │
-│  ┌────────────────────────────────────────────────────┐  │
-│  │           Frontend (Static HTML/CSS/JS)            │  │
-│  │  - Crystal Portal UI with Matter.js physics       │  │
-│  │  - Responsive design (mobile + desktop)           │  │
-│  │  - Session management via sessionStorage          │  │
-│  └────────────────────────────────────────────────────┘  │
-└───────────────────────┬──────────────────────────────────┘
-                        │ (served from same origin)
-                        ▼
-┌──────────────────────────────────────────────────────────┐
-│              FastAPI Backend (Render)                    │
-│  ┌────────────────────────────────────────────────────┐  │
-│  │  • Serves static files from src/frontend/         │  │
-│  │  • Authentication APIs: /api/login, /api/signup   │  │
-│  │  • Health check: /health                          │  │
-│  │  • Rate limiting (category-based)                 │  │
-│  │  • Migration engine (Flyway-style, auto-apply)   │  │
-│  └────────────────────────────────────────────────────┘  │
-└───────────────────────┬──────────────────────────────────┘
-                        │
-                        ▼
-┌──────────────────────────────────────────────────────────┐
-│              PostgreSQL (Render) / SQLite (dev)         │
-│  ┌────────────────────────────────────────────────────┐  │
-│  │  • users table (with audit fields)                │  │
-│  │  • user_profiles table                            │  │
-│  │  • app_registry table                             │  │
-│  │  • user_app_activity table                        │  │
-│  │  • game_scores table                              │  │
-│  │  • schema_version table (migration tracking)      │  │
-│  └────────────────────────────────────────────────────┘  │
-└──────────────────────────────────────────────────────────┘
+A FastAPI backend serves both:
+
+- JSON APIs for authentication
+- Static frontend files from `src/frontend/`
+
+The repo still contains static pages for future sections of the site, but the active backend scope is intentionally narrow while the auth foundation is being stabilized.
+
+## Runtime Shape
+
+```text
+Browser
+  |
+  |-- GET /                  -> static frontend
+  |-- POST /api/auth/login   -> backend auth router
+  |-- POST /api/auth/signup  -> backend auth router
+  |-- DELETE /api/auth/account -> backend auth router
+  |-- GET /api/auth/me       -> backend auth router
+  `-- GET /health            -> health endpoint
+
+FastAPI app
+  |
+  |-- core/app.py            -> app factory, middleware, health, exception handling
+  |-- auth/router.py         -> auth endpoints
+  |-- shared/database.py     -> repository layer
+  |-- shared/security.py     -> password hashing and verification
+  `-- StaticFiles mount      -> serves frontend
+
+Database
+  |
+  |-- users[_suffix]
+  |-- user_profiles[_suffix]
+  `-- schema_version[_suffix]
 ```
 
----
+## Backend Layers
 
-## Technology Stack
+### Entry point
 
-### Backend
-- **Framework**: FastAPI (Python 3.12+)
-- **Database**: PostgreSQL (production) / SQLite (development)
-- **Authentication**: bcrypt with pepper (passlib)
-- **Deployment**: Render.com (PaaS)
-- **CI/CD**: GitHub Actions
-- **Migrations**: Custom Flyway-style SQL migrator
+`src/backend/main.py` creates the app, includes the auth router, mounts the frontend, and runs a startup check for legacy plaintext-password migration.
 
-### Frontend
-- **Architecture**: Static HTML5 + CSS3 + ES6 JavaScript
-- **Physics**: Matter.js (2D physics engine for UI effects)
-- **Styling**: CSS custom properties, glassmorphism, responsive
-- **Features**: Dark/light theme toggle, toast notifications, live search
+### App factory
 
-### Database
-- **Production**: PostgreSQL (Render-managed)
-- **Development**: SQLite (local file: `./data/playnexus.db`)
-- **Migrations**: Flyway-style versioned SQL scripts in `flyway/sql/`
-- **Schema tracking**: `schema_version` table
+`src/backend/core/app.py` is responsible for:
 
----
+- CORS
+- request IDs
+- security headers
+- gzip
+- cache control
+- auth rate limiting
+- health endpoint
+- exception handling
 
-## Key Design Patterns
+### Auth module
 
-### 1. Repository Pattern
+`src/backend/auth/router.py` currently owns:
 
-Database operations are encapsulated in repository classes:
+- login
+- signup
+- current-user lookup
+- account deletion
 
-```python
-class UserRepository(BaseRepository):
-    def get_user_by_username(self, username: str) -> Optional[Dict]:
-        ...
-    def create_user(self, username: str, password_hash: str) -> int:
-        ...
-```
+### Shared layer
 
-**Benefits**:
-- Separates data access from business logic
-- Easy to test (mock repositories)
-- Database-agnostic (works with SQLite/PostgreSQL)
+`src/backend/shared/` contains the reusable backend pieces:
 
-### 2. Configuration Management
+- `database.py`: repository access and connection helpers
+- `security.py`: adaptive password hashing plus pepper helpers
+- `schemas.py`: request and response models
 
-Centralized settings via `config.py`:
+## Frontend Design
 
-```python
-@dataclass
-class Settings:
-    database: DatabaseConfig
-    debug: bool = False
-    secret_key: str = ...
-    log_level: int = logging.INFO
-```
+The frontend is static HTML, CSS, and JavaScript.
 
-Environment variables override defaults.
+### Current auth behavior
 
-### 3. Modular Routing
+- The auth portal lives in `src/frontend/index.html`.
+- Login and signup call `/api/auth/...`.
+- Successful auth stores the username in `sessionStorage`.
+- Theme preference is stored in `localStorage`.
+- The hub uses animation-heavy visuals, including canvas effects and Matter.js-based physics.
 
-Backend is split into feature modules:
-- `auth/` - Authentication endpoints
-- `games/` - Game-specific APIs
-- `apps/` - General app registry
+### Important limitation
 
-Each module defines its own router with prefix, making it easy to add new app categories.
+The frontend session model is still lightweight. It is not yet backed by JWTs or server sessions, so `/api/auth/me` is currently a username-based lookup rather than full session validation.
 
-### 4. Middleware Pipeline
+## Data Model
 
-Ordered middleware chain in `core/app.py`:
-1. Request ID middleware (adds `X-Request-ID`)
-2. CORS middleware
-3. Rate limiting middleware (per-route configuration)
+### users
 
----
+Stores core account data:
 
-## Database Schema
+- id
+- username
+- password hash
+- created timestamp
+- last login timestamp
+- created IP
+- last login IP
 
-### Tables
+### user_profiles
 
-1. **users**
-   - `id` (PK, autoincrement)
-   - `username` (unique, indexed)
-   - `password` (bcrypt hash)
-   - `created_at`, `last_login_at`
-   - `created_ip`, `last_login_ip` (audit)
+Stores optional profile data tied to a user.
 
-2. **user_profiles**
-   - `user_id` (FK to users, 1:1)
-   - `display_name`, `bio`, `avatar_url`
-   - `created_at`, `updated_at`
+### schema_version
 
-3. **app_registry**
-   - `id` (PK)
-   - `name`, `route_path` (unique)
-   - `description`, `icon`, `version`
-   - `is_active` (boolean)
-   - `created_at`
-   - Seed: Tic-Tac-Toe app registered on V3 migration
+Tracks applied SQL migrations.
 
-4. **user_app_activity**
-   - `id` (PK)
-   - `user_id` (FK)
-   - `app_id` (FK)
-   - `session_id`
-   - `metadata` (TEXT, stores JSON)
-   - `created_at`, `last_accessed`
+## Configuration Model
 
-5. **game_scores**
-   - `id` (PK)
-   - `user_id` (FK)
-   - `game_name` (e.g., "tic-tac-toe")
-   - `score` (integer)
-   - `metadata` (TEXT, stores JSON)
-   - `created_at`
-   - Indexes: `(user_id, game_name)`, `(game_name, score DESC)`
+Configuration is environment-driven.
 
-6. **schema_version**
-   - `id` (PK)
-   - `version` (INTEGER, but stores filename like "V1__create_users.sql")
-   - `script` (TEXT, migration filename)
-   - `installed_on` (TIMESTAMP)
+### Database selection
 
-7. **app_config** (Runtime Configuration)
-   - `key` (TEXT, part of composite PK)
-   - `value` (TEXT, config value)
-   - `env` (TEXT, environment: 'staging' or 'production', part of composite PK)
-   - `description` (TEXT, optional)
-   - `updated_at` (TIMESTAMP)
-   - Unique constraint on `(key, env)`
-   - Index on `env` for fast lookup
-   - Purpose: Store environment-specific settings (site_name, maintenance_mode, etc.)
-   - Values loaded at startup based on `APP_ENV` environment variable
+- `DATABASE_URL` if present
+- otherwise `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`
+- otherwise SQLite in `data/playnexus.db`
 
----
+### Environment suffixes
 
-## Security Considerations
+- `production` or `prod` -> `_prod`
+- `test`, `staging`, `dev`, or `development` -> `_test`
+- local default -> no suffix
 
-### Authentication
-- Passwords hashed with bcrypt (cost factor 12)
-- Pepper (`SECRET_KEY`) added to password before hashing
-- Constant-time comparison prevents timing attacks
-- Generic error messages (don't reveal if username exists)
+## Security Model
 
-### Rate Limiting
-- **Auth endpoints**: 20 requests/hour, block 15min
-- **Games endpoints**: 100 requests/hour, block 10min
-- **Apps endpoints**: 200 requests/hour, block 10min
-- In-memory storage (suitable for single instance); for multi-instance, use Redis
+### Current protections
 
-### Input Validation
-- Pydantic schemas validate all request bodies
-- Parameterized queries prevent SQL injection
-- CORS configured (wildcard in dev, restricted in prod)
+- adaptive password hashing with `bcrypt` preferred and `pbkdf2_sha256` fallback
+- `SECRET_KEY`-peppered adaptive password hashing with `bcrypt_sha256` preferred
+- auth rate limiting by IP
+- request ID tracing
+- security headers
+- parameterized SQL values
+- strongly sanitized dynamic column and order-by mapping (SQL injection prevented)
 
----
+### Current tradeoffs
 
-## Deployment Architecture
+- in-memory rate limiting only
+- sessionStorage-based frontend state
+- no JWT or refresh-token model yet
+- `SECRET_KEY` is part of password verification, so each Render environment must keep a stable value
 
-```
-GitHub Repository
-    │
-    │ push to main
-    ▼
-GitHub Actions (CI/CD)
-    │
-    ├─► Pre-checks (lint, type, syntax)
-    ├─► Apply migrations to Render PostgreSQL
-    ├─► Trigger Render deploy
-    ├─► Health check wait (max 30min)
-    └─► Smoke test (Playwright)
-```
+## What Is Intentionally Out of Scope Right Now
 
-**Render Setup**:
-- Web Service (Python 3.12)
-- Build: `pip install -r requirements.txt`
-- Start: `uvicorn backend.main:app --host 0.0.0.0 --port $PORT`
-- Env vars: `PGHOST`, `PGPORT`, `PGUSER`, `PGPASSWORD`, `PGDATABASE`, `SECRET_KEY`, `DEBUG=false`
+These ideas belong to the future roadmap, not the current backend scope:
 
----
+- app registry APIs
+- game score APIs
+- social activity APIs
+- runtime `app_config` loading
+- distributed rate limiting
 
-## Performance Considerations
+## Roadmap Direction
 
-### Backend
-- FastAPI async request handling
-- SQLite for dev (zero config), PostgreSQL for prod (connection pooling)
-- In-memory rate limiter (fast but not distributed)
+The planned sequence is:
 
-### Frontend
-- Matter.js physics runs on canvas (GPU-accelerated)
-- Debounced search input (300ms delay)
-- Mobile-optimized: particle count reduced on small screens
-- CSS animations use `transform` and `opacity` (composited)
+1. Finish auth page flows and cleanup.
+2. Improve session/auth robustness.
+3. Reintroduce broader PlayNexus app experiences only after the auth layer is stable.
 
----
+## Last Updated
 
-## Future Enhancements (Roadmap)
-
-- JWT authentication for persistent sessions
-- Redis-backed rate limiting for multi-instance scaling
-- User profile pictures (DiceBear/Cloudinary)
-- More games: puzzle, arcade, strategy
-- Achievements & badges system
-- Social features (friends, chat)
-- Admin dashboard
-- Email verification (SendGrid)
-- Password reset flow
-- Two-factor authentication (2FA)
-- API analytics dashboard
-- PWA offline support
-- Docker containerization
-
----
-
-## Project Structure
-
-```
-my-web-dashboard/
-├── src/
-│   ├── backend/
-│   │   ├── config.py         # Settings
-│   │   ├── log_config.py     # Logging
-│   │   ├── main.py           # Entry point
-│   │   ├── migrator.py       # DB migrations
-│   │   ├── core/             # App factory, middleware
-│   │   ├── shared/           # Database, security, schemas, exceptions
-│   │   ├── auth/             # Auth module
-│   │   ├── games/            # Games module
-│   │   └── apps/             # Apps module
-│   └── frontend/
-│       ├── index.html        # Hub
-│       ├── games/            # Games pages
-│       ├── author/           # Vault
-│       ├── community/        # Community
-│       ├── news/             # Trending
-│       ├── css/              # Styles
-│       ├── js/               # Scripts
-│       └── assets/           # Images, SVGs
-├── flyway/
-│   └── sql/                  # Migration files (V1..V5)
-├── docs/
-│   ├── ARCHITECTURE.md       # This file
-│   ├── FLYWAY.md            # Migration guide
-│   └── API-REFERENCE.html   # API docs (offline)
-├── tests/
-├── .github/workflows/
-├── CLAUDE.md                 # Claude Code guidance
-├── README.md                 # Quick start
-├── requirements.txt          # Dependencies
-├── runtime.txt              # Python version
-├── .env.example             # Env template
-└── data/
-    └── playnexus.db         # SQLite dev database (gitignored)
-```
-
----
-
-## Last Updated: 2026-03-31
+2026-04-04

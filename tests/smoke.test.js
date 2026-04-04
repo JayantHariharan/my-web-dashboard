@@ -2,18 +2,32 @@ const { chromium } = require('playwright');
 
 /**
  * PlayNexus Visual Smoke Test
- * 
+ *
  * Purpose:
  * 1. Pass the ProFreeHost anti-bot challenge (real browser).
  * 2. Take a full-page screenshot of the produced site.
  * 3. Verify specifically that the text "PlayNexus" exists (ensures no blank page).
+ *
+ * Environment fallbacks:
+ * - If SITE_URL is not set or is "null", uses hardcoded URLs based on APP_ENV:
+ *   - production: https://playnexus.onrender.com (or your production URL)
+ *   - staging/test: https://playnexus-test.onrender.com
  */
 
 (async () => {
-  const url = process.env.SITE_URL;
-  if (!url) {
-    console.error("❌ ERROR: SITE_URL environment variable is missing.");
-    process.exit(1);
+  let url = process.env.SITE_URL;
+
+  // Fallback to environment-specific hardcoded URLs if SITE_URL is missing or null
+  if (!url || url === 'null' || url === 'undefined') {
+    const env = process.env.APP_ENV || process.env.ENV || process.env.NODE_ENV || 'staging';
+    console.log(`⚠️  SITE_URL not provided (value: ${url}), using fallback for environment: ${env}`);
+
+    if (env === 'production' || env === 'prod') {
+      url = 'https://playnexus.onrender.com'; // TODO: Update with actual production URL
+    } else {
+      url = 'https://playnexus-test.onrender.com'; // staging/test default
+    }
+    console.log(`🔧 Using fallback URL: ${url}`);
   }
 
   console.log(`🔍 Starting Smoke Test for: ${url}`);

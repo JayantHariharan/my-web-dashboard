@@ -1,0 +1,25 @@
+{
+  "$comment": "Git hooks configuration via environment variables (preferred) or this JSON file.",
+  "$see": "See DEVELOPER.md for details on hook behavior and customization",
+  "pre-commit": {
+    "enabled": true,
+    "skipChecks": [],
+    "onlyOnChanged": true
+  },
+  "pre-push": {
+    "enabled": true,
+    "runFullChecks": false,
+    "runSmokeTests": false,
+    "checkBranchUpToDate": true
+  },
+  "commit-msg": {
+    "enabled": true,
+    "enforceConventionalCommits": true,
+    "allowWip": true
+  },
+  "$environment-variables": {
+    "HOOKS_SKIP_PRE_PUSH": "Set to skip all pre-push checks",
+    "HOOKS_QUICK": "Set to run only syntax check (skip full checks, fast)",
+    "HOOKS_SKIP_BRANCH_CHECK": "Set to skip 'branch up-to-date' validation"
+  }
+}

@@ -1,7 +1,4 @@
-"""
-Middleware components for PlayNexus.
-Includes rate limiting, request ID, and other cross-cutting concerns.
-"""
+"""Middleware components for PlayNexus."""
 
 import time
 import uuid
@@ -72,7 +69,7 @@ class SimpleRateLimiter:
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Middleware to apply rate limiting to specific routes."""
+    """Middleware to apply rate limiting to specific route prefixes."""
 
     def __init__(
         self, app, limiter: SimpleRateLimiter, paths: Optional[List[str]] = None
@@ -82,8 +79,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         self.paths = paths or []  # Empty list = no paths, must be explicitly set
 
     async def dispatch(self, request: Request, call_next):
-        # Only rate limit specific paths
-        if request.url.path in self.paths:
+        # Only rate limit matching route prefixes
+        if any(request.url.path.startswith(path) for path in self.paths):
             # Get client IP, considering X-Forwarded-For if behind proxy (e.g., Render)
             client_ip = "unknown"
             if request.client:
@@ -116,20 +113,7 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
         return response
 
 
-# Pre-configured rate limiters for different app categories
-# These can be imported by individual app modules
-
 # Auth endpoints: 20 requests/hour, 15-minute block
 auth_rate_limiter = SimpleRateLimiter(
     max_requests=20, window_seconds=3600, block_duration_seconds=900
-)
-
-# Games endpoints: 100 requests/hour, 10-minute block
-games_rate_limiter = SimpleRateLimiter(
-    max_requests=100, window_seconds=3600, block_duration_seconds=600
-)
-
-# General apps: 200 requests/hour, 10-minute block
-apps_rate_limiter = SimpleRateLimiter(
-    max_requests=200, window_seconds=3600, block_duration_seconds=600
 )

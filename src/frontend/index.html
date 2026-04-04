@@ -14,44 +14,1173 @@
 
     <!-- 🎨 CANVAS LIQUID ENGINE (Managed by cinematic-startup.js) -->
     <canvas id="cinematic-bg"></canvas>
-    
-    <!-- 🔐 LUMINOUS AUTH PORTAL (Centered Hero Phase) -->
-    <section id="crystal-auth-portal" class="hidden">
-        <div class="hero-login-container">
-            <div class="crystal-auth-card">
-                <!-- 🪐 BRAND ANCHOR -->
-                <div style="text-align: center; margin-bottom: 28px;">
-                    <h1 class="nexus-gradient-text" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.6rem; letter-spacing: 12px;">PLAYNEXUS</h1>
-                    <p style="color: rgba(255,255,255,0.25); font-size: 0.65rem; letter-spacing: 4px; margin-top: 8px; font-family: 'Outfit';">CONSOLE PORTAL</p>
-                </div>
 
-                <!-- 🚪 AUTHENTICATION MODE SWITCHER -->
-                <div style="display: flex; justify-content: center; margin-bottom: 24px;">
-                    <button id="mode-btn" class="mode-toggle" onclick="toggleAuthMode()">Sign Up</button>
-                </div>
+    <!-- 🔐 LUMINOUS AUTH PORTAL (Redesigned) -->
+    <section id="auth-portal-section" class="hidden">
+        <style>
+            /* ═══════════════════════════════════════════════════
+               ULTIMATE FORTNITE-INSPIRED GLASSMORPHISM AUTH
+               ═══════════════════════════════════════════════════ */
+            :root {
+                --forge-blue: #00d4ff;
+                --forge-purple: #a855f7;
+                --forge-pink: #ec4899;
+                --forge-gold: #fbbf24;
+                --glass-bg: rgba(10, 10, 18, 0.45); /* Darker base for better mobile contrast */
+                --glass-rim: rgba(255, 255, 255, 0.08); /* Sophisticated subtle white tint */
+                --glass-border: rgba(255, 255, 255, 0.1);
+                --glass-highlight: rgba(255, 255, 255, 0.2);
+                --success: #10b981;
+                --error: #ef4444;
+            }
 
-                <!-- 🚪 SECURITY GATE -->
-                <div id="auth-form-container">
-                    <div class="auth-field" style="margin-bottom: 14px;">
-                        <input type="text" id="auth-username" class="floating-input" placeholder="Username">
-                    </div>
+            .auth-hub {
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                position: relative;
+                overflow: hidden;
+                background: radial-gradient(ellipse at center, rgba(10, 10, 15, 0.4) 0%, rgba(0, 0, 0, 0.6) 100%);
+                padding: 20px;
+                box-sizing: border-box;
+            }
 
-                    <div class="auth-field" style="margin-bottom: 14px;">
-                        <input type="password" id="auth-password" class="floating-input" placeholder="Password">
-                    </div>
+            /* Animated Background Orbs */
+            /* Fixed: Uses .global-bg (not .auth-bg) to match HTML class. Absolute positioning ensures it sits above
+               the portal's background gradient but below the auth card. z-index: 0 positions it within portal's stacking context. */
+            .global-bg {
+                position: absolute;
+                inset: 0;
+                overflow: hidden;
+                z-index: 0;
+            }
 
-                    <div id="confirm-password-field" class="auth-field" style="margin-bottom: 14px; display: none;">
-                        <input type="password" id="auth-confirm-password" class="floating-input" placeholder="Confirm Password">
-                    </div>
+            .orb {
+                position: absolute;
+                border-radius: 50%;
+                filter: blur(80px);
+                animation: orbFloat 20s ease-in-out infinite;
+            }
 
-                    <button id="auth-btn" class="nexus-btn-luxe" onclick="unlockPortal()">Enter the Nexus</button>
-                </div>
+            .orb-1 {
+                width: 600px;
+                height: 600px;
+                background: radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%); /* Changed to purple for a subtler, unified theme */
+                top: -20%;
+                left: -10%;
+                animation-delay: 0s;
+            }
 
-                <div id="auth-error" style="margin-top: 35px; color: #ff4444; font-size: 0.7rem; text-align: center; letter-spacing: 4px; opacity: 0; transition: all 0.8s ease;"></div>
+            .orb-2 {
+                width: 500px;
+                height: 500px;
+                background: radial-gradient(circle, rgba(168, 85, 247, 0.12) 0%, transparent 70%);
+                top: 20%;
+                right: -15%;
+                animation-delay: -7s;
+            }
+
+            .orb-3 {
+                width: 400px;
+                height: 400px;
+                background: radial-gradient(circle, rgba(236, 72, 153, 0.1) 0%, transparent 70%);
+                bottom: -10%;
+                left: 20%;
+                animation-delay: -14s;
+            }
+
+            .orb-4 {
+                width: 450px;
+                height: 450px;
+                /* Fourth orb: gold accent - completes the orb set (cyan, purple, pink, gold) */
+                background: radial-gradient(circle, rgba(251, 191, 36, 0.12) 0%, transparent 70%);
+                top: 10%;
+                right: -15%;
+                animation-delay: -21s;
+            }
+
+            @keyframes orbFloat {
+                0%, 100% { transform: translate(0, 0) scale(1); }
+                33% { transform: translate(30px, -40px) scale(1.1); }
+                66% { transform: translate(-20px, 30px) scale(0.9); }
+            }
+
+            /* Grid Overlay */
+            .grid-overlay {
+                position: absolute;
+                inset: 0;
+                background-image:
+                    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+                background-size: 50px 50px;
+                z-index: 1;
+            }
+
+            /* Main Card */
+            .auth-card {
+                position: relative;
+                z-index: 10;
+                width: 100%;
+                max-width: 440px;
+                min-height: min-content;
+                background: var(--glass-bg);
+                /* High-performance blur with cross-browser prefixes */
+                -webkit-backdrop-filter: blur(40px) saturate(180%);
+                backdrop-filter: blur(40px) saturate(180%);
                 
-                <p id="access-granted-msg" style="margin-top: 35px; color: var(--nexus-cyan); font-size: 0.7rem; text-align: center; letter-spacing: 4px; opacity: 0; transition: all 0.8s ease;">
-                    // SECURE ACCESS GRANTED
-                </p>
+                /* Fallback for browsers (mobile) without backdrop-filter support */
+                @supports not (backdrop-filter: blur(10px)) {
+                    background: rgba(15, 15, 25, 0.92);
+                }
+                
+                border: 1px solid var(--glass-border);
+                border-radius: 32px;
+                padding: 32px 28px;
+                box-shadow:
+                    0 24px 64px rgba(0, 0, 0, 0.6),
+                    0 0 0 1px rgba(255, 255, 255, 0.05) inset,
+                    0 0 40px rgba(0, 212, 255, 0.05);
+                animation: cardEntrance 0.8s cubic-bezier(0.19, 1, 0.22, 1);
+                display: flex;
+                flex-direction: column;
+            }
+
+            @keyframes cardEntrance {
+                from {
+                    opacity: 0;
+                    transform: translateY(30px) scale(0.95);
+                    filter: blur(10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0) scale(1);
+                    filter: blur(0);
+                }
+            }
+
+            .auth-card::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 40px;
+                right: 40px;
+                height: 2px;
+                background: linear-gradient(90deg, transparent, var(--forge-blue), var(--forge-purple), var(--forge-pink), transparent);
+                box-shadow: 0 0 20px rgba(0, 212, 255, 0.5);
+                opacity: 0.6;
+                transition: opacity 0.3s ease;
+            }
+            .auth-card:hover::before {
+                opacity: 1;
+            }
+
+            /* Header */
+            .auth-header {
+                text-align: center;
+                margin-bottom: 24px;
+            }
+
+            .logo-container {
+                position: relative;
+                display: inline-block;
+                margin-bottom: 8px;
+            }
+
+            .auth-logo {
+                font-family: 'Orbitron', 'Outfit', sans-serif;
+                font-weight: 900;
+                font-size: 1.8rem;
+                letter-spacing: 5px;
+                background: linear-gradient(135deg,
+                    var(--forge-blue) 0%,
+                    var(--forge-purple) 50%,
+                    var(--forge-pink) 100%);
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.3));
+                animation: logoGlow 4s ease-in-out infinite;
+            }
+
+            @keyframes logoGlow {
+                0%, 100% { filter: drop-shadow(0 0 20px rgba(0, 212, 255, 0.3)); }
+                50% { filter: drop-shadow(0 0 40px rgba(168, 85, 247, 0.5)); }
+            }
+
+            .auth-subtitle {
+                color: rgba(255, 255, 255, 0.5);
+                font-size: 0.65rem;
+                letter-spacing: 6px;
+                text-transform: uppercase;
+                font-weight: 700;
+                opacity: 0.7;
+            }
+
+            /* Form Elements */
+            .form-group {
+                margin-bottom: 16px;
+                position: relative;
+            }
+
+            .form-label {
+                display: block;
+                margin-bottom: 8px;
+                color: rgba(255, 255, 255, 0.6);
+                font-size: 0.7rem;
+                font-weight: 700;
+                letter-spacing: 1.5px;
+                text-transform: uppercase;
+            }
+
+            .input-wrapper {
+                position: relative;
+            }
+
+            .auth-input {
+                width: 100%;
+                padding: 12px 14px;
+                background: rgba(0, 0, 0, 0.3);
+                border: 1.2px solid rgba(255, 255, 255, 0.1);
+                border-radius: 14px;
+                color: #fff;
+                font-family: 'Inter', sans-serif;
+                font-size: 0.95rem;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                outline: none;
+            }
+
+            .auth-input::placeholder {
+                color: rgba(255, 255, 255, 0.35);
+                letter-spacing: 1px;
+                font-size: 0.85rem;
+            }
+
+            .auth-input:focus {
+                background: rgba(0, 0, 0, 0.4);
+                border-color: var(--forge-blue);
+                box-shadow:
+                    0 0 0 4px rgba(0, 212, 255, 0.15),
+                    0 0 30px rgba(0, 212, 255, 0.2);
+            }
+
+            .input-wrapper.success .auth-input {
+                border-color: var(--success);
+                box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
+            }
+
+            .input-wrapper.error .auth-input {
+                border-color: var(--error);
+                box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15);
+            }
+
+            .icon-wrapper {
+                position: absolute;
+                right: 16px;
+                top: 50%;
+                transform: translateY(-50%);
+                user-select: none;
+            }
+
+            .success-icon {
+                color: var(--success);
+                font-size: 1.2rem;
+                filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.5));
+            }
+
+            .error-icon {
+                color: var(--error);
+                font-size: 1.2rem;
+                filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.5));
+            }
+
+            /* Password Toggle */
+            .password-toggle {
+                position: absolute;
+                right: 16px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: rgba(255, 255, 255, 0.05);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                color: rgba(255, 255, 255, 0.6);
+                cursor: pointer;
+                width: 40px;
+                height: 40px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .password-toggle:hover {
+                background: rgba(255, 255, 255, 0.1);
+                border-color: var(--forge-blue);
+                color: #fff;
+                box-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
+            }
+
+            /* Field Feedback */
+            .field-feedback {
+                margin-top: 8px;
+                min-height: 22px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 0.8rem;
+                font-weight: 500;
+                opacity: 0;
+                transform: translateY(-5px);
+                transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+
+            .field-feedback.visible {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            .field-feedback.success {
+                color: var(--success);
+            }
+
+            .field-feedback.error {
+                color: var(--error);
+            }
+
+            .field-feedback .icon {
+                font-size: 1rem;
+            }
+
+            /* Requirements List */
+            .requirements-list {
+                margin-top: 16px;
+                padding: 16px;
+                background: rgba(0, 0, 0, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                border-radius: 12px;
+                font-size: 0.8rem;
+                animation: fadeSlide 0.3s ease;
+            }
+
+            @keyframes fadeSlide {
+                from {
+                    opacity: 0;
+                    transform: translateY(-10px);
+                }
+                to {
+                    opacity: 1;
+                    transform: translateY(0);
+                }
+            }
+
+            .req-item {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                margin-bottom: 8px;
+                color: rgba(255, 255, 255, 0.5);
+                transition: all 0.2s ease;
+            }
+
+            .req-item:last-child {
+                margin-bottom: 0;
+            }
+
+            .req-item.valid {
+                color: var(--success);
+            }
+
+            .req-icon {
+                width: 20px;
+                height: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 50%;
+                font-size: 1rem;
+                font-weight: 700;
+                background: rgba(255, 255, 255, 0.05);
+                transition: all 0.2s ease;
+            }
+
+            .req-item.valid .req-icon {
+                background: rgba(16, 185, 129, 0.2);
+                color: var(--success);
+            }
+
+            .req-item:not(.valid) .req-icon {
+                color: rgba(255, 255, 255, 0.4);
+            }
+
+            /* Auth Button */
+            .auth-btn {
+                position: relative;
+                overflow: hidden;
+                width: 100%;
+                min-height: 48px;
+                padding: 12px 24px;
+                background:
+                    linear-gradient(135deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.02)),
+                    linear-gradient(135deg, #18bfff 0%, #5f8fff 45%, #8b5cf6 100%);
+                border: 1px solid rgba(140, 212, 255, 0.42);
+                border-radius: 14px;
+                color: #fff;
+                font-family: 'Orbitron', 'Outfit', sans-serif;
+                font-weight: 900;
+                font-size: 0.88rem;
+                letter-spacing: 3px;
+                text-transform: uppercase;
+                cursor: pointer;
+                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                margin-top: 8px;
+                box-shadow:
+                    0 12px 32px rgba(0, 140, 255, 0.25),
+                    0 6px 16px rgba(117, 79, 255, 0.2),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+            }
+
+            .auth-btn::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg,
+                    transparent,
+                    rgba(255, 255, 255, 0.2),
+                    transparent);
+                animation: buttonShine 3s ease-in-out infinite;
+            }
+
+            .auth-btn::after {
+                content: '';
+                position: absolute;
+                inset: 1px;
+                border-radius: 17px;
+                background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0));
+                opacity: 0.55;
+                pointer-events: none;
+            }
+
+            @keyframes buttonShine {
+                0% { left: -100%; }
+                50%, 100% { left: 100%; }
+            }
+
+            .auth-btn:hover {
+                transform: translateY(-3px) scale(1.02);
+                box-shadow:
+                    0 24px 68px rgba(0, 140, 255, 0.38),
+                    0 12px 28px rgba(117, 79, 255, 0.28),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+            }
+
+            .auth-btn:active {
+                transform: translateY(-1px) scale(0.98);
+            }
+
+            .auth-btn:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
+                transform: none;
+            }
+
+            .btn-text {
+                position: relative;
+                z-index: 1;
+                display: inline-flex;
+                align-items: center;
+                gap: 12px;
+            }
+
+            .btn-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 30px;
+                height: 30px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.14);
+                border: 1px solid rgba(255, 255, 255, 0.22);
+                box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            }
+
+            .btn-icon svg {
+                width: 16px;
+                height: 16px;
+                stroke: currentColor;
+                fill: none;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+                stroke-width: 2;
+            }
+
+            /* Ticket Animation for Success */
+            .ticket-animation {
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(135deg, var(--forge-blue), var(--forge-purple));
+                clip-path: polygon(0 20%, 10% 20%, 10% 0, 90% 0, 90% 20%, 100% 20%, 100% 80%, 90% 80%, 90% 100%, 10% 100%, 10% 80%, 0 80%);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                animation: ticketSlide 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+                color: #fff;
+                font-family: 'Orbitron', sans-serif;
+                font-weight: 900;
+                letter-spacing: 2px;
+                z-index: 5;
+            }
+
+            @keyframes ticketSlide {
+                from { transform: translateX(-100%) rotate(-5deg); opacity: 0; }
+                to { transform: translateX(0) rotate(0); opacity: 1; }
+            }
+
+            .scanning-line {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 2px;
+                background: rgba(255, 255, 255, 0.8);
+                box-shadow: 0 0 15px #fff;
+                animation: scan 2s linear infinite;
+                z-index: 6;
+            }
+
+            @keyframes scan {
+                0% { top: 0%; }
+                100% { top: 100%; }
+            }
+
+            .auth-success-overlay {
+                position: absolute;
+                inset: 0;
+                z-index: 100; /* Above the card */
+                display: grid;
+                place-items: center;
+                padding: 20px;
+                background: rgba(5, 8, 18, 0.85); /* Slightly darker for better contrast */
+                backdrop-filter: blur(20px);
+                border-radius: 32px; /* Match card radius */
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.45s ease;
+            }
+
+            .auth-success-overlay.active {
+                opacity: 1;
+            }
+
+            .auth-success-card {
+                width: min(100%, 420px);
+                padding: 32px 28px;
+                border-radius: 28px;
+                text-align: center;
+                background:
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+                    rgba(10, 10, 18, 0.94);
+                border: 1px solid rgba(168, 85, 247, 0.25);
+                box-shadow:
+                    0 30px 80px rgba(0, 0, 0, 0.5),
+                    0 0 60px rgba(168, 85, 247, 0.1),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+                transform: translateY(22px) scale(0.96);
+                transition: transform 0.45s cubic-bezier(0.19, 1, 0.22, 1);
+            }
+
+            .auth-success-overlay.active .auth-success-card {
+                transform: translateY(0) scale(1);
+            }
+
+            .auth-success-ring {
+                width: 92px;
+                height: 92px;
+                margin: 0 auto 22px;
+                border-radius: 50%;
+                display: grid;
+                place-items: center;
+                position: relative;
+                background: radial-gradient(circle, rgba(168, 85, 247, 0.2), rgba(15, 23, 42, 0.4));
+                border: 1px solid rgba(168, 85, 247, 0.3);
+                box-shadow:
+                    0 0 40px rgba(168, 85, 247, 0.24),
+                    inset 0 0 30px rgba(168, 85, 247, 0.12);
+            }
+
+            .auth-success-ring::before,
+            .auth-success-ring::after {
+                content: '';
+                position: absolute;
+                inset: -10px;
+                border-radius: 50%;
+                border: 1px solid rgba(168, 85, 247, 0.24);
+                animation: authPulse 1.8s ease-out infinite;
+            }
+
+            .auth-success-ring::after {
+                inset: -22px;
+                animation-delay: 0.35s;
+            }
+
+            .auth-success-ring svg {
+                width: 42px;
+                height: 42px;
+                color: #a855f7; /* Forge Purple */
+                stroke: currentColor;
+                fill: none;
+                stroke-width: 2;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+                filter: drop-shadow(0 0 16px rgba(168, 85, 247, 0.45));
+            }
+
+            .auth-success-label {
+                margin-bottom: 12px;
+                color: rgba(154, 248, 255, 0.74);
+                font-size: 0.78rem;
+                font-weight: 800;
+                letter-spacing: 0.42em;
+                text-transform: uppercase;
+            }
+
+            .auth-success-title {
+                margin: 0;
+                color: #f8fdff;
+                font-family: 'Orbitron', 'Outfit', sans-serif;
+                font-size: clamp(1.5rem, 4vw, 2rem);
+                letter-spacing: 0.14em;
+                text-transform: uppercase;
+                text-shadow: 0 0 28px rgba(56, 189, 248, 0.26);
+            }
+
+            .auth-success-copy {
+                margin: 14px 0 0;
+                color: rgba(226, 244, 255, 0.68);
+                font-size: 0.95rem;
+                line-height: 1.6;
+            }
+
+            .auth-success-bar {
+                width: 100%;
+                height: 8px;
+                margin-top: 22px;
+                overflow: hidden;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.08);
+                border: 1px solid rgba(255, 255, 255, 0.06);
+            }
+
+            .auth-success-bar > span {
+                display: block;
+                width: 100%;
+                height: 100%;
+                transform-origin: left center;
+                transform: scaleX(0);
+                background: linear-gradient(90deg, #22d3ee 0%, #60a5fa 48%, #c084fc 100%);
+            }
+
+            .auth-success-overlay.active .auth-success-bar > span {
+                animation: authSweep 1.25s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            }
+
+            @keyframes authPulse {
+                0% {
+                    opacity: 0.72;
+                    transform: scale(0.95);
+                }
+                100% {
+                    opacity: 0;
+                    transform: scale(1.12);
+                }
+            }
+
+            @keyframes authSweep {
+                from { transform: scaleX(0); }
+                to { transform: scaleX(1); }
+            }
+
+            /* Mode Switch */
+            .mode-switch {
+                text-align: center;
+                margin-top: 20px;
+                padding-top: 20px;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+            }
+
+            .mode-switch-text {
+                color: rgba(255, 255, 255, 0.5);
+                font-size: 0.85rem;
+                font-weight: 500;
+            }
+
+            .mode-btn {
+                background: transparent;
+                border: 1px solid var(--glass-border);
+                color: var(--forge-blue);
+                font-size: 0.85rem;
+                font-weight: 700;
+                cursor: pointer;
+                margin-left: 10px;
+                transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                padding: 8px 16px;
+                border-radius: 20px;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .mode-btn::before {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(135deg,
+                    rgba(0, 212, 255, 0.1),
+                    rgba(168, 85, 247, 0.1));
+                opacity: 0;
+                transition: opacity 0.3s;
+            }
+
+            .mode-btn:hover::before {
+                opacity: 1;
+            }
+
+            .mode-btn:hover {
+                border-color: var(--forge-blue);
+                transform: translateY(-2px);
+                box-shadow: 0 8px 20px rgba(0, 212, 255, 0.2);
+            }
+
+            .auth-action-stack {
+                margin-top: 18px;
+                display: grid;
+                gap: 12px;
+            }
+
+            .auth-action-caption {
+                text-align: center;
+                color: rgba(255, 255, 255, 0.42);
+                font-size: 0.72rem;
+                font-weight: 700;
+                letter-spacing: 0.2em;
+                text-transform: uppercase;
+            }
+
+            .auth-aux-btn {
+                position: relative;
+                overflow: hidden;
+                width: 100%;
+                min-height: 50px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                padding: 12px 20px;
+                border-radius: 14px;
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                background: linear-gradient(135deg, rgba(14, 18, 28, 0.92), rgba(24, 30, 44, 0.72));
+                color: #f4f7fb;
+                font-family: 'Orbitron', 'Outfit', sans-serif;
+                font-size: 0.75rem;
+                font-weight: 800;
+                letter-spacing: 0.15em;
+                text-transform: uppercase;
+                cursor: pointer;
+                transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+                    0 12px 28px rgba(0, 0, 0, 0.18);
+            }
+
+            .auth-aux-btn::before {
+                content: '';
+                position: absolute;
+                inset: 0;
+                opacity: 0;
+                transition: opacity 0.28s ease;
+            }
+
+            .auth-aux-btn:hover {
+                transform: translateY(-2px);
+            }
+
+            .auth-aux-btn:focus-visible {
+                outline: none;
+                transform: translateY(-2px);
+            }
+
+            .auth-aux-btn:hover::before,
+            .auth-aux-btn:focus-visible::before {
+                opacity: 1;
+            }
+
+            .auth-aux-btn.primary-outline {
+                border-color: rgba(0, 212, 255, 0.24);
+                color: #86edff;
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+                    0 18px 38px rgba(0, 212, 255, 0.08);
+            }
+
+            .auth-aux-btn.primary-outline::before {
+                background: linear-gradient(135deg, rgba(0, 212, 255, 0.14), rgba(139, 92, 246, 0.16));
+            }
+
+            .auth-aux-btn.primary-outline:hover,
+            .auth-aux-btn.primary-outline:focus-visible {
+                border-color: rgba(0, 212, 255, 0.45);
+                box-shadow:
+                    0 20px 42px rgba(0, 212, 255, 0.16),
+                    0 0 0 3px rgba(0, 212, 255, 0.08);
+            }
+
+            .auth-aux-btn.danger-solid {
+                border-color: rgba(248, 113, 113, 0.34);
+                background: linear-gradient(135deg, rgba(122, 18, 18, 0.96), rgba(236, 72, 72, 0.78));
+                color: #fff4f4;
+                box-shadow:
+                    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+                    0 18px 42px rgba(127, 29, 29, 0.28);
+            }
+
+            .auth-aux-btn.danger-solid::before {
+                background: linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04));
+            }
+
+            .auth-aux-btn.danger-solid:hover,
+            .auth-aux-btn.danger-solid:focus-visible {
+                border-color: rgba(254, 202, 202, 0.72);
+                box-shadow:
+                    0 22px 48px rgba(127, 29, 29, 0.34),
+                    0 0 0 3px rgba(248, 113, 113, 0.12);
+            }
+
+            .auth-aux-icon,
+            .auth-aux-text {
+                position: relative;
+                z-index: 1;
+            }
+
+            .auth-aux-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 28px;
+                height: 28px;
+                border-radius: 999px;
+                font-size: 0.8rem;
+                letter-spacing: 0;
+                background: rgba(255, 255, 255, 0.12);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+            }
+
+            .auth-aux-btn.danger-solid .auth-aux-icon {
+                background: rgba(255, 255, 255, 0.14);
+            }
+
+            /* Error Display */
+            .auth-error {
+                margin-top: 20px;
+                padding: 14px 18px;
+                background: linear-gradient(135deg,
+                    rgba(239, 68, 68, 0.15),
+                    rgba(239, 68, 68, 0.05));
+                border: 1px solid rgba(239, 68, 68, 0.3);
+                border-radius: 12px;
+                color: #f87171;
+                font-size: 0.85rem;
+                text-align: center;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                animation: errorPop 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+            }
+
+            @keyframes errorPop {
+                0% {
+                    opacity: 0;
+                    transform: scale(0.9) translateY(-10px);
+                }
+                100% {
+                    opacity: 1;
+                    transform: scale(1) translateY(0);
+                }
+            }
+
+            .danger-modal {
+                position: fixed;
+                inset: 0;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                background: rgba(0, 0, 0, 0.72);
+                backdrop-filter: blur(18px);
+                z-index: 3000;
+                padding: 24px;
+            }
+
+            .danger-modal.is-open {
+                display: flex;
+            }
+
+            .danger-modal-card {
+                width: min(100%, 460px);
+                background: rgba(10, 16, 28, 0.92);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 24px;
+                padding: 28px;
+                box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+            }
+
+            .danger-modal-title {
+                margin: 0 0 8px;
+                font-family: 'Outfit', sans-serif;
+                font-size: 1.4rem;
+                font-weight: 800;
+                color: #fff;
+            }
+
+            .danger-modal-copy {
+                margin: 0 0 22px;
+                color: rgba(255, 255, 255, 0.68);
+                line-height: 1.6;
+                font-size: 0.92rem;
+            }
+
+            .danger-modal-actions {
+                display: flex;
+                gap: 12px;
+                justify-content: flex-end;
+                margin-top: 22px;
+            }
+
+            .danger-secondary-btn,
+            .danger-primary-btn {
+                border: none;
+                border-radius: 14px;
+                padding: 14px 18px;
+                font-family: 'Outfit', sans-serif;
+                font-weight: 700;
+                letter-spacing: 0.04em;
+                cursor: pointer;
+            }
+
+            .danger-secondary-btn {
+                background: rgba(255, 255, 255, 0.08);
+                color: #fff;
+            }
+
+            .danger-primary-btn {
+                background: linear-gradient(135deg, #ef4444, #b91c1c);
+                color: #fff;
+                box-shadow: 0 16px 30px rgba(185, 28, 28, 0.3);
+            }
+
+            .danger-primary-btn:disabled {
+                opacity: 0.55;
+                cursor: not-allowed;
+            }
+
+            /* Responsive */
+            @media (max-width: 768px) {
+                .auth-hub {
+                    padding: 15px;
+                }
+
+                .orb-1 {
+                    width: 400px !important;
+                    height: 400px !important;
+                }
+
+                .orb-2 {
+                    width: 300px !important;
+                    height: 300px !important;
+                }
+
+                .orb-3 {
+                    width: 250px !important;
+                    height: 250px !important;
+                }
+
+                .auth-card {
+                    margin: 15px;
+                    padding: 36px 28px;
+                }
+
+                .auth-logo {
+                    font-size: 1.8rem;
+                    letter-spacing: 5px;
+                }
+
+                .auth-input {
+                    padding: 16px 50px 16px 18px;
+                    font-size: 0.95rem;
+                }
+            }
+
+            @media (max-width: 480px) {
+                .auth-card {
+                    padding: 32px 24px;
+                }
+
+                .auth-logo {
+                    font-size: 1.6rem;
+                    letter-spacing: 4px;
+                }
+
+                .form-label {
+                    font-size: 0.7rem;
+                }
+            }
+        </style>
+
+        <div id="crystal-auth-portal" class="auth-hub">
+            <!-- Animated Background (only visible on auth page) -->
+                <div class="global-bg">
+                    <div class="orb orb-1"></div>
+                    <div class="orb orb-2"></div>
+                    <div class="orb orb-3"></div>
+                    <div class="orb orb-4"></div>
+                    <div class="grid-overlay"></div>
+                </div>
+
+                <div id="auth-success-overlay" class="auth-success-overlay" aria-hidden="true">
+                    <div class="auth-success-card">
+                        <div class="auth-success-ring">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M5 13.5 9.5 18 19 7.5"></path>
+                            </svg>
+                        </div>
+                        <div id="auth-success-label" class="auth-success-label">Identity Verified</div>
+                        <h2 id="auth-success-title" class="auth-success-title">Secure Access Granted</h2>
+                        <p id="auth-success-copy" class="auth-success-copy">Initializing your PlayNexus command deck.</p>
+                        <div class="auth-success-bar"><span></span></div>
+                    </div>
+                </div>
+
+            <!-- Auth Card -->
+            <div class="auth-card glass-card">
+                <!-- Header -->
+                <div class="auth-header">
+                    <div class="logo-container">
+                        <h1 class="auth-logo">PLAYNEXUS</h1>
+                    </div>
+                    <p class="auth-subtitle" id="auth-mode-title">LOGIN</p>
+                </div>
+
+                <!-- Form -->
+                <div id="auth-form-container">
+                    <!-- Username -->
+                    <div class="form-group">
+                        <label class="form-label">Username</label>
+                        <div class="input-wrapper" id="username-wrapper">
+                            <input
+                                type="text"
+                                id="auth-username"
+                                class="auth-input"
+                                placeholder="Enter username"
+                                autocomplete="username"
+                                required
+                            >
+                        </div>
+                        <div id="username-feedback" class="field-feedback"></div>
+                    </div>
+
+                    <!-- Password -->
+                    <div class="form-group">
+                        <label class="form-label">Password</label>
+                        <div class="input-wrapper" id="password-wrapper">
+                            <input
+                                type="password"
+                                id="auth-password"
+                                class="auth-input"
+                                placeholder="Enter password"
+                                autocomplete="current-password"
+                                required
+                            >
+                            <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+                                <svg class="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg class="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="password-feedback" class="field-feedback"></div>
+                    </div>
+
+                    <!-- Confirm Password (Signup only) -->
+                    <div class="form-group" id="confirm-password-group" style="display: none;">
+                        <label class="form-label">Confirm Password</label>
+                        <div class="input-wrapper" id="confirm-wrapper">
+                            <input
+                                type="password"
+                                id="auth-confirm-password"
+                                class="auth-input"
+                                placeholder="Confirm password"
+                                autocomplete="new-password"
+                                required
+                            >
+                            <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+                                <svg class="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
+                                <svg class="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="confirm-feedback" class="field-feedback"></div>
+                    </div>
+
+                    <!-- Password Requirements (Signup mode) -->
+                    <div id="password-requirements" class="requirements-list" style="display: none; margin-bottom: 20px;">
+                        <div class="req-item" data-requirement="length">
+                            <span>At least 8 characters</span>
+                        </div>
+                        <div class="req-item" data-requirement="match">
+                            <span>Passwords match</span>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="button" id="auth-btn" class="auth-btn" onclick="handleAuth()">
+                        <span class="btn-text">
+                            <span class="btn-label">ENTER THE NEXUS</span>
+                        </span>
+                    </button>
+
+                    <!-- Error Display -->
+                    <div id="auth-error" class="auth-error" style="display: none;">
+                        <span>!</span>
+                        <span id="auth-error-text"></span>
+                    </div>
+
+                    <!-- Mode Switch -->
+                    <div class="mode-switch">
+                        <span class="mode-switch-text">New to the Nexus?</span>
+                        <button type="button" class="mode-btn" onclick="toggleAuthMode()">CREATE ACCOUNT</button>
+                    </div>
+
+                    <div class="auth-action-stack">
+                        <div class="auth-action-caption">Account Management</div>
+                        <button
+                            type="button"
+                            class="auth-aux-btn danger-solid"
+                            onclick="deleteAccountFlow()"
+                        >
+                            <span class="auth-aux-icon">!</span>
+                            <span class="auth-aux-text">Delete Account</span>
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
@@ -66,13 +1195,14 @@
                 <div class="nexus-gradient-text" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.5rem; letter-spacing: 2px;">PLAYNEXUS</div>
             </div>
 
-            <!-- Theme Toggle -->
-            <button id="theme-toggle" style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.2rem;margin-right:10px;" aria-label="Toggle light/dark theme">🌙</button>
 
             <div id="profile-manager" style="display: flex; align-items: center; gap: 20px;">
                 <div style="text-align: right;">
                     <div style="font-weight: 800; color: #fff; font-size: 1rem;" id="display-username">Explorer</div>
-                    <div style="font-size: 0.7rem; color: var(--nexus-cyan); letter-spacing: 2px; cursor: pointer;" onclick="sessionStorage.clear(); location.reload()">SIGN OUT <span style="font-size: 0.9rem;">⏻</span></div>
+                    <div style="display: flex; justify-content: flex-end; gap: 14px; font-size: 0.7rem; letter-spacing: 2px;">
+                        <button type="button" style="background:none;border:none;color:#ff8a8a;cursor:pointer;font:inherit;padding:0;" onclick="deleteAccountFlow()">DELETE ACCOUNT</button>
+                        <button type="button" style="background:none;border:none;color:var(--nexus-cyan);cursor:pointer;font:inherit;padding:0;" onclick="signOut()">SIGN OUT <span style="font-size: 0.9rem;">⏻</span></button>
+                    </div>
                 </div>
                 <div style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--nexus-cyan); overflow: hidden; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;">
                     <img id="user-avatar" src="" alt="User" style="width: 100%; height: 100%; object-fit: cover;">
@@ -82,12 +1212,12 @@
 
         <!-- 🏢 CONTENT EXPLORER (4 Sections) -->
         <div style="padding-top: 160px; padding-bottom: 100px;">
-            <!-- 🌟 RECENTLY OPENED (Featured Continue) -->
-            <section class="hub-row" style="margin-bottom: 60px;">
+            <!-- 🌟 RECENTLY OPENED (Featured Continue) - Hidden until apps are available -->
+            <!-- <section class="hub-row" style="margin-bottom: 60px;">
                 <h2 class="row-title" style="color: #fff; opacity: 0.5; font-size: 0.85rem; letter-spacing: 4px; margin-bottom: 25px;">RECENTLY ACCESSED</h2>
                 <div class="hub-carousel" style="gap: 30px;">
                     <div class="featured-item-hero" style="min-width: 580px; height: 300px; background: linear-gradient(90deg, rgba(7,11,20,0.95) 0%, rgba(7,11,20,0.4) 60%, transparent 100%), url('assets/tictactoe-cover.svg') center/cover; padding: 50px; position: relative; overflow: hidden; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;" onclick="location.href='games/tic-tac-toe.html'">
-                        
+
                         <span class="badge" style="background: rgba(255,255,255,0.9); color: #000; padding: 6px 14px; border-radius: 6px; font-weight: 900; font-size: 0.7rem; position: absolute; top: 40px; left: 50px;">CONTINUE PLAYING</span>
                         <div class="info" style="margin-top: 70px;">
                             <h3 style="font-size: 2.2rem; margin-bottom: 10px;">Tic-Tac-Toe Crystal</h3>
@@ -98,32 +1228,32 @@
                         </div>
                     </div>
                 </div>
-            </section>
+            </section> -->
 
             <section class="hub-row">
                 <h2 class="row-title nexus-gradient-text">🎮 NEXUS SYSTEM APPS</h2>
                 <div class="system-categories-grid">
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80');" onclick="location.href='games/games.html'">
+                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
                         <div class="sys-category-overlay">
-                            <span class="sys-category-title">GAMES & FUN</span>
+                            <span class="badge badge-soon">COMING SOON</span>
                         </div>
                     </div>
 
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&q=80');" onclick="location.href='news/news.html'">
+                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
                         <div class="sys-category-overlay">
-                            <span class="sys-category-title">TRENDING WORLD</span>
+                            <span class="badge badge-soon">COMING SOON</span>
                         </div>
                     </div>
 
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80');" onclick="location.href='community/community.html'">
+                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
                         <div class="sys-category-overlay">
-                            <span class="sys-category-title">COMMUNITY NEXUS</span>
+                            <span class="badge badge-soon">COMING SOON</span>
                         </div>
                     </div>
 
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=800&q=80');" onclick="location.href='author/author.html'">
+                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
                         <div class="sys-category-overlay">
-                            <span class="sys-category-title">THE VAULT</span>
+                            <span class="badge badge-soon">COMING SOON</span>
                         </div>
                     </div>
                 </div>
@@ -133,105 +1263,962 @@
     </main>
 
     <!-- 🧬 Physics & Cinematic Core -->
+    <div id="delete-account-modal" class="danger-modal" aria-hidden="true">
+        <div class="danger-modal-card" role="dialog" aria-modal="true" aria-labelledby="delete-account-title">
+            <h2 id="delete-account-title" class="danger-modal-title">Delete Account</h2>
+            <p class="danger-modal-copy">
+                This action permanently removes your PlayNexus account. Enter your username and password to continue.
+            </p>
+
+            <div class="form-group">
+                <label class="form-label" for="delete-confirm-username">Username</label>
+                <div class="input-wrapper">
+                    <input
+                        type="text"
+                        id="delete-confirm-username"
+                        class="auth-input"
+                        placeholder="Type your username"
+                        autocomplete="username"
+                    >
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="delete-password">Password</label>
+                <div class="input-wrapper">
+                    <input
+                        type="password"
+                        id="delete-password"
+                        class="auth-input"
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                    >
+                    <button type="button" class="password-toggle" aria-label="Toggle password visibility">
+                        <svg class="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                        <svg class="eye-closed" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;">
+                            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                            <line x1="1" y1="1" x2="23" y2="23"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div id="delete-account-error" class="auth-error" style="display: none; margin-top: 0;">
+                <span>!</span>
+                <span id="delete-account-error-text"></span>
+            </div>
+
+            <div class="danger-modal-actions">
+                <button type="button" class="danger-secondary-btn" onclick="closeDeleteModal()">Cancel</button>
+                <button type="button" id="delete-account-submit" class="danger-primary-btn" onclick="submitDeleteAccount()">Delete Permanently</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
     <script src="js/toast.js"></script>
     <script src="js/cinematic-startup.js"></script>
     <script src="js/main.js"></script>
 
     <script>
-        function unlockPortal() {
-            const input = document.getElementById('auth-username');
-            const username = input.value.trim() || 'Explorer';
-            const auth = document.getElementById('crystal-auth-portal');
+        // Authentication State
+        let isLoginMode = true;
+        let isAuthenticating = false;
+        function resolveApiBase() {
+            if (window.location.protocol === 'file:') {
+                return 'http://localhost:8000';
+            }
+
+            if (window.location.port === '3000') {
+                return `${window.location.protocol}//${window.location.hostname}:8000`;
+            }
+
+            return '';
+        }
+
+        const API_BASE = resolveApiBase();
+
+        // DOM Elements
+        const authBtn = document.getElementById('auth-btn');
+        const modeBtn = document.querySelector('.mode-btn');
+        const modeSwitchText = document.querySelector('.mode-switch-text');
+        const authError = document.getElementById('auth-error');
+        const confirmField = document.getElementById('confirm-password-group');
+        const usernameInput = document.getElementById('auth-username');
+        const passwordInput = document.getElementById('auth-password');
+        const confirmInput = document.getElementById('auth-confirm-password');
+        const passwordToggles = document.querySelectorAll('.password-toggle');
+        const deleteAccountModal = document.getElementById('delete-account-modal');
+        const deleteConfirmUsernameInput = document.getElementById('delete-confirm-username');
+        const deletePasswordInput = document.getElementById('delete-password');
+        const deleteAccountError = document.getElementById('delete-account-error');
+        const deleteAccountErrorText = document.getElementById('delete-account-error-text');
+        const deleteAccountSubmitBtn = document.getElementById('delete-account-submit');
+        const authSuccessOverlay = document.getElementById('auth-success-overlay');
+        const authSuccessLabel = document.getElementById('auth-success-label');
+        const authSuccessTitle = document.getElementById('auth-success-title');
+        const authSuccessCopy = document.getElementById('auth-success-copy');
+        const authPortalSection = document.getElementById('auth-portal-section');
+        const authPortalCard = document.getElementById('crystal-auth-portal');
+        const AUTH_SESSION_KEY = 'playnexus_session';
+
+        // Field validation state
+        const fieldStates = {
+            username: { valid: false, message: '' },
+            password: { valid: false, message: '' },
+            confirm: { valid: true, message: '' }
+        };
+
+        /**
+         * Set field visual state (success/error) - Updated to work with .form-group
+         */
+        function setFieldStatus(fieldElement, status, message = '') {
+            const fieldWrapper = fieldElement.closest('.form-group');
+            const feedback = fieldWrapper.querySelector('.field-feedback');
+            const wrapper = fieldElement.closest('.input-wrapper');
+
+            if (!feedback) return;
+
+            // Remove existing states
+            fieldWrapper.classList.remove('success', 'error');
+            wrapper.classList.remove('success', 'error');
+            feedback.classList.remove('error', 'success');
+
+            if (status === 'valid') {
+                fieldWrapper.classList.add('success');
+                wrapper.classList.add('success');
+                feedback.classList.add('success');
+                feedback.innerHTML = ` ${message || 'Looks good'}`;
+                feedback.style.opacity = '1';
+            } else if (status === 'error') {
+                fieldWrapper.classList.add('error');
+                wrapper.classList.add('error');
+                feedback.classList.add('error');
+                feedback.innerHTML = ` ${message || 'Invalid'}`;
+                feedback.style.opacity = '1';
+            } else {
+                // Neutral/cleared state
+                wrapper.classList.remove('success', 'error');
+                feedback.textContent = '';
+                feedback.style.opacity = '0';
+            }
+        }
+
+        /**
+         * Validate username with real-time checks
+         */
+        function validateUsernameField() {
+            const username = usernameInput.value.trim();
+
+            if (!username) {
+                setFieldStatus(usernameInput, 'error', 'Username is required');
+                fieldStates.username = { valid: false, message: 'Username is required' };
+                return false;
+            }
+
+            if (username.length < 3) {
+                setFieldStatus(usernameInput, 'error', 'At least 3 characters');
+                fieldStates.username = { valid: false, message: 'At least 3 characters' };
+                return false;
+            }
+
+            if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+                setFieldStatus(usernameInput, 'error', 'Only letters, numbers, _, - allowed');
+                fieldStates.username = { valid: false, message: 'Invalid characters' };
+                return false;
+            }
+
+            setFieldStatus(usernameInput, 'valid');
+            fieldStates.username = { valid: true, message: '' };
+            return true;
+        }
+
+        /**
+         * Validate password with real-time checks
+         */
+        function validatePasswordField() {
+            const password = passwordInput.value;
+
+            if (!password) {
+                setFieldStatus(passwordInput, 'error', 'Password is required');
+                fieldStates.password = { valid: false, message: 'Password is required' };
+                return false;
+            }
+
+            if (!isLoginMode && password.length < 8) {
+                setFieldStatus(passwordInput, 'error', 'At least 8 characters');
+                fieldStates.password = { valid: false, message: 'Too short' };
+                return false;
+            }
+
+            // Optional: Check complexity (can be relaxed for user convenience)
+            // For now just length
+
+            setFieldStatus(passwordInput, 'valid');
+            fieldStates.password = { valid: true, message: '' };
+
+            // Also revalidate confirm if visible
+            if (confirmField.style.display !== 'none' && confirmInput.value) {
+                validateConfirmField();
+            }
+
+            return true;
+        }
+
+        /**
+         * Validate confirm password
+         */
+        function validateConfirmField() {
+            const confirm = confirmInput.value;
+            const password = passwordInput.value;
+
+            if (confirmField.style.display === 'none') {
+                fieldStates.confirm = { valid: true, message: '' };
+                return true;
+            }
+
+            if (!confirm) {
+                setFieldStatus(confirmInput, 'error', 'Please confirm password');
+                fieldStates.confirm = { valid: false, message: 'Required' };
+                updatePasswordRequirements();
+                return false;
+            }
+
+            if (confirm !== password) {
+                setFieldStatus(confirmInput, 'error', 'Passwords do not match');
+                fieldStates.confirm = { valid: false, message: 'Mismatch' };
+                updatePasswordRequirements();
+                return false;
+            }
+
+            setFieldStatus(confirmInput, 'valid');
+            fieldStates.confirm = { valid: true, message: '' };
+            updatePasswordRequirements();
+            return true;
+        }
+
+        /**
+         * Update password requirements list in real-time (signup mode only)
+         */
+        function updatePasswordRequirements() {
+            const requirementsList = document.getElementById('password-requirements');
+            if (!requirementsList || requirementsList.style.display === 'none') return;
+
+            const password = passwordInput.value;
+            const confirm = confirmInput.value;
+
+            // Update length requirement
+            const lengthItem = requirementsList.querySelector('[data-requirement="length"]');
+            if (lengthItem) {
+                const isLengthValid = password.length >= 8;
+                lengthItem.classList.toggle('valid', isLengthValid);
+            }
+
+            // Update match requirement (only in signup mode)
+            const matchItem = requirementsList.querySelector('[data-requirement="match"]');
+            if (matchItem && !isLoginMode) {
+                let isMatchValid = false;
+                if (confirm && password) {
+                    isMatchValid = confirm === password && password.length >= 8;
+                }
+                matchItem.classList.toggle('valid', isMatchValid);
+            }
+        }
+
+        /**
+         * Real-time validation as user types
+         */
+        function setupRealtimeValidation() {
+            usernameInput.addEventListener('input', () => {
+                // Debounce slightly for performance
+                clearTimeout(window.usernameValidateTimer);
+                window.usernameValidateTimer = setTimeout(() => {
+                    validateUsernameField();
+                }, 200);
+            });
+
+            usernameInput.addEventListener('blur', validateUsernameField);
+
+            passwordInput.addEventListener('input', () => {
+                clearTimeout(window.passwordValidateTimer);
+                window.passwordValidateTimer = setTimeout(() => {
+                    validatePasswordField();
+                    updatePasswordRequirements();
+                }, 200);
+            });
+
+            passwordInput.addEventListener('blur', () => {
+                validatePasswordField();
+                updatePasswordRequirements();
+            });
+
+            confirmInput.addEventListener('input', () => {
+                validateConfirmField();
+                updatePasswordRequirements();
+            });
+
+            confirmInput.addEventListener('blur', validateConfirmField);
+        }
+
+        // Call setup on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            setupRealtimeValidation();
+            setupPasswordToggle();
+        });
+
+        function getAvatarUrl(username) {
+            const seed = encodeURIComponent(`${username}-playnexus`);
+            return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
+        }
+
+        function persistAuthSession(username, userId = null, avatarUrl = '') {
+            const payload = JSON.stringify({
+                username,
+                user_id: userId,
+                avatar_url: avatarUrl,
+                saved_at: new Date().toISOString()
+            });
+            sessionStorage.setItem('playnexus_user', username);
+            sessionStorage.setItem('playnexus_avatar', avatarUrl);
+            sessionStorage.setItem(AUTH_SESSION_KEY, payload);
+            localStorage.setItem(AUTH_SESSION_KEY, payload);
+        }
+
+        function getStoredAuthSession() {
+            const rawSession = sessionStorage.getItem(AUTH_SESSION_KEY) || localStorage.getItem(AUTH_SESSION_KEY);
+            if (rawSession) {
+                try {
+                    return JSON.parse(rawSession);
+                } catch (error) {
+                    console.warn('Stored auth session is invalid JSON:', error);
+                }
+            }
+
+            const legacyUser = sessionStorage.getItem('playnexus_user') || localStorage.getItem('playnexus_user');
+            if (!legacyUser) {
+                return null;
+            }
+
+            return {
+                username: legacyUser,
+                avatar_url: sessionStorage.getItem('playnexus_avatar') || localStorage.getItem('playnexus_avatar') || ''
+            };
+        }
+
+        function clearStoredAuthSession() {
+            sessionStorage.removeItem('playnexus_user');
+            sessionStorage.removeItem('playnexus_avatar');
+            sessionStorage.removeItem(AUTH_SESSION_KEY);
+            localStorage.removeItem(AUTH_SESSION_KEY);
+            localStorage.removeItem('playnexus_user');
+            localStorage.removeItem('playnexus_avatar');
+        }
+
+        function showHubForAuthenticatedUser(username, options = {}) {
+            const { avatarUrl = '', updateHistory = true } = options;
             const hub = document.getElementById('master-hub-container');
-            const successMsg = document.getElementById('access-granted-msg');
             const displayUser = document.getElementById('display-username');
             const profilePic = document.getElementById('user-avatar');
 
-            // Set username in HUD
-            displayUser.innerText = username;
+            if (displayUser) {
+                displayUser.innerText = username;
+            }
 
-            // Set random AI avatar
+            const resolvedAvatarUrl = avatarUrl || getAvatarUrl(username);
             if (profilePic) {
-                const seed = username + Math.floor(Math.random() * 9999);
-                profilePic.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}&backgroundColor=b6e3f4,c0aede,d1d4f9`;
+                profilePic.src = resolvedAvatarUrl;
             }
 
-            // Show success message
-            successMsg.style.opacity = '1';
-            successMsg.style.letterSpacing = '10px';
-
-            // Store session
-            sessionStorage.setItem('playnexus_user', username);
-            if (profilePic) sessionStorage.setItem('playnexus_avatar', profilePic.src);
-
-            // Transition to Hub
-            setTimeout(() => {
-                auth.style.opacity = '0';
-                auth.style.transition = 'opacity 1s ease';
-                setTimeout(() => {
-                    auth.remove();
-                    hub.classList.remove('hidden');
-                    hub.style.opacity = '1';
-                    hub.style.transition = 'opacity 2s ease';
-                    if (window.startGravity) window.startGravity();
-                }, 1000);
-            }, 1000);
-        }
-
-        // Allow Enter key to login
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                const btn = document.getElementById('auth-btn');
-                if (btn) btn.click();
+            if (authSuccessOverlay) {
+                authSuccessOverlay.classList.remove('active');
+                authSuccessOverlay.setAttribute('aria-hidden', 'true');
             }
-        });
 
-        // Instant Session Recovery (Bypass Login)
-        document.addEventListener('DOMContentLoaded', () => {
-            const savedUser = sessionStorage.getItem('playnexus_user');
-            if (savedUser) {
-                // Kill intro systems
-                const auth = document.getElementById('crystal-auth-portal');
-                const hub = document.getElementById('master-hub-container');
-                const canvas = document.getElementById('cinematic-bg');
-                const bloom = document.getElementById('logo-bloom');
+            if (authPortalSection) {
+                authPortalSection.style.opacity = '0';
+                authPortalSection.classList.add('hidden');
+                authPortalSection.setAttribute('aria-hidden', 'true');
+                authPortalSection.style.pointerEvents = 'none';
+                authPortalSection.style.display = 'none'; // Ensure it's fully gone
+            }
 
-                if (auth) auth.remove();
-                if (bloom) bloom.remove();
-                // 🌌 We explicitly purposely DO NOT remove the canvas. We leave it running permanently to provide the PlayStation 5 cinematic stars behind the main hub. ROOM FOR STARS.
-
-                // Restore Identity
-                document.getElementById('display-username').innerText = savedUser;
-                const avatar = sessionStorage.getItem('playnexus_avatar');
-                if (avatar) document.getElementById('user-avatar').src = avatar;
-
-                // Show Hub immediately
+            if (hub) {
                 hub.classList.remove('hidden');
                 hub.style.opacity = '1';
+                // Reset card for next session
+                if (authPortalCard) {
+                    authPortalCard.style.opacity = '1';
+                    authPortalCard.style.transform = 'scale(1)';
+                }
+            }
 
-                // Init physics instantly
-                setTimeout(() => { if (window.startGravity) window.startGravity(); }, 100);
+            if (updateHistory) {
+                window.location.hash = 'home';
+            }
+
+            if (window.PlayNexus && window.PlayNexus.startPhysics) {
+                window.PlayNexus.startPhysics();
+            }
+        }
+
+        function showAuthPortal(immediate = true) {
+            const hub = document.getElementById('master-hub-container');
+
+            if (window.PlayNexus && window.PlayNexus.stopPhysics) {
+                window.PlayNexus.stopPhysics();
+            }
+
+            if (hub) {
+                hub.classList.add('hidden');
+                hub.style.opacity = '0';
+            }
+
+            if (authPortalSection) {
+                authPortalSection.classList.remove('hidden');
+                authPortalSection.style.opacity = '1';
+                authPortalSection.setAttribute('aria-hidden', 'false');
+                authPortalSection.style.pointerEvents = 'auto';
+                authPortalSection.style.display = 'block';
+            }
+            if (authPortalCard) {
+                if (immediate) {
+                    authPortalCard.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+                    authPortalCard.style.opacity = '1';
+                    authPortalCard.style.transform = 'scale(1)';
+                } else {
+                    authPortalCard.style.transition = 'none';
+                    authPortalCard.style.opacity = '0';
+                    authPortalCard.style.transform = 'scale(0.95)';
+                }
+            }
+        }
+
+        async function restorePersistedSession() {
+            const savedSession = getStoredAuthSession();
+            if (!savedSession || !savedSession.username) {
+                showAuthPortal(false); // Delay animation so cinematic-startup handles it
+                return;
+            }
+
+            showHubForAuthenticatedUser(savedSession.username, {
+                avatarUrl: savedSession.avatar_url,
+                updateHistory: true
+            });
+
+            if (!API_BASE) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/me?username=${encodeURIComponent(savedSession.username)}`);
+                if (!response.ok) {
+                    clearStoredAuthSession();
+                    signOut(false);
+                }
+            } catch (error) {
+                console.warn('Session validation skipped because backend is unavailable:', error);
+            }
+        }
+
+        function getAuthButtonIconMarkup(mode) {
+            if (mode === 'signup') {
+                return `
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 5v14"></path>
+                        <path d="M5 12h14"></path>
+                    </svg>
+                `;
+            }
+
+            return `
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 12h11"></path>
+                    <path d="m12 5 7 7-7 7"></path>
+                </svg>
+            `;
+        }
+
+        /**
+         * Toggle between Login and Signup modes
+         */
+        function toggleAuthMode() {
+            isLoginMode = !isLoginMode;
+            const usernameInput = document.getElementById('auth-username');
+            const passwordInput = document.getElementById('auth-password');
+            const confirmInput = document.getElementById('auth-confirm-password');
+            const passwordRequirements = document.getElementById('password-requirements');
+            const modeTitle = document.getElementById('auth-mode-title');
+
+            if (isLoginMode) {
+                // Switch to Login
+                if (modeSwitchText) modeSwitchText.textContent = 'New to the Nexus?';
+                modeBtn.textContent = 'Create Account';
+                confirmField.style.display = 'none';
+                confirmInput.required = false;
+                authBtn.querySelector('.btn-label').textContent = 'ENTER THE NEXUS';
+                authBtn.querySelector('.btn-icon').innerHTML = getAuthButtonIconMarkup('login');
+                passwordInput.minLength = '';
+                // Hide password requirements for login
+                if (passwordRequirements) passwordRequirements.style.display = 'none';
+                // Update title
+                if (modeTitle) modeTitle.textContent = 'LOGIN';
+            } else {
+                // Switch to Signup
+                if (modeSwitchText) modeSwitchText.textContent = 'Already registered?';
+                modeBtn.textContent = 'Back to Login';
+                confirmField.style.display = 'block';
+                confirmInput.required = true;
+                authBtn.querySelector('.btn-label').textContent = 'CREATE ACCOUNT';
+                authBtn.querySelector('.btn-icon').innerHTML = getAuthButtonIconMarkup('signup');
+                passwordInput.minLength = '8';
+                // Show password requirements for signup
+                if (passwordRequirements) passwordRequirements.style.display = 'block';
+                // Update title
+                if (modeTitle) modeTitle.textContent = 'SIGN UP';
+            }
+
+            // Clear any previous errors
+            hideError();
+            // Clear inputs and reset validation states
+            usernameInput.value = '';
+            passwordInput.value = '';
+            confirmInput.value = '';
+            // Reset field states
+            setFieldStatus(usernameInput, '');
+            setFieldStatus(passwordInput, '');
+            setFieldStatus(confirmInput, '');
+            // Update password requirements
+            updatePasswordRequirements();
+            usernameInput.focus();
+        }
+
+        /**
+         * Setup password visibility toggles
+         */
+        function setupPasswordToggle() {
+            passwordToggles.forEach(toggle => {
+                toggle.addEventListener('click', function() {
+                    const field = this.closest('.form-group');
+                    const input = field.querySelector('input');
+                    const isPassword = input.type === 'password';
+                    input.type = isPassword ? 'text' : 'password';
+
+                    // Toggle between eye-open and eye-closed SVGs
+                    const eyeOpen = this.querySelector('.eye-open');
+                    const eyeClosed = this.querySelector('.eye-closed');
+                    if (eyeOpen && eyeClosed) {
+                        if (isPassword) {
+                            eyeOpen.style.display = 'none';
+                            eyeClosed.style.display = 'block';
+                            this.setAttribute('aria-label', 'Hide password');
+                        } else {
+                            eyeOpen.style.display = 'block';
+                            eyeClosed.style.display = 'none';
+                            this.setAttribute('aria-label', 'Show password');
+                        }
+                    }
+                });
+            });
+        }
+
+        /**
+         * Show error message
+         */
+        function showError(msg) {
+            const authErrorText = document.getElementById('auth-error-text');
+            authError.style.display = 'flex';
+            authErrorText.textContent = msg;
+            authError.style.opacity = '1';
+        }
+
+        /**
+         * Hide error message
+         */
+        function hideError() {
+            authError.style.opacity = '0';
+            authError.style.display = 'none';
+        }
+
+        function showDeleteError(message) {
+            deleteAccountErrorText.textContent = message;
+            deleteAccountError.style.display = 'flex';
+            deleteAccountError.style.opacity = '1';
+        }
+
+        function hideDeleteError() {
+            deleteAccountError.style.opacity = '0';
+            deleteAccountError.style.display = 'none';
+            deleteAccountErrorText.textContent = '';
+        }
+
+        function openDeleteModal() {
+            const storedSession = getStoredAuthSession();
+            const username = (storedSession && storedSession.username) || usernameInput.value.trim();
+            deleteConfirmUsernameInput.value = username;
+            deletePasswordInput.value = '';
+            hideDeleteError();
+            deleteAccountModal.classList.add('is-open');
+            deleteAccountModal.setAttribute('aria-hidden', 'false');
+            if (username) {
+                deletePasswordInput.focus();
+            } else {
+                deleteConfirmUsernameInput.focus();
+            }
+        }
+
+        function closeDeleteModal() {
+            deleteAccountModal.classList.remove('is-open');
+            deleteAccountModal.setAttribute('aria-hidden', 'true');
+            const storedSession = getStoredAuthSession();
+            deleteConfirmUsernameInput.value = (storedSession && storedSession.username) || '';
+            deletePasswordInput.value = '';
+            hideDeleteError();
+        }
+
+        /**
+         * Validate all fields (for submit)
+         * @returns {string|null} First validation error or null if all valid
+         */
+        function validateAll() {
+            const usernameValid = validateUsernameField();
+            const passwordValid = validatePasswordField();
+            const confirmValid = validateConfirmField();
+
+            if (!usernameValid) return fieldStates.username.message;
+            if (!passwordValid) return fieldStates.password.message;
+            if (!isLoginMode && !confirmValid) return fieldStates.confirm.message;
+
+            return null;
+        }
+
+        /**
+         * Main authentication handler
+         */
+        async function handleAuth() {
+            if (isAuthenticating) return; // Prevent double submission
+
+            // Run full validation and show inline errors
+            const validationError = validateAll();
+            if (validationError) {
+                showError(validationError);
+                Toast.error(validationError, 4000);
+                return;
+            }
+
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value;
+            // Build request body (signup requires confirm_password)
+            let requestBody = { username, password };
+            if (!isLoginMode) {
+                requestBody.confirm_password = confirmInput.value;
+            }
+
+            hideError();
+            isAuthenticating = true;
+            authBtn.disabled = true;
+            const originalBtnMarkup = authBtn.innerHTML;
+            authBtn.innerHTML = '<span class="spinner"></span> ' + (isLoginMode ? 'Authenticating...' : 'Creating account...');
+
+            let response;
+            let data = {};
+
+            try {
+                // Call backend API
+                const endpoint = isLoginMode
+                    ? `${API_BASE}/api/auth/login`
+                    : `${API_BASE}/api/auth/signup`;
+                response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const rawBody = await response.text();
+                try {
+                    data = rawBody ? JSON.parse(rawBody) : {};
+                } catch (parseError) {
+                    data = { detail: rawBody || 'Unexpected server response' };
+                }
+            } catch (error) {
+                console.error('Auth error:', error);
+                showError('Network error. Please check your connection.');
+                Toast.error('Cannot connect to server', 5000);
+                isAuthenticating = false;
+                authBtn.disabled = false;
+                authBtn.innerHTML = originalBtnMarkup;
+                return;
+            }
+
+            if (!response.ok) {
+                // Authentication failed - provide specific feedback based on mode and error
+                let errorMsg = response.status === 405
+                    ? 'Auth request hit the wrong server. Start the FastAPI backend on port 8000.'
+                    : 'Authentication failed';
+                if (isLoginMode) {
+                    // Handle specific login errors based on backend response
+                    if (data.detail) {
+                        if (typeof data.detail === 'string') {
+                            if (data.detail === 'No user found' || response.status === 404) {
+                                errorMsg = 'No user found';
+                                setFieldStatus(usernameInput, 'error', 'No user found');
+                                setFieldStatus(passwordInput, '');
+                            } else if (data.detail === 'Invalid username or password') {
+                                errorMsg = 'Invalid username or password';
+                                setFieldStatus(usernameInput, 'error', 'Check username');
+                                setFieldStatus(passwordInput, 'error', 'Check password');
+                            } else if (response.status === 405) {
+                                setFieldStatus(usernameInput, 'error', 'Wrong server');
+                                setFieldStatus(passwordInput, 'error', 'Wrong server');
+                            } else {
+                                errorMsg = data.detail;
+                            }
+                        } else if (Array.isArray(data.detail)) {
+                            // Fallback for array details (should not happen for login)
+                            errorMsg = response.status === 404 ? 'No user found' : 'Invalid username or password';
+                        } else {
+                            errorMsg = response.status === 404 ? 'No user found' : 'Invalid username or password';
+                        }
+                    } else {
+                        errorMsg = response.status === 404 ? 'No user found' : 'Invalid username or password';
+                    }
+                } else {
+                    // For signup, provide specific feedback
+                    if (data.detail) {
+                        // Handle Pydantic validation errors (array format)
+                        if (Array.isArray(data.detail)) {
+                            // Find the first error related to username or password
+                            const usernameError = data.detail.find(err => err.loc && err.loc.includes('username'));
+                            const passwordError = data.detail.find(err => err.loc && err.loc.includes('password'));
+                            if (usernameError) {
+                                errorMsg = usernameError.msg;
+                                setFieldStatus(usernameInput, 'error', usernameError.msg);
+                            } else if (passwordError) {
+                                errorMsg = passwordError.msg;
+                                setFieldStatus(passwordInput, 'error', passwordError.msg);
+                            } else {
+                                errorMsg = 'Validation error';
+                            }
+                        } else if (typeof data.detail === 'string') {
+                            if (data.detail.includes('already exists') || data.detail.includes('duplicate')) {
+                                errorMsg = 'Username is already taken';
+                                setFieldStatus(usernameInput, 'error', 'Username taken');
+                            } else if (data.detail.includes('password')) {
+                                errorMsg = 'Password does not meet requirements';
+                                setFieldStatus(passwordInput, 'error', 'Invalid password');
+                            } else {
+                                errorMsg = data.detail;
+                            }
+                        } else if (data.detail.message) {
+                            errorMsg = data.detail.message;
+                        }
+                    }
+                }
+                showError(errorMsg);
+                Toast.error(errorMsg, 5000);
+                isAuthenticating = false;
+                authBtn.disabled = false;
+                authBtn.innerHTML = originalBtnMarkup;
+                return;
+            }
+
+            const authMode = isLoginMode ? 'login' : 'signup';
+            // Success: transition directly to the hub/home state.
+            Toast.success(isLoginMode ? `Welcome back, ${data.username}!` : `Account created! Welcome, ${data.username}`, 3000);
+            isAuthenticating = false;
+            completeAuthentication(data.username, authMode, data.user_id);
+        }
+
+        /**
+         * Complete authentication and transition to hub
+         * @param {string} username - Authenticated username
+         */
+        function completeAuthentication(username, authMode = 'login', userId = null) {
+            // Clear sensitive data from form
+            document.getElementById('auth-username').value = '';
+            document.getElementById('auth-password').value = '';
+            document.getElementById('auth-confirm-password').value = '';
+
+            const auth = document.getElementById('crystal-auth-portal');
+            const avatarUrl = getAvatarUrl(username);
+
+            // Store session
+            persistAuthSession(username, userId, avatarUrl);
+
+            if (authSuccessOverlay && authMode !== 'resume') {
+                authSuccessLabel.textContent = authMode === 'signup' ? 'Account Created' : 'Identity Verified';
+                authSuccessTitle.textContent = authMode === 'signup' ? 'Secure Account Ready' : 'Secure Access Granted';
+                authSuccessCopy.textContent = authMode === 'signup'
+                    ? `Welcome, ${username}. Preparing your PlayNexus home base.`
+                    : `Welcome back, ${username}. Reconnecting your PlayNexus command deck.`;
+
+                // Show main overlay immediately
+                authSuccessOverlay.classList.add('active');
+                authSuccessOverlay.setAttribute('aria-hidden', 'false');
+            }
+
+            // Transition to Hub
+            const transitionDelay = authMode === 'resume' ? 0 : 3200; // Increased for a smoother "soak" time
+            setTimeout(() => {
+                if (authPortalSection) {
+                    authPortalSection.style.transition = 'opacity 1.2s ease, transform 1.2s ease';
+                    authPortalSection.style.opacity = '0';
+                    authPortalSection.style.transform = 'scale(1.05)';
+                }
+                const ticket = document.getElementById('auth-ticket-transition');
+                if (ticket) ticket.remove();
+                
+                // Allow the fade-out to complete before switching views
+                setTimeout(() => {
+                    showHubForAuthenticatedUser(username, {
+                        avatarUrl,
+                        updateHistory: true
+                    });
+                }, 1000);
+            }, transitionDelay);
+        }
+
+        function signOut(shouldReload = true) {
+            clearStoredAuthSession();
+            window.location.hash = '';
+            if (!shouldReload) {
+                showAuthPortal();
+                return;
+            }
+            location.reload();
+        }
+
+        function deleteAccountFlow() {
+            openDeleteModal();
+        }
+
+        async function submitDeleteAccount() {
+            const storedSession = getStoredAuthSession();
+            const username = deleteConfirmUsernameInput.value.trim() || (storedSession && storedSession.username) || usernameInput.value.trim();
+            const password = deletePasswordInput.value;
+
+            if (!username) {
+                showDeleteError('Enter the username for the account you want to delete');
+                return;
+            }
+
+            if (!password) {
+                showDeleteError('Enter your password');
+                return;
+            }
+
+            hideDeleteError();
+            deleteAccountSubmitBtn.disabled = true;
+            const originalDeleteLabel = deleteAccountSubmitBtn.textContent;
+            deleteAccountSubmitBtn.textContent = 'Deleting...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/account`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username,
+                        confirm_username: username,
+                        password
+                    })
+                });
+
+                const rawBody = await response.text();
+                let data = {};
+                try {
+                    data = rawBody ? JSON.parse(rawBody) : {};
+                } catch (parseError) {
+                    data = { detail: rawBody || 'Unexpected server response' };
+                }
+
+                if (!response.ok) {
+                    const message = response.status === 405
+                        ? 'Delete request hit the wrong server. Start the FastAPI backend on port 8000.'
+                        : (typeof data.detail === 'string' ? data.detail : 'Unable to delete account');
+                    showDeleteError(message);
+                    Toast.error(message, 5000);
+                    return;
+                }
+
+                // Show success in modal first
+                const modalTitle = document.getElementById('delete-account-title');
+                const modalCopy = document.querySelector('.danger-modal-copy');
+                const modalActions = document.querySelector('.danger-modal-actions');
+                const modalForms = deleteAccountModal.querySelectorAll('.form-group');
+                
+                modalTitle.textContent = 'ACCOUNT DELETED';
+                modalTitle.style.color = '#ef4444';
+                
+                let countdown = 3;
+                modalCopy.textContent = `Identity purged. Redirecting to login in ${countdown} seconds...`;
+                
+                modalActions.style.display = 'none';
+                modalForms.forEach(f => f.style.display = 'none');
+                hideDeleteError();
+
+                Toast.success('Account permanently deleted', 3000);
+                
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    if (countdown > 0) {
+                        modalCopy.textContent = `Identity purged. Redirecting to login in ${countdown} seconds...`;
+                    }
+                }, 1000);
+                
+                setTimeout(() => {
+                    clearInterval(countdownInterval);
+                    closeDeleteModal();
+                    // Reset modal for next time
+                    modalTitle.textContent = 'Delete Account';
+                    modalTitle.style.color = '';
+                    modalCopy.textContent = 'This action permanently removes your PlayNexus account. Enter your username and password to continue.';
+                    modalActions.style.display = 'flex';
+                    modalForms.forEach(f => f.style.display = 'block');
+                    signOut();
+                }, 3000);
+
+            } catch (error) {
+                console.error('Delete account error:', error);
+                showDeleteError('Unable to reach the server');
+                Toast.error('Unable to reach the server', 5000);
+            } finally {
+                deleteAccountSubmitBtn.disabled = false;
+                deleteAccountSubmitBtn.textContent = originalDeleteLabel;
+            }
+        }
+
+        // Allow Enter key to submit
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && deleteAccountModal.classList.contains('is-open')) {
+                closeDeleteModal();
+                return;
+            }
+            if (e.key === 'Enter' && !e.repeat) {
+                if (deleteAccountModal.classList.contains('is-open')) {
+                    submitDeleteAccount();
+                    return;
+                }
+                const authForm = document.getElementById('auth-form-container');
+                if (authForm && !authForm.classList.contains('hidden')) {
+                    const btn = document.getElementById('auth-btn');
+                    if (btn && !btn.disabled) {
+                        handleAuth();
+                    }
+                }
             }
         });
 
-        // 🌗 Theme Toggle
-        (function() {
-            const themeToggle = document.getElementById('theme-toggle');
-            const savedTheme = localStorage.getItem('playnexus_theme') || 'dark';
-            if (savedTheme === 'light') {
-                document.body.classList.add('light-theme');
-                if (themeToggle) themeToggle.textContent = '☀️';
-            }
-            if (themeToggle) {
-                themeToggle.addEventListener('click', () => {
-                    document.body.classList.toggle('light-theme');
-                    const isLight = document.body.classList.contains('light-theme');
-                    themeToggle.textContent = isLight ? '☀️' : '🌙';
-                    localStorage.setItem('playnexus_theme', isLight ? 'light' : 'dark');
-                });
-            }
-        })();
+        // Session recovery check
+        document.addEventListener('DOMContentLoaded', () => {
+            restorePersistedSession();
+        });
+
     </script>
 </body>
 </html>

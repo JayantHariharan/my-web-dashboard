@@ -1,26 +1,22 @@
-"""
-FastAPI application factory.
-Creates and configures the PlayNexus API application.
-"""
+"""FastAPI application factory for the auth-first PlayNexus backend."""
 
 import logging
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.status import (
-    HTTP_422_UNPROCESSABLE_CONTENT,
+    HTTP_422_UNPROCESSABLE_ENTITY,
     HTTP_500_INTERNAL_SERVER_ERROR,
 )
-
+from starlette.middleware.base import BaseHTTPMiddleware
 from ..config import settings
 from ..log_config import setup_logging
 from .middlewares import (
     RequestIdMiddleware,
     RateLimitMiddleware,
     auth_rate_limiter,
-    games_rate_limiter,
-    apps_rate_limiter,
 )
 
 # Configure logging early
@@ -38,24 +34,22 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="PlayNexus API",
         description="""
-Backend API for PlayNexus gaming hub - Multi-App Platform.
+Backend API for the current PlayNexus auth-first phase.
 
 ## Features
-- Modular app architecture (auth, games, utilities)
-- Secure authentication with bcrypt + pepper
-- Rate limiting per app category
+- Account authentication and account lifecycle endpoints
+- Secure authentication with adaptive password hashing + pepper
+- Request tracing and security headers
 - IP audit logging
-- Flyway-style database migrations
+- Versioned database migrations
 - Health monitoring endpoint
 
 ## Authentication
-Currently uses stateless authentication with username in sessionStorage.
-Future: JWT tokens for persistent sessions.
+The frontend currently stores the active username in sessionStorage.
+JWT or server-backed sessions can be added later.
 
 ## Rate Limits (per IP)
 - **Auth endpoints** (`/api/auth/*`): 20 requests/hour, 15min block
-- **Games endpoints** (`/api/games/*`): 100 requests/hour, 10min block
-- **General apps** (`/apps/*`): 200 requests/hour, 10min block
 
 ## Environment
 - **Development**: DEBUG=true, SQLite database
@@ -72,25 +66,74 @@ Future: JWT tokens for persistent sessions.
     app.add_middleware(RequestIdMiddleware)
 
     # 2. CORS - allow cross-origin requests (configure per environment)
+    # For security, avoid wildcard with credentials. Use specific origins.
+    if settings.debug:
+        allow_origins = [
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ]
+    else:
+        # In production, should be your domain(s)
+        allow_origins = [
+            "https://playnexus-prod.onrender.com",
+            "https://playnexus-test.onrender.com",
+        ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"] if settings.debug else ["https://your-app.onrender.com"],
+        allow_origins=allow_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
 
-    # 3. Rate limiting - per app category
-    # Auth endpoints (strict limit)
+    # 3. Security Headers Middleware
+    class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            response = await call_next(request)
+            # Prevent MIME type sniffing
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            # Prevent clickjacking
+            response.headers["X-Frame-Options"] = "DENY"
+            # XSS protection (legacy browsers)
+            response.headers["X-XSS-Protection"] = "1; mode=block"
+            # Referrer policy
+            response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+            # Permissions policy (restrict sensitive features)
+            response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+            # HSTS (HTTPS only) - enforce in production
+            if not settings.debug:
+                response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+            return response
+
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    # 4. Gzip compression for all responses
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+    # 3b. Cache control for static assets (CSS, JS, images)
+    class CacheControlMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            response = await call_next(request)
+            path = request.url.path
+
+            # Add cache headers for static assets
+            if path.startswith("/css/") or path.startswith("/js/") or path.startswith("/assets/"):
+                # Cache for 1 week (immutable assets)
+                response.headers["Cache-Control"] = "public, max-age=604800, immutable"
+            elif path.startswith("/") and not path.startswith("/api") and not path.startswith("/docs") and not path.startswith("/redoc") and not path.startswith("/openapi.json"):
+                # HTML pages - no cache (always fresh)
+                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+
+            return response
+
+    app.add_middleware(CacheControlMiddleware)
+
+    # 4. Rate limiting - auth endpoints only in the current phase
     app.add_middleware(
         RateLimitMiddleware, limiter=auth_rate_limiter, paths=["/api/auth"]
     )
-    # Games endpoints (moderate limit)
-    app.add_middleware(
-        RateLimitMiddleware, limiter=games_rate_limiter, paths=["/api/games"]
-    )
-    # General apps (higher limit)
-    app.add_middleware(RateLimitMiddleware, limiter=apps_rate_limiter, paths=["/apps"])
 
     # Health check endpoint (no rate limit)
     @app.get("/health", tags=["Health"])
@@ -155,7 +198,7 @@ Future: JWT tokens for persistent sessions.
     ):
         logger.warning(f"Validation error: {exc.errors()}")
         return JSONResponse(
-            status_code=HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
             content={"detail": exc.errors()},
         )
 
