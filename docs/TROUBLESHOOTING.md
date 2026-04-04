@@ -19,6 +19,40 @@ Expected: HTTP 200 with service details in JSON.
 
 ---
 
+## Local Auth Runtime
+
+### Login updates `last_login_at` but the page does not enter the hub
+**Symptom:** The backend accepts the credentials, but the frontend stays on the auth card or does not restore the home view correctly.
+
+**Check:**
+- Open DevTools and confirm `/api/auth/login` returns `200`.
+- Refresh once and confirm the browser has a `playnexus_session` entry in storage.
+- Check `/api/auth/me?username=<name>` from the same browser session.
+
+**Expected now:**
+- Successful auth stores a lightweight client session in `sessionStorage` and `localStorage`
+- The hub becomes visible without a full page reload
+- Refresh restores the hub and validates the username with `/api/auth/me` when the backend is reachable
+
+### Local SQLite fails with `disk I/O error`
+**Symptom:** Login/signup shows a connection error, or backend startup logs show SQLite `disk I/O error`.
+
+**Cause:** The primary local SQLite file or its journal can become unhealthy on this runtime.
+
+**Current behavior:**
+- Startup first tries `data/playnexus.db`
+- If bootstrap fails, the backend automatically falls back to `data/playnexus-recovered.db`
+- SQLite runs with memory-backed journaling pragmas for better local stability
+
+**Check:**
+```bash
+python -c "from src.backend.main import ensure_local_sqlite_schema; from src.backend.config import settings; ensure_local_sqlite_schema(); print(settings.database.url)"
+```
+
+**Expected:** the printed database URL should be either `data/playnexus.db` or `data/playnexus-recovered.db`, and startup should not crash.
+
+---
+
 ## Common Issues & Solutions
 
 ### 1. Auto-Deploy Still Enabled ⚠️

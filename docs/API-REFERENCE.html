@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -409,10 +409,11 @@
                 <h2>How Authentication Works Today</h2>
                 <div class="callout">
                     <ul class="flat-list">
-                        <li>The frontend currently stores the active username in <code>sessionStorage</code>.</li>
+                        <li>The frontend stores a lightweight client session in <code>sessionStorage</code> and mirrors it in <code>localStorage</code> for restore.</li>
                         <li><code>/api/auth/me</code> is a username-based lookup, not full token auth.</li>
                         <li>Passwords are combined with <code>SECRET_KEY</code> and hashed with adaptive password schemes.</li>
                         <li>The backend prefers <code>bcrypt_sha256</code>, then <code>bcrypt</code>, and falls back to <code>pbkdf2_sha256</code> if needed.</li>
+                        <li>Local SQLite startup can recover to <code>data/playnexus-recovered.db</code> if the primary file is unhealthy.</li>
                         <li>Keep <code>SECRET_KEY</code> stable per Render environment or existing account verification can break.</li>
                         <li>All auth endpoints share the same in-memory rate limiter.</li>
                     </ul>
@@ -448,6 +449,7 @@
 }</code></pre>
                             <h3 style="margin-top:14px;">Typical Errors</h3>
                             <ul class="flat-list">
+                                <li><code>404</code> No user found</li>
                                 <li><code>401</code> Invalid username or password</li>
                                 <li><code>429</code> Rate limit exceeded</li>
                                 <li><code>500</code> Authentication service unavailable</li>
