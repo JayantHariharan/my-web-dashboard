@@ -70,6 +70,7 @@ def get_connection(is_postgres: bool, db_url: str, schema: str = "public"):
     """
     try:
         if is_postgres:
+            if not db_url.startswith(('postgresql://', 'postgres://')): raise ConnectionError('Invalid PG URL')
             # Import psycopg2 only when needed (PostgreSQL)
             import psycopg2
             from psycopg2.extras import RealDictCursor
