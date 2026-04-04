@@ -1,142 +1,180 @@
-"""Middleware components for PlayNexus."""
+"""FastAPI application factory for the auth-first PlayNexus backend."""
 
-import time
-import uuid
-import threading
-from collections import defaultdict, deque
-from typing import Dict, Tuple, Optional, List
-
-from fastapi import Request, HTTPException, status
+import logging
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
+from starlette.status import (
+    HTTP_422_UNPROCESSABLE_ENTITY,
+    HTTP_500_INTERNAL_SERVER_ERROR,
+)
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from ..config import settings
+from ..log_config import setup_logging
+from .middlewares import (
+    RequestIdMiddleware,
+    RateLimitMiddleware,
+    auth_rate_limiter,
+)
 
-class SimpleRateLimiter:
-    """Thread-safe in-memory rate limiter (dev-safe, not distributed)."""
+setup_logging()
+logger = logging.getLogger(__name__)
 
-    def __init__(
-        self,
-        max_requests: int = 20,
-        window_seconds: int = 3600,
-        block_duration_seconds: int = 900,
-    ):
-        self.max_requests = max_requests
-        self.window_seconds = window_seconds
-        self.block_duration_seconds = block_duration_seconds
 
-        self.requests: Dict[str, deque] = defaultdict(deque)
-        self.blocked_ips: Dict[str, float] = {}
+def _sanitize_error(exc: Exception) -> str:
+    msg = str(exc)
+    if any(k in msg.lower() for k in ["password", "secret", "token"]):
+        return "Sensitive error hidden"
+    return msg
 
-        # ✅ FIX: thread safety
-        self.lock = threading.Lock()
 
-    def is_allowed(self, ip: str) -> Tuple[bool, str, int]:
-        """Returns (allowed, message, retry_after_seconds)."""
-        now = time.time()
+def create_app() -> FastAPI:
+    app = FastAPI(
+        title="PlayNexus API",
+        version="1.0.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
+    )
 
-        with self.lock:
-            # Cleanup old IPs periodically
-            self._cleanup(now)
+    # 1. Request ID
+    app.add_middleware(RequestIdMiddleware)
 
-            # Check block
-            if ip in self.blocked_ips:
-                if now < self.blocked_ips[ip]:
-                    remaining = int(self.blocked_ips[ip] - now)
-                    return False, f"Too many requests. Try again in {remaining}s", remaining
-                else:
-                    del self.blocked_ips[ip]
-
-            timestamps = self.requests[ip]
-
-            # Remove old timestamps
-            window_start = now - self.window_seconds
-            while timestamps and timestamps[0] < window_start:
-                timestamps.popleft()
-
-            if len(timestamps) >= self.max_requests:
-                block_until = now + self.block_duration_seconds
-                self.blocked_ips[ip] = block_until
-                return False, "Rate limit exceeded. Try later.", self.block_duration_seconds
-
-            timestamps.append(now)
-            return True, "OK", 0
-
-    def _cleanup(self, now: float):
-        """Remove stale IP data to prevent memory leaks."""
-        stale_ips = [
-            ip for ip, timestamps in self.requests.items()
-            if not timestamps or now - timestamps[-1] > self.window_seconds * 2
+    # 2. CORS
+    if settings.debug:
+        allow_origins = [
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
         ]
-        for ip in stale_ips:
-            self.requests.pop(ip, None)
-
-        expired_blocks = [
-            ip for ip, unblock_time in self.blocked_ips.items()
-            if now > unblock_time
+    else:
+        allow_origins = [
+            "https://playnexus-prod.onrender.com",
+            "https://playnexus-test.onrender.com",
         ]
-        for ip in expired_blocks:
-            self.blocked_ips.pop(ip, None)
 
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allow_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
-class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Rate limiting middleware with safer IP handling."""
+    # 3. Security Headers
+    class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            response = await call_next(request)
 
-    def __init__(
-        self,
-        app,
-        limiter: SimpleRateLimiter,
-        paths: Optional[List[str]] = None,
-    ):
-        super().__init__(app)
-        self.limiter = limiter
-        self.paths = paths or []
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["X-XSS-Protection"] = "1; mode=block"
+            response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+            response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+            response.headers["X-Permitted-Cross-Domain-Policies"] = "none"
 
-    def _get_client_ip(self, request: Request) -> str:
-        """
-        Safer IP extraction.
-        Trust X-Forwarded-For ONLY if behind proxy (Render/NGINX).
-        """
-        x_forwarded_for = request.headers.get("X-Forwarded-For")
+            # 🔥 Important: CSP
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline'; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data:; "
+                "connect-src 'self';"
+            )
 
-        # ⚠️ Trust only if present (Render sets it)
-        if x_forwarded_for:
-            return x_forwarded_for.split(",")[0].strip()
-
-        if request.client:
-            return request.client.host
-
-        return "unknown"
-
-    async def dispatch(self, request: Request, call_next):
-        if any(request.url.path.startswith(p) for p in self.paths):
-            client_ip = self._get_client_ip(request)
-
-            allowed, message, retry_after = self.limiter.is_allowed(client_ip)
-
-            if not allowed:
-                raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                    detail=message,
-                    headers={"Retry-After": str(retry_after)},
+            if not settings.debug:
+                response.headers["Strict-Transport-Security"] = (
+                    "max-age=31536000; includeSubDomains"
                 )
 
-        return await call_next(request)
+            return response
 
+    app.add_middleware(SecurityHeadersMiddleware)
 
-class RequestIdMiddleware(BaseHTTPMiddleware):
-    """Attach request ID to each request and response."""
+    # 4. Cache Control
+    class CacheControlMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            response = await call_next(request)
+            path = request.url.path
 
-    async def dispatch(self, request: Request, call_next):
-        request_id = str(uuid.uuid4())
-        request.state.request_id = request_id
+            if path.startswith(("/css/", "/js/", "/assets/")):
+                response.headers["Cache-Control"] = "public, max-age=604800, immutable"
+            elif not path.startswith(("/api", "/docs", "/redoc", "/openapi.json")):
+                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
 
-        response = await call_next(request)
-        response.headers["X-Request-ID"] = request_id
-        return response
+            return response
 
+    app.add_middleware(CacheControlMiddleware)
 
-# Auth limiter config
-auth_rate_limiter = SimpleRateLimiter(
-    max_requests=20,
-    window_seconds=3600,
-    block_duration_seconds=900,
-)
+    # 5. Gzip
+    app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+    # 6. Rate Limiting (FIXED path)
+    app.add_middleware(
+        RateLimitMiddleware,
+        limiter=auth_rate_limiter,
+        paths=["/api/auth/"],  # ✅ FIX
+    )
+
+    # Health Check
+    @app.get("/health", tags=["Health"])
+    async def health_check():
+        from ..shared.database import user_repo
+
+        try:
+            with user_repo.get_cursor() as cursor:
+                cursor.execute("SELECT 1")
+                result = cursor.fetchone()
+                db_ok = result is not None
+        except Exception as e:
+            logger.error(f"Health check failed: {_sanitize_error(e)}")
+            db_ok = False
+
+        if not db_ok:
+            raise HTTPException(status_code=503, detail="Database unavailable")
+
+        return {
+            "status": "healthy",
+            "service": "PlayNexus API",
+            "database": "connected",
+            "environment": "production" if not settings.debug else "development",
+        }
+
+    # Exception Handlers
+
+    @app.exception_handler(HTTPException)
+    async def http_exception_handler(request: Request, exc: HTTPException):
+        logger.warning(
+            f"{request.method} {request.url.path} -> {exc.status_code}: {exc.detail}"
+        )
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={"detail": exc.detail},
+        )
+
+    @app.exception_handler(RequestValidationError)
+    async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        logger.warning(
+            f"Validation error at {request.url.path}: {exc.errors()}"
+        )
+        return JSONResponse(
+            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
+            content={"detail": exc.errors()},
+        )
+
+    @app.exception_handler(Exception)
+    async def general_exception_handler(request: Request, exc: Exception):
+        logger.error(
+            f"Unhandled error at {request.method} {request.url.path}: {_sanitize_error(exc)}"
+        )
+        return JSONResponse(
+            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
+            content={"detail": "Internal server error"},
+        )
+
+    logger.info("FastAPI application created")
+    return app
