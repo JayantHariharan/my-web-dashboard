@@ -1664,7 +1664,7 @@
             }
         }
 
-        function showAuthPortal() {
+        function showAuthPortal(immediate = true) {
             const hub = document.getElementById('master-hub-container');
 
             if (window.PlayNexus && window.PlayNexus.stopPhysics) {
@@ -1684,15 +1684,22 @@
                 authPortalSection.style.display = 'block';
             }
             if (authPortalCard) {
-                authPortalCard.style.opacity = '1';
-                authPortalCard.style.transform = 'scale(1)';
+                if (immediate) {
+                    authPortalCard.style.transition = 'opacity 0.6s ease-out, transform 0.6s ease-out';
+                    authPortalCard.style.opacity = '1';
+                    authPortalCard.style.transform = 'scale(1)';
+                } else {
+                    authPortalCard.style.transition = 'none';
+                    authPortalCard.style.opacity = '0';
+                    authPortalCard.style.transform = 'scale(0.95)';
+                }
             }
         }
 
         async function restorePersistedSession() {
             const savedSession = getStoredAuthSession();
             if (!savedSession || !savedSession.username) {
-                showAuthPortal();
+                showAuthPortal(false); // Delay animation so cinematic-startup handles it
                 return;
             }
 
@@ -2043,28 +2050,15 @@
             persistAuthSession(username, userId, avatarUrl);
 
             if (authSuccessOverlay && authMode !== 'resume') {
-                // Add creative ticker animation
-                const card = document.querySelector('.auth-card');
-                const ticket = document.createElement('div');
-                ticket.className = 'ticket-animation';
-                ticket.id = 'auth-ticket-transition';
-                ticket.innerHTML = `
-                    <div class="scanning-line"></div>
-                    <span>IDENTITY VERIFIED</span>
-                `;
-                card.appendChild(ticket);
-
                 authSuccessLabel.textContent = authMode === 'signup' ? 'Account Created' : 'Identity Verified';
                 authSuccessTitle.textContent = authMode === 'signup' ? 'Secure Account Ready' : 'Secure Access Granted';
                 authSuccessCopy.textContent = authMode === 'signup'
                     ? `Welcome, ${username}. Preparing your PlayNexus home base.`
                     : `Welcome back, ${username}. Reconnecting your PlayNexus command deck.`;
-                
-                // Delay showing main overlay slightly so ticket animation is visible
-                setTimeout(() => {
-                    authSuccessOverlay.classList.add('active');
-                    authSuccessOverlay.setAttribute('aria-hidden', 'false');
-                }, 300);
+
+                // Show main overlay immediately
+                authSuccessOverlay.classList.add('active');
+                authSuccessOverlay.setAttribute('aria-hidden', 'false');
             }
 
             // Transition to Hub
@@ -2160,14 +2154,25 @@
                 
                 modalTitle.textContent = 'ACCOUNT DELETED';
                 modalTitle.style.color = '#ef4444';
-                modalCopy.textContent = 'Identity purged. Redirecting to login in 3 seconds...';
+                
+                let countdown = 3;
+                modalCopy.textContent = `Identity purged. Redirecting to login in ${countdown} seconds...`;
+                
                 modalActions.style.display = 'none';
                 modalForms.forEach(f => f.style.display = 'none');
                 hideDeleteError();
 
                 Toast.success('Account permanently deleted', 3000);
                 
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    if (countdown > 0) {
+                        modalCopy.textContent = `Identity purged. Redirecting to login in ${countdown} seconds...`;
+                    }
+                }, 1000);
+                
                 setTimeout(() => {
+                    clearInterval(countdownInterval);
                     closeDeleteModal();
                     // Reset modal for next time
                     modalTitle.textContent = 'Delete Account';
