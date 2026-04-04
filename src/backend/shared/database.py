@@ -405,9 +405,9 @@ class UserRepository(BaseRepository):
                 cursor.close()
                 if conn:
                     if self._is_postgres and hasattr(conn, '_pool'):
-                    conn._pool.putconn(conn)
-                else:
-                    conn.close()
+                        conn._pool.putconn(conn)
+                    else:
+                        conn.close()
                 return 0
 
             logger.warning(f"Found {len(users)} plain-text passwords. Migrating...")
