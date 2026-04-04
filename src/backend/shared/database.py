@@ -404,7 +404,7 @@ class UserRepository(BaseRepository):
                 logger.info("No plain-text passwords found.")
                 cursor.close()
                 if conn:
-                if self._is_postgres and hasattr(conn, '_pool'):
+                    if self._is_postgres and hasattr(conn, '_pool'):
                     conn._pool.putconn(conn)
                 else:
                     conn.close()
