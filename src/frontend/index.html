@@ -2061,10 +2061,11 @@
             // Transition to Hub
             const transitionDelay = authMode === 'resume' ? 0 : 3200; // Increased for a smoother "soak" time
             setTimeout(() => {
-                if (auth) {
-                    auth.style.transition = 'opacity 1.2s ease, transform 1.2s ease';
-                    auth.style.opacity = '0';
-                    auth.style.transform = 'scale(1.05)';
+                const targetPortal = document.getElementById('crystal-auth-portal');
+                if (targetPortal) {
+                    targetPortal.style.transition = 'opacity 1.2s ease, transform 1.2s ease';
+                    targetPortal.style.opacity = '0';
+                    targetPortal.style.transform = 'scale(1.05)';
                 }
                 const ticket = document.getElementById('auth-ticket-transition');
                 if (ticket) ticket.remove();
