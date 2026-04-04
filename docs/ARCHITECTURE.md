@@ -138,6 +138,7 @@ Configuration is environment-driven.
 - request ID tracing
 - security headers
 - parameterized SQL values
+- strongly sanitized dynamic column and order-by mapping (SQL injection prevented)
 
 ### Current tradeoffs
 

@@ -638,6 +638,16 @@
                         <h3 style="margin-top:16px;"><code>schema_version</code></h3>
                         <p>Tracks applied migration scripts.</p>
                     </div>
+                    </div>
+                </div>
+                <h3 style="margin-top:20px; font-size:1.15rem;">Security Foundations</h3>
+                <div class="endpoint-grid" style="grid-template-columns: 1fr;">
+                    <div class="subcard">
+                        <ul class="flat-list">
+                            <li><strong>SQL Injection Hardened</strong>: Dynamic SQL builds enforce strict `isalnum()` plus underscore filtering on column schemas and ordering inputs, alongside full dynamic parameterization (`%s`/`?`).</li>
+                            <li><strong>Safe DB Migrations</strong>: Migration tooling is built to fully mask and sanitize connections, keeping credentials entirely out of CLI output and exception logs.</li>
+                        </ul>
+                    </div>
                 </div>
             </section>
 
