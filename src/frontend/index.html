@@ -16,7 +16,7 @@
     <canvas id="cinematic-bg"></canvas>
 
     <!-- 🔐 LUMINOUS AUTH PORTAL (Redesigned) -->
-    <section id="crystal-auth-portal" class="hidden">
+    <section id="auth-portal-section" class="hidden">
         <style>
             /* ═══════════════════════════════════════════════════
                ULTIMATE FORTNITE-INSPIRED GLASSMORPHISM AUTH
@@ -1361,7 +1361,8 @@
         const authSuccessLabel = document.getElementById('auth-success-label');
         const authSuccessTitle = document.getElementById('auth-success-title');
         const authSuccessCopy = document.getElementById('auth-success-copy');
-        const authPortal = document.getElementById('crystal-auth-portal');
+        const authPortalSection = document.getElementById('auth-portal-section');
+        const authPortalCard = document.getElementById('crystal-auth-portal');
         const AUTH_SESSION_KEY = 'playnexus_session';
 
         // Field validation state
@@ -1618,7 +1619,6 @@
 
         function showHubForAuthenticatedUser(username, options = {}) {
             const { avatarUrl = '', updateHistory = true } = options;
-            const auth = document.getElementById('crystal-auth-portal');
             const hub = document.getElementById('master-hub-container');
             const displayUser = document.getElementById('display-username');
             const profilePic = document.getElementById('user-avatar');
@@ -1637,17 +1637,22 @@
                 authSuccessOverlay.setAttribute('aria-hidden', 'true');
             }
 
-            if (authPortal) {
-                authPortal.style.opacity = '0';
-                authPortal.classList.add('hidden');
-                authPortal.setAttribute('aria-hidden', 'true');
-                authPortal.style.pointerEvents = 'none';
-                authPortal.style.display = 'none'; // Ensure it's fully gone
+            if (authPortalSection) {
+                authPortalSection.style.opacity = '0';
+                authPortalSection.classList.add('hidden');
+                authPortalSection.setAttribute('aria-hidden', 'true');
+                authPortalSection.style.pointerEvents = 'none';
+                authPortalSection.style.display = 'none'; // Ensure it's fully gone
             }
 
             if (hub) {
                 hub.classList.remove('hidden');
                 hub.style.opacity = '1';
+                // Reset card for next session
+                if (authPortalCard) {
+                    authPortalCard.style.opacity = '1';
+                    authPortalCard.style.transform = 'scale(1)';
+                }
             }
 
             if (updateHistory) {
@@ -1660,7 +1665,6 @@
         }
 
         function showAuthPortal() {
-            const auth = document.getElementById('crystal-auth-portal');
             const hub = document.getElementById('master-hub-container');
 
             if (window.PlayNexus && window.PlayNexus.stopPhysics) {
@@ -1672,12 +1676,16 @@
                 hub.style.opacity = '0';
             }
 
-            if (authPortal) {
-                authPortal.classList.remove('hidden');
-                authPortal.style.opacity = '1';
-                authPortal.setAttribute('aria-hidden', 'false');
-                authPortal.style.pointerEvents = 'auto';
-                authPortal.style.display = 'block';
+            if (authPortalSection) {
+                authPortalSection.classList.remove('hidden');
+                authPortalSection.style.opacity = '1';
+                authPortalSection.setAttribute('aria-hidden', 'false');
+                authPortalSection.style.pointerEvents = 'auto';
+                authPortalSection.style.display = 'block';
+            }
+            if (authPortalCard) {
+                authPortalCard.style.opacity = '1';
+                authPortalCard.style.transform = 'scale(1)';
             }
         }
 
