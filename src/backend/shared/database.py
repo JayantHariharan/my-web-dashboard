@@ -161,9 +161,10 @@ class BaseRepository:
         """Update a record by primary key."""
         if not data:
             return False
-        set_items = [
-            f"{col} = {'%s' if self._is_postgres else '?'}" for col in data.keys()
-        ]
+        set_items = []
+        for col in data.keys():
+            safe_col = "".join(c for c in col if c.isalnum() or c == "_")
+            set_items.append(f"{safe_col} = {'%s' if self._is_postgres else '?'}")
         values = list(data.values())
         values.append(pk_value)
         sets_str = ", ".join(set_items)
@@ -200,8 +201,9 @@ class BaseRepository:
         where_clauses = []
         values = []
         for col, val in conditions.items():
+            safe_col = "".join(c for c in col if c.isalnum() or c == "_")
             placeholder = "%s" if self._is_postgres else "?"
-            where_clauses.append(f"{col} = {placeholder}")
+            where_clauses.append(f"{safe_col} = {placeholder}")
             values.append(val)
         where_str = " AND ".join(where_clauses)
         sql = f"SELECT * FROM {self.table_name} WHERE {where_str} LIMIT 1"
@@ -220,8 +222,9 @@ class BaseRepository:
             where_clauses = []
             values = []
             for col, val in conditions.items():
+                safe_col = "".join(c for c in col if c.isalnum() or c == "_")
                 placeholder = "%s" if self._is_postgres else "?"
-                where_clauses.append(f"{col} = {placeholder}")
+                where_clauses.append(f"{safe_col} = {placeholder}")
                 values.append(val)
             where_str = " AND ".join(where_clauses)
             sql = f"SELECT * FROM {self.table_name} WHERE {where_str}"
@@ -229,7 +232,8 @@ class BaseRepository:
             sql = f"SELECT * FROM {self.table_name}"
             values = []
         if order_by:
-            sql += f" ORDER BY {order_by}"
+            safe_order = "".join(c for c in order_by if c.isalnum() or c in ("_", " ", ",")).strip()
+            sql += f" ORDER BY {safe_order}"
         with self.get_cursor() as cursor:
             cursor.execute(sql, tuple(values))
             rows = cursor.fetchall()
@@ -242,8 +246,9 @@ class BaseRepository:
         where_clauses = []
         values = []
         for col, val in conditions.items():
+            safe_col = "".join(c for c in col if c.isalnum() or c == "_")
             placeholder = "%s" if self._is_postgres else "?"
-            where_clauses.append(f"{col} = {placeholder}")
+            where_clauses.append(f"{safe_col} = {placeholder}")
             values.append(val)
         where_str = " AND ".join(where_clauses)
         sql = f"DELETE FROM {self.table_name} WHERE {where_str}"
