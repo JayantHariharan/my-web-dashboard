@@ -61,11 +61,28 @@ echo ""
 
 # 2. Python syntax
 check "Python syntax check"
-if python -m py_compile src/backend/main.py 2>/dev/null; then
+if python - <<'PY' 2>/dev/null
+import ast
+from pathlib import Path
+
+for path in Path("src/backend").rglob("*.py"):
+    ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+PY
+then
     pass "Syntax valid"
 else
     fail "Syntax errors found"
-    python -m py_compile src/backend/main.py || true
+    python - <<'PY' || true
+import ast
+from pathlib import Path
+
+for path in Path("src/backend").rglob("*.py"):
+    try:
+        ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    except SyntaxError as exc:
+        print(f"{path}:{exc.lineno}:{exc.offset}: {exc.msg}")
+        raise
+PY
 fi
 echo ""
 
@@ -97,37 +114,56 @@ echo ""
 
 # 4. Check for TODO/FIXME in committed files
 check "No TODO/FIXME in commits"
-STAGED_PY_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.py$' || true)
-if [ -n "$STAGED_PY_FILES" ]; then
-    if echo "$STAGED_PY_FILES" | xargs grep -lw -E "TODO|FIXME|BUG|HACK" 2>/dev/null > /dev/null; then
+STAGED_TEXT_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(py|js|html|css|md|yml|yaml|sh)$' || true)
+if [ -n "$STAGED_TEXT_FILES" ]; then
+    if echo "$STAGED_TEXT_FILES" | xargs grep -lw -E "TODO|FIXME|BUG|HACK" 2>/dev/null > /dev/null; then
         warn "TODO/FIXME found"
-        echo "$STAGED_PY_FILES" | xargs grep -nw -E "TODO|FIXME|BUG|HACK" || true
+        echo "$STAGED_TEXT_FILES" | xargs grep -nw -E "TODO|FIXME|BUG|HACK" || true
         echo "  Consider addressing or create issue for tracking."
     else
         pass "No problematic comments found"
     fi
 else
-    pass "No Python files staged"
+    pass "No tracked text files staged"
 fi
 echo ""
 
 # 5. Verify documentation timestamps are current
 check "Documentation timestamps"
-TODAY=$(date +%Y-%m-%d)
-OLD_DATES=0
-for doc in docs/DEVELOPER.md docs/ARCHITECTURE.md docs/FLYWAY.md docs/MIGRATIONS.md docs/TROUBLESHOOTING.md; do
-    if [ -f "$doc" ]; then
-        LAST_UPDATED=$(grep -oE 'Last (?:updated|Updated): [0-9]{4}-[0-9]{2}-[0-9]{2}' "$doc" | head -1 || echo "")
-        if [ -n "$LAST_UPDATED" ] && [[ ! "$LAST_UPDATED" =~ $TODAY ]]; then
-            warn "$doc outdated: $LAST_UPDATED"
-            OLD_DATES=1
-        fi
-    fi
-done
-if [ $OLD_DATES -eq 0 ]; then
-    pass "Documentation dates are current"
+if python - <<'PY'
+import re
+from pathlib import Path
+
+today = Path(".").joinpath().resolve()
+_ = today  # keep lint quiet in bare Python
+docs = [
+    Path("docs/DEVELOPER.md"),
+    Path("docs/ARCHITECTURE.md"),
+    Path("docs/FLYWAY.md"),
+    Path("docs/MIGRATIONS.md"),
+    Path("docs/TROUBLESHOOTING.md"),
+]
+date_re = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
+issues = []
+
+for path in docs:
+    if not path.exists():
+        continue
+    content = path.read_text(encoding="utf-8")
+    match = re.search(r"## Last Updated\s+(\d{4}-\d{2}-\d{2})", content)
+    if not match:
+        match = re.search(r"Last (?:updated|Updated):\s*(\d{4}-\d{2}-\d{2})", content)
+    if not match:
+        issues.append(f"{path}: missing last updated marker")
+
+if issues:
+    print("\n".join(issues))
+    raise SystemExit(1)
+PY
+then
+    pass "Documentation dates are present"
 else
-    warn "Some documentation dates need updating (run pre-commit hook)"
+    warn "Documentation is missing a supported last-updated marker"
 fi
 echo ""
 

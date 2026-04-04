@@ -9,6 +9,39 @@ import logging
 import os
 from dataclasses import dataclass
 
+try:
+    from dotenv import load_dotenv
+except ImportError:  # pragma: no cover - optional dependency in some environments
+    load_dotenv = None
+
+ENV_KEYS = {
+    "DATABASE_URL",
+    "PGHOST",
+    "PGPORT",
+    "PGUSER",
+    "PGPASSWORD",
+    "PGDATABASE",
+    "SECRET_KEY",
+    "DEBUG",
+    "LOG_LEVEL",
+    "APP_ENV",
+    "ENV",
+    "DB_SCHEMA",
+}
+has_runtime_env = any(os.environ.get(key) for key in ENV_KEYS)
+
+if (
+    load_dotenv
+    and not has_runtime_env
+    and os.environ.get("CI", "").lower() not in {"1", "true", "yes"}
+):
+    env_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        ".env",
+    )
+    if os.path.exists(env_path):
+        load_dotenv(env_path, override=False)
+
 
 @dataclass
 class DatabaseConfig:
@@ -125,8 +158,16 @@ class Settings:
 # Global settings instance
 settings = Settings.from_env()
 
-# Security: Ensure SECRET_KEY is set in production
-if not settings.debug and settings.secret_key == "change-me-in-production":
+app_env = (os.environ.get("ENV") or os.environ.get("APP_ENV") or "").lower()
+is_production_like = app_env in {"prod", "production"}
+
+# Security: Ensure SECRET_KEY is set for production-like environments.
+# Local SQLite development should still be able to start without extra setup.
+if (
+    is_production_like
+    and not settings.debug
+    and settings.secret_key == "change-me-in-production"
+):
     raise RuntimeError(
         "SECRET_KEY environment variable must be set in production. "
         "Application startup aborted."

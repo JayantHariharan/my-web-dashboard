@@ -51,5 +51,5 @@ echo "Note: Hooks run automatically. To skip (NOT recommended):"
 echo "  git commit --no-verify   # Skip pre-commit & commit-msg"
 echo "  git push --no-verify     # Skip pre-push"
 echo ""
-echo "GitHub Actions also runs quality checks (quality.yml) for every PR/push."
+echo "GitHub Actions also runs CI checks from .github/workflows/."
 
