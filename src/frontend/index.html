@@ -2043,28 +2043,15 @@
             persistAuthSession(username, userId, avatarUrl);
 
             if (authSuccessOverlay && authMode !== 'resume') {
-                // Add creative ticker animation
-                const card = document.querySelector('.auth-card');
-                const ticket = document.createElement('div');
-                ticket.className = 'ticket-animation';
-                ticket.id = 'auth-ticket-transition';
-                ticket.innerHTML = `
-                    <div class="scanning-line"></div>
-                    <span>IDENTITY VERIFIED</span>
-                `;
-                card.appendChild(ticket);
-
                 authSuccessLabel.textContent = authMode === 'signup' ? 'Account Created' : 'Identity Verified';
                 authSuccessTitle.textContent = authMode === 'signup' ? 'Secure Account Ready' : 'Secure Access Granted';
                 authSuccessCopy.textContent = authMode === 'signup'
                     ? `Welcome, ${username}. Preparing your PlayNexus home base.`
                     : `Welcome back, ${username}. Reconnecting your PlayNexus command deck.`;
-                
-                // Delay showing main overlay slightly so ticket animation is visible
-                setTimeout(() => {
-                    authSuccessOverlay.classList.add('active');
-                    authSuccessOverlay.setAttribute('aria-hidden', 'false');
-                }, 300);
+
+                // Show main overlay immediately
+                authSuccessOverlay.classList.add('active');
+                authSuccessOverlay.setAttribute('aria-hidden', 'false');
             }
 
             // Transition to Hub
