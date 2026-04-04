@@ -580,13 +580,13 @@
                 border-radius: 28px;
                 text-align: center;
                 background:
-                    linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04)),
-                    rgba(7, 12, 24, 0.86);
-                border: 1px solid rgba(120, 204, 255, 0.28);
+                    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+                    rgba(10, 10, 18, 0.94);
+                border: 1px solid rgba(168, 85, 247, 0.25);
                 box-shadow:
-                    0 30px 80px rgba(0, 0, 0, 0.38),
-                    0 0 80px rgba(24, 191, 255, 0.14),
-                    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+                    0 30px 80px rgba(0, 0, 0, 0.5),
+                    0 0 60px rgba(168, 85, 247, 0.1),
+                    inset 0 1px 0 rgba(255, 255, 255, 0.08);
                 transform: translateY(22px) scale(0.96);
                 transition: transform 0.45s cubic-bezier(0.19, 1, 0.22, 1);
             }
@@ -603,11 +603,11 @@
                 display: grid;
                 place-items: center;
                 position: relative;
-                background: radial-gradient(circle, rgba(88, 255, 216, 0.24), rgba(17, 24, 39, 0.3));
-                border: 1px solid rgba(110, 231, 255, 0.34);
+                background: radial-gradient(circle, rgba(168, 85, 247, 0.2), rgba(15, 23, 42, 0.4));
+                border: 1px solid rgba(168, 85, 247, 0.3);
                 box-shadow:
-                    0 0 40px rgba(34, 211, 238, 0.26),
-                    inset 0 0 30px rgba(59, 130, 246, 0.18);
+                    0 0 40px rgba(168, 85, 247, 0.24),
+                    inset 0 0 30px rgba(168, 85, 247, 0.12);
             }
 
             .auth-success-ring::before,
@@ -616,7 +616,7 @@
                 position: absolute;
                 inset: -10px;
                 border-radius: 50%;
-                border: 1px solid rgba(125, 211, 252, 0.24);
+                border: 1px solid rgba(168, 85, 247, 0.24);
                 animation: authPulse 1.8s ease-out infinite;
             }
 
@@ -628,13 +628,13 @@
             .auth-success-ring svg {
                 width: 42px;
                 height: 42px;
-                color: #9af8ff;
+                color: #a855f7; /* Forge Purple */
                 stroke: currentColor;
                 fill: none;
                 stroke-width: 2;
                 stroke-linecap: round;
                 stroke-linejoin: round;
-                filter: drop-shadow(0 0 16px rgba(110, 231, 255, 0.45));
+                filter: drop-shadow(0 0 16px rgba(168, 85, 247, 0.45));
             }
 
             .auth-success-label {
@@ -1036,7 +1036,7 @@
             }
         </style>
 
-        <div class="auth-hub">
+        <div id="crystal-auth-portal" class="auth-hub">
             <!-- Animated Background (only visible on auth page) -->
                 <div class="global-bg">
                     <div class="orb orb-1"></div>
@@ -1357,10 +1357,8 @@
         const deleteAccountError = document.getElementById('delete-account-error');
         const deleteAccountErrorText = document.getElementById('delete-account-error-text');
         const deleteAccountSubmitBtn = document.getElementById('delete-account-submit');
-        const authSuccessOverlay = document.getElementById('auth-success-overlay');
-        const authSuccessLabel = document.getElementById('auth-success-label');
-        const authSuccessTitle = document.getElementById('auth-success-title');
         const authSuccessCopy = document.getElementById('auth-success-copy');
+        const authPortal = document.getElementById('crystal-auth-portal');
         const AUTH_SESSION_KEY = 'playnexus_session';
 
         // Field validation state
@@ -1636,11 +1634,12 @@
                 authSuccessOverlay.setAttribute('aria-hidden', 'true');
             }
 
-            if (auth) {
-                auth.style.opacity = '0';
-                auth.classList.add('hidden');
-                auth.setAttribute('aria-hidden', 'true');
-                auth.style.pointerEvents = 'none';
+            if (authPortal) {
+                authPortal.style.opacity = '0';
+                authPortal.classList.add('hidden');
+                authPortal.setAttribute('aria-hidden', 'true');
+                authPortal.style.pointerEvents = 'none';
+                authPortal.style.display = 'none'; // Ensure it's fully gone
             }
 
             if (hub) {
@@ -1670,11 +1669,12 @@
                 hub.style.opacity = '0';
             }
 
-            if (auth) {
-                auth.classList.remove('hidden');
-                auth.style.opacity = '1';
-                auth.setAttribute('aria-hidden', 'false');
-                auth.style.pointerEvents = 'auto';
+            if (authPortal) {
+                authPortal.classList.remove('hidden');
+                authPortal.style.opacity = '1';
+                authPortal.setAttribute('aria-hidden', 'false');
+                authPortal.style.pointerEvents = 'auto';
+                authPortal.style.display = 'block';
             }
         }
 
