@@ -317,14 +317,14 @@ class UserRepository(BaseRepository):
             conn = self._get_connection()
             cursor = conn.cursor()
             placeholder = "%s" if self._is_postgres else "?"
-            query = f\"\"\"
+            query = f"""
                 SELECT id, username, password
                 FROM {self.table_name}
                 WHERE password NOT LIKE '$2b$%'
                   AND password NOT LIKE '$2a$%'
                   AND password NOT LIKE '$2y$%'
                   AND password NOT LIKE '$pbkdf2-sha256$%'
-            \"\"\"
+            """
             cursor.execute(query)
             users = cursor.fetchall()
             if not users:
