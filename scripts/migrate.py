@@ -94,7 +94,7 @@ def get_connection(db_url, is_postgres, db_schema="public"):
         try:
             conn.cursor().execute(f"SET search_path TO {db_schema}, public")
         except Exception:
-            print(f"[WARN] Failed to set search_path to '{db_schema}'")
+            print("[WARN] Failed to set database search_path; check DB_SCHEMA configuration")
         return conn, True
     else:
         db_path = db_url.replace("sqlite:///", "")
