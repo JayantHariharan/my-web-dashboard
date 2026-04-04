@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: deploy-${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
+  group: workflow-deploy-${{ github.ref == 'refs/heads/main' && 'production' || 'staging' }}
   cancel-in-progress: true
 
 jobs:
@@ -92,7 +92,7 @@ jobs:
   migrate-database:
     needs: precheck
     concurrency:
-      group: migrate-${{ needs.precheck.outputs.environment }}
+      group: caller-migrate-${{ needs.precheck.outputs.environment }}
       cancel-in-progress: true
     uses: ./.github/workflows/flyway-migrate.yml
     with:
@@ -109,7 +109,7 @@ jobs:
     if: needs.migrate-database.outputs.success == 'true'
     runs-on: ubuntu-latest
     concurrency:
-      group: deploy-${{ needs.precheck.outputs.environment }}
+      group: render-deploy-${{ needs.precheck.outputs.environment }}
       cancel-in-progress: true
     environment: ${{ needs.precheck.outputs.environment }}
     env:
