@@ -31,6 +31,7 @@ _pg_pool = None
 
 
 def get_pg_pool():
+    if not settings.database.is_postgres: return None
     """Retrieve or initialize the PostgreSQL connection pool."""
     global _pg_pool
     if settings.database.is_postgres and _pg_pool is None:
@@ -69,6 +70,7 @@ def get_connection(is_postgres: bool, db_url: str, schema: str = "public"):
     """
     try:
         if is_postgres:
+            if not db_url.startswith(('postgresql://', 'postgres://')): raise ConnectionError('Invalid PG URL')
             # Import psycopg2 only when needed (PostgreSQL)
             import psycopg2
             from psycopg2.extras import RealDictCursor
