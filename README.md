@@ -16,7 +16,7 @@ PlayNexus is currently in an auth-first phase: a FastAPI backend serves a static
 - Backend: FastAPI, Python 3.12
 - Frontend: HTML, CSS, vanilla JavaScript
 - Database: SQLite locally, PostgreSQL in hosted environments
-- Security: adaptive password hashing plus pepper, request IDs, security headers, auth rate limiting
+- Security: adaptive password hashing plus `SECRET_KEY`-based peppering, request IDs, security headers, auth rate limiting
 - Deployment: Render + GitHub Actions
 
 ## Current API
@@ -45,6 +45,13 @@ python src/backend/main.py
 Open `http://localhost:8000`.
 
 The backend serves the frontend directly from `src/frontend/`.
+
+### Environment notes
+
+- Local development can run with the default SQLite database and a local `.env` file if you want one.
+- Render should provide environment variables directly to the backend process.
+- Keep `SECRET_KEY` set on Render for both test and production.
+- Do not remove or rotate `SECRET_KEY` casually: it is part of the current password hashing flow, so changing it can break login and delete-account verification for existing users.
 
 ### Optional frontend-only static server
 
@@ -112,4 +119,5 @@ After the auth foundation is stable, PlayNexus can grow back into a larger app h
 
 - The frontend currently keeps the active username in `sessionStorage`.
 - `GET /api/auth/me` is still a simple username-based lookup, not full token auth yet.
+- Passwords are normalized with an HMAC-SHA256 step keyed by `SECRET_KEY`, then hashed with `bcrypt` when available or `pbkdf2_sha256` as a fallback.
 - The static `docs/API-REFERENCE.html` file may lag behind the code and should be treated as secondary to the source code and the docs above.

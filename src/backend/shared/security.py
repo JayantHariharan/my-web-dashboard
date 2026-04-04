@@ -1,5 +1,7 @@
 """Security utilities for PlayNexus authentication."""
 
+import hashlib
+import hmac
 import logging
 from typing import Optional
 from passlib.context import CryptContext
@@ -18,7 +20,31 @@ except ImportError:  # pragma: no cover - depends on installed environment
     )
 
 pwd_context = CryptContext(schemes=PASSWORD_SCHEMES, deprecated="auto")
-_dummy_password_hash = pwd_context.hash(f"playnexus-dummy::{settings.secret_key}")
+
+
+def _normalize_password_input(password: str, pepper: str) -> str:
+    """
+    Convert the password+pepper pair into a fixed-length digest.
+
+    bcrypt rejects inputs over 72 bytes. Using an HMAC-SHA256 digest gives us
+    a stable, fixed-length secret for both bcrypt and pbkdf2 while still
+    binding the password to the server-side pepper.
+    """
+    return hmac.new(
+        pepper.encode("utf-8"),
+        password.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
+def _legacy_password_input(password: str, pepper: str) -> str:
+    """Legacy password format kept for backward-compatible verification."""
+    return password + pepper
+
+
+_dummy_password_hash = pwd_context.hash(
+    _normalize_password_input("playnexus-dummy", settings.secret_key)
+)
 
 
 def hash_password(password: str, pepper: Optional[str] = None) -> str:
@@ -33,10 +59,8 @@ def hash_password(password: str, pepper: Optional[str] = None) -> str:
     if pepper is None:
         pepper = settings.secret_key
 
-    # Combine password with pepper before hashing
-    # This ensures that even if the pepper is known, old hashes remain secure
-    peppered_password = password + pepper
-    return pwd_context.hash(peppered_password)
+    normalized_secret = _normalize_password_input(password, pepper)
+    return pwd_context.hash(normalized_secret)
 
 
 def verify_password(
@@ -54,8 +78,21 @@ def verify_password(
     if pepper is None:
         pepper = settings.secret_key
 
-    peppered_password = plain_password + pepper
-    return pwd_context.verify(peppered_password, hashed_password)
+    normalized_secret = _normalize_password_input(plain_password, pepper)
+    if pwd_context.verify(normalized_secret, hashed_password):
+        return True
+
+    # Backward compatibility for users created before fixed-length preprocessing
+    # was introduced. This lets existing accounts continue to log in.
+    legacy_secret = _legacy_password_input(plain_password, pepper)
+    scheme = pwd_context.identify(hashed_password)
+    if scheme == "bcrypt" and len(legacy_secret.encode("utf-8")) > 72:
+        return False
+
+    try:
+        return pwd_context.verify(legacy_secret, hashed_password)
+    except ValueError:
+        return False
 
 
 def get_dummy_password_hash() -> str:

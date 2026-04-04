@@ -88,11 +88,13 @@ Only the auth experience is the active engineering priority right now. The other
 
 ## Security Notes
 
-- Passwords are hashed with an adaptive scheme plus a pepper from `SECRET_KEY`.
+- Passwords are first normalized with an HMAC-SHA256 digest keyed by `SECRET_KEY`, then hashed with an adaptive scheme.
 - The backend prefers `bcrypt` and falls back to `pbkdf2_sha256` if that backend is unavailable in the runtime.
+- The HMAC preprocessing avoids bcrypt's 72-byte input limit while keeping a server-side secret in the flow.
 - Auth endpoints are rate limited in memory.
 - The current auth model is transitional and not token-based yet.
-- `SECRET_KEY` must be set in production-like environments.
+- `SECRET_KEY` must be set in production-like environments such as Render.
+- Keep the same `SECRET_KEY` value across deploys for an environment. Removing or changing it can stop existing users from logging in or deleting their accounts.
 
 ## Git Hooks
 
