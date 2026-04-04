@@ -1,214 +1,142 @@
-"""FastAPI application factory for the auth-first PlayNexus backend."""
+"""Middleware components for PlayNexus."""
 
-import logging
-from fastapi import FastAPI, Request, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import JSONResponse
-from fastapi.exceptions import RequestValidationError
-from starlette.status import (
-    HTTP_422_UNPROCESSABLE_ENTITY,
-    HTTP_500_INTERNAL_SERVER_ERROR,
-)
+import time
+import uuid
+import threading
+from collections import defaultdict, deque
+from typing import Dict, Tuple, Optional, List
+
+from fastapi import Request, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
-from ..config import settings
-from ..log_config import setup_logging
-from .middlewares import (
-    RequestIdMiddleware,
-    RateLimitMiddleware,
-    auth_rate_limiter,
-)
-
-# Configure logging early
-setup_logging()
-logger = logging.getLogger(__name__)
 
 
-def create_app() -> FastAPI:
-    """
-    Factory function to create and configure the FastAPI application.
+class SimpleRateLimiter:
+    """Thread-safe in-memory rate limiter (dev-safe, not distributed)."""
 
-    Returns:
-        Configured FastAPI app instance
-    """
-    app = FastAPI(
-        title="PlayNexus API",
-        description="""
-Backend API for the current PlayNexus auth-first phase.
-
-## Features
-- Account authentication and account lifecycle endpoints
-- Secure authentication with adaptive password hashing + pepper
-- Request tracing and security headers
-- IP audit logging
-- Versioned database migrations
-- Health monitoring endpoint
-
-## Authentication
-The frontend currently stores the active username in sessionStorage.
-JWT or server-backed sessions can be added later.
-
-## Rate Limits (per IP)
-- **Auth endpoints** (`/api/auth/*`): 20 requests/hour, 15min block
-
-## Environment
-- **Development**: DEBUG=true, SQLite database
-- **Production**: DEBUG=false, PostgreSQL database
-""",
-        version="1.0.0",
-        docs_url="/docs",
-        redoc_url="/redoc",
-        openapi_url="/openapi.json",
-    )
-
-    # Add middleware (order matters)
-    # 1. Request ID - adds X-Request-ID header
-    app.add_middleware(RequestIdMiddleware)
-
-    # 2. CORS - allow cross-origin requests (configure per environment)
-    # For security, avoid wildcard with credentials. Use specific origins.
-    if settings.debug:
-        allow_origins = [
-            "http://localhost:8000",
-            "http://127.0.0.1:8000",
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-        ]
-    else:
-        # In production, should be your domain(s)
-        allow_origins = [
-            "https://playnexus-prod.onrender.com",
-            "https://playnexus-test.onrender.com",
-        ]
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=allow_origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-
-    # 3. Security Headers Middleware
-    class SecurityHeadersMiddleware(BaseHTTPMiddleware):
-        async def dispatch(self, request: Request, call_next):
-            response = await call_next(request)
-            # Prevent MIME type sniffing
-            response.headers["X-Content-Type-Options"] = "nosniff"
-            # Prevent clickjacking
-            response.headers["X-Frame-Options"] = "DENY"
-            # XSS protection (legacy browsers)
-            response.headers["X-XSS-Protection"] = "1; mode=block"
-            # Referrer policy
-            response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-            # Permissions policy (restrict sensitive features)
-            response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
-            # HSTS (HTTPS only) - enforce in production
-            if not settings.debug:
-                response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-            return response
-
-    app.add_middleware(SecurityHeadersMiddleware)
-
-    # 4. Gzip compression for all responses
-    app.add_middleware(GZipMiddleware, minimum_size=1000)
-
-    # 3b. Cache control for static assets (CSS, JS, images)
-    class CacheControlMiddleware(BaseHTTPMiddleware):
-        async def dispatch(self, request: Request, call_next):
-            response = await call_next(request)
-            path = request.url.path
-
-            # Add cache headers for static assets
-            if path.startswith("/css/") or path.startswith("/js/") or path.startswith("/assets/"):
-                # Cache for 1 week (immutable assets)
-                response.headers["Cache-Control"] = "public, max-age=604800, immutable"
-            elif path.startswith("/") and not path.startswith("/api") and not path.startswith("/docs") and not path.startswith("/redoc") and not path.startswith("/openapi.json"):
-                # HTML pages - no cache (always fresh)
-                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-
-            return response
-
-    app.add_middleware(CacheControlMiddleware)
-
-    # 4. Rate limiting - auth endpoints only in the current phase
-    app.add_middleware(
-        RateLimitMiddleware, limiter=auth_rate_limiter, paths=["/api/auth"]
-    )
-
-    # Health check endpoint (no rate limit)
-    @app.get("/health", tags=["Health"])
-    async def health_check():
-        """
-        Health check endpoint for monitoring.
-        Tests database connectivity.
-
-        ## Response Example (Healthy)
-        ```json
-        {
-            "status": "healthy",
-            "service": "PlayNexus API",
-            "database": "connected",
-            "environment": "production"
-        }
-        ```
-
-        ## Response Example (Unhealthy)
-        ```json
-        {
-            "status": "unhealthy",
-            "service": "PlayNexus API",
-            "database": "disconnected",
-            "environment": "production"
-        }
-        ```
-        """
-        from ..shared.database import user_repo
-
-        try:
-            with user_repo.get_cursor() as cursor:
-                cursor.execute("SELECT 1")
-                result = cursor.fetchone()
-                db_ok = result is not None
-        except Exception as e:
-            logger.error(f"Health check DB test failed: {e}")
-            db_ok = False
-
-        if not db_ok:
-            raise HTTPException(status_code=503, detail="Database unavailable")
-
-        return {
-            "status": "healthy",
-            "service": "PlayNexus API",
-            "database": "connected",
-            "environment": "production" if not settings.debug else "development",
-        }
-
-    # Exception handlers
-    @app.exception_handler(HTTPException)
-    async def http_exception_handler(request: Request, exc: HTTPException):
-        logger.warning(f"HTTP {exc.status_code}: {exc.detail}")
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"detail": exc.detail},
-        )
-
-    @app.exception_handler(RequestValidationError)
-    async def validation_exception_handler(
-        request: Request, exc: RequestValidationError
+    def __init__(
+        self,
+        max_requests: int = 20,
+        window_seconds: int = 3600,
+        block_duration_seconds: int = 900,
     ):
-        logger.warning(f"Validation error: {exc.errors()}")
-        return JSONResponse(
-            status_code=HTTP_422_UNPROCESSABLE_ENTITY,
-            content={"detail": exc.errors()},
-        )
+        self.max_requests = max_requests
+        self.window_seconds = window_seconds
+        self.block_duration_seconds = block_duration_seconds
 
-    @app.exception_handler(Exception)
-    async def general_exception_handler(request: Request, exc: Exception):
-        logger.error(f"Unhandled exception: {exc}", exc_info=True)
-        return JSONResponse(
-            status_code=HTTP_500_INTERNAL_SERVER_ERROR,
-            content={"detail": "Internal server error"},
-        )
+        self.requests: Dict[str, deque] = defaultdict(deque)
+        self.blocked_ips: Dict[str, float] = {}
 
-    logger.info("FastAPI application created")
-    return app
+        # ✅ FIX: thread safety
+        self.lock = threading.Lock()
+
+    def is_allowed(self, ip: str) -> Tuple[bool, str, int]:
+        """Returns (allowed, message, retry_after_seconds)."""
+        now = time.time()
+
+        with self.lock:
+            # Cleanup old IPs periodically
+            self._cleanup(now)
+
+            # Check block
+            if ip in self.blocked_ips:
+                if now < self.blocked_ips[ip]:
+                    remaining = int(self.blocked_ips[ip] - now)
+                    return False, f"Too many requests. Try again in {remaining}s", remaining
+                else:
+                    del self.blocked_ips[ip]
+
+            timestamps = self.requests[ip]
+
+            # Remove old timestamps
+            window_start = now - self.window_seconds
+            while timestamps and timestamps[0] < window_start:
+                timestamps.popleft()
+
+            if len(timestamps) >= self.max_requests:
+                block_until = now + self.block_duration_seconds
+                self.blocked_ips[ip] = block_until
+                return False, "Rate limit exceeded. Try later.", self.block_duration_seconds
+
+            timestamps.append(now)
+            return True, "OK", 0
+
+    def _cleanup(self, now: float):
+        """Remove stale IP data to prevent memory leaks."""
+        stale_ips = [
+            ip for ip, timestamps in self.requests.items()
+            if not timestamps or now - timestamps[-1] > self.window_seconds * 2
+        ]
+        for ip in stale_ips:
+            self.requests.pop(ip, None)
+
+        expired_blocks = [
+            ip for ip, unblock_time in self.blocked_ips.items()
+            if now > unblock_time
+        ]
+        for ip in expired_blocks:
+            self.blocked_ips.pop(ip, None)
+
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    """Rate limiting middleware with safer IP handling."""
+
+    def __init__(
+        self,
+        app,
+        limiter: SimpleRateLimiter,
+        paths: Optional[List[str]] = None,
+    ):
+        super().__init__(app)
+        self.limiter = limiter
+        self.paths = paths or []
+
+    def _get_client_ip(self, request: Request) -> str:
+        """
+        Safer IP extraction.
+        Trust X-Forwarded-For ONLY if behind proxy (Render/NGINX).
+        """
+        x_forwarded_for = request.headers.get("X-Forwarded-For")
+
+        # ⚠️ Trust only if present (Render sets it)
+        if x_forwarded_for:
+            return x_forwarded_for.split(",")[0].strip()
+
+        if request.client:
+            return request.client.host
+
+        return "unknown"
+
+    async def dispatch(self, request: Request, call_next):
+        if any(request.url.path.startswith(p) for p in self.paths):
+            client_ip = self._get_client_ip(request)
+
+            allowed, message, retry_after = self.limiter.is_allowed(client_ip)
+
+            if not allowed:
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=message,
+                    headers={"Retry-After": str(retry_after)},
+                )
+
+        return await call_next(request)
+
+
+class RequestIdMiddleware(BaseHTTPMiddleware):
+    """Attach request ID to each request and response."""
+
+    async def dispatch(self, request: Request, call_next):
+        request_id = str(uuid.uuid4())
+        request.state.request_id = request_id
+
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+
+# Auth limiter config
+auth_rate_limiter = SimpleRateLimiter(
+    max_requests=20,
+    window_seconds=3600,
+    block_duration_seconds=900,
+)

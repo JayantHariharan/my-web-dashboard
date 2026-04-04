@@ -11,40 +11,52 @@ try:
     import bcrypt  # noqa: F401
 
     PASSWORD_SCHEMES = ["bcrypt_sha256", "bcrypt", "pbkdf2_sha256"]
-except ImportError:  # pragma: no cover - depends on installed environment
+except ImportError:  # pragma: no cover
     PASSWORD_SCHEMES = ["pbkdf2_sha256"]
     logger.warning(
-        "bcrypt backend not available; falling back to pbkdf2_sha256 for password hashing"
+        "bcrypt backend not available; falling back to pbkdf2_sha256"
     )
 
-def _peppered_password_input(password: str, pepper: str) -> str:
-    """
-    Bind the password to the server-side secret before adaptive hashing.
 
-    `bcrypt_sha256` safely handles long inputs internally, avoiding bcrypt's
-    72-byte limit without requiring custom hashing logic in application code.
-    """
+# ✅ Limits to prevent abuse
+MIN_PASSWORD_LENGTH = 8
+MAX_PASSWORD_LENGTH = 128
+
+
+def _peppered_password_input(password: str, pepper: str) -> str:
+    """Bind password with server-side secret."""
     return password + pepper
 
 
-def _build_password_context() -> CryptContext:
-    """
-    Build the adaptive hashing context and actively verify the preferred scheme.
+def _validate_password(password: str) -> None:
+    """Basic password validation (can be extended later)."""
+    if not isinstance(password, str):
+        raise ValueError("Password must be a string")
 
-    Some Render/Python environments expose a partially working bcrypt backend:
-    passlib can import it, but the first real hash call fails during backend
-    self-checks. If that happens, fall back to pbkdf2_sha256 so the app can
-    still start and authentication keeps working.
-    """
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise ValueError("Password must be at least 8 characters")
+
+    if len(password) > MAX_PASSWORD_LENGTH:
+        raise ValueError("Password too long")
+
+
+def _validate_pepper(pepper: str) -> None:
+    """Ensure pepper (secret key) is strong enough."""
+    if not pepper or len(pepper) < 16:
+        raise ValueError("Invalid SECRET_KEY for password hashing")
+
+
+def _build_password_context() -> CryptContext:
+    """Build hashing context with safe fallback."""
     preferred_context = CryptContext(schemes=PASSWORD_SCHEMES, deprecated="auto")
 
     try:
-        preferred_context.hash(_peppered_password_input("playnexus-self-test", "init"))
+        preferred_context.hash(_peppered_password_input("self-test", "init"))
         return preferred_context
-    except Exception as exc:  # pragma: no cover - environment dependent
+    except Exception:
+        # ✅ FIX: do not log raw exception
         logger.warning(
-            "bcrypt backend failed runtime self-test; falling back to pbkdf2_sha256 only: %s",
-            exc,
+            "bcrypt backend failed self-test; using pbkdf2_sha256"
         )
         return CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 
@@ -54,16 +66,14 @@ _dummy_password_hash: Optional[str] = None
 
 
 def hash_password(password: str, pepper: Optional[str] = None) -> str:
-    """
-    Hash a password using the configured adaptive scheme with optional pepper.
-    Args:
-        password: Plain text password
-        pepper: Additional secret (from SECRET_KEY). If None, uses settings.SECRET_KEY
-    Returns:
-        Hashed password string
-    """
+    """Hash password securely."""
+
+    _validate_password(password)
+
     if pepper is None:
         pepper = settings.secret_key
+
+    _validate_pepper(pepper)
 
     peppered_password = _peppered_password_input(password, pepper)
     return pwd_context.hash(peppered_password)
@@ -72,27 +82,33 @@ def hash_password(password: str, pepper: Optional[str] = None) -> str:
 def verify_password(
     plain_password: str, hashed_password: str, pepper: Optional[str] = None
 ) -> bool:
-    """
-    Verify a password against its hash using the same pepper.
-    Args:
-        plain_password: Plain text password to verify
-        hashed_password: Stored password hash
-        pepper: Additional secret (from SECRET_KEY). If None, uses settings.SECRET_KEY
-    Returns:
-        True if password matches, False otherwise
-    """
+    """Verify password securely with timing-safe behavior."""
+
     if pepper is None:
         pepper = settings.secret_key
 
     try:
+        _validate_pepper(pepper)
+
+        # Even if password is invalid, still process to avoid timing leaks
+        if not isinstance(plain_password, str):
+            plain_password = ""
+
         peppered_password = _peppered_password_input(plain_password, pepper)
+
         return pwd_context.verify(peppered_password, hashed_password)
-    except ValueError:
+
+    except Exception:
+        # ✅ FIX: always do dummy verify to prevent timing attacks
+        pwd_context.verify(
+            _peppered_password_input("dummy", pepper),
+            get_dummy_password_hash(),
+        )
         return False
 
 
 def get_dummy_password_hash() -> str:
-    """Return a valid hash for timing-safe dummy verification."""
+    """Return a valid hash for timing-safe verification."""
     global _dummy_password_hash
 
     if _dummy_password_hash is None:

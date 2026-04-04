@@ -2,14 +2,16 @@
 
 import time
 import uuid
+import threading
 from collections import defaultdict, deque
 from typing import Dict, Tuple, Optional, List
+
 from fastapi import Request, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
 
 
 class SimpleRateLimiter:
-    """Simple in-memory rate limiter using sliding window."""
+    """Thread-safe in-memory rate limiter (dev-safe, not distributed)."""
 
     def __init__(
         self,
@@ -17,103 +19,124 @@ class SimpleRateLimiter:
         window_seconds: int = 3600,
         block_duration_seconds: int = 900,
     ):
-        """
-        Args:
-            max_requests: Max requests per window per IP
-            window_seconds: Time window in seconds
-            block_duration_seconds: How long to block IP after exceeding limit
-        """
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.block_duration_seconds = block_duration_seconds
+
         self.requests: Dict[str, deque] = defaultdict(deque)
-        self.blocked_ips: Dict[str, float] = {}  # ip -> unblock_time
+        self.blocked_ips: Dict[str, float] = {}
 
-    def is_allowed(self, ip: str) -> Tuple[bool, str]:
-        """
-        Check if IP is allowed to make request.
-        Returns: (allowed, message)
-        """
-        # Check if IP is blocked
-        if ip in self.blocked_ips:
-            if time.time() < self.blocked_ips[ip]:
-                remaining = int(self.blocked_ips[ip] - time.time())
-                return False, f"Too many requests. Try again in {remaining} seconds."
-            else:
-                del self.blocked_ips[ip]
+        # ✅ FIX: thread safety
+        self.lock = threading.Lock()
 
-        # Get request timestamps for this IP
-        timestamps = self.requests[ip]
-
-        # Remove old timestamps outside window
+    def is_allowed(self, ip: str) -> Tuple[bool, str, int]:
+        """Returns (allowed, message, retry_after_seconds)."""
         now = time.time()
-        window_start = now - self.window_seconds
-        while timestamps and timestamps[0] < window_start:
-            timestamps.popleft()
 
-        # Check if limit exceeded
-        if len(timestamps) >= self.max_requests:
-            # Block this IP for the configured duration
-            block_until = now + self.block_duration_seconds
-            self.blocked_ips[ip] = block_until
-            return False, "Rate limit exceeded. Please try again later."
+        with self.lock:
+            # Cleanup old IPs periodically
+            self._cleanup(now)
 
-        # Record this request
-        timestamps.append(now)
-        return True, "OK"
+            # Check block
+            if ip in self.blocked_ips:
+                if now < self.blocked_ips[ip]:
+                    remaining = int(self.blocked_ips[ip] - now)
+                    return False, f"Too many requests. Try again in {remaining}s", remaining
+                else:
+                    del self.blocked_ips[ip]
 
-    def clear(self):
-        """Clear all rate limit data (for testing)."""
-        self.requests.clear()
-        self.blocked_ips.clear()
+            timestamps = self.requests[ip]
+
+            # Remove old timestamps
+            window_start = now - self.window_seconds
+            while timestamps and timestamps[0] < window_start:
+                timestamps.popleft()
+
+            if len(timestamps) >= self.max_requests:
+                block_until = now + self.block_duration_seconds
+                self.blocked_ips[ip] = block_until
+                return False, "Rate limit exceeded. Try later.", self.block_duration_seconds
+
+            timestamps.append(now)
+            return True, "OK", 0
+
+    def _cleanup(self, now: float):
+        """Remove stale IP data to prevent memory leaks."""
+        stale_ips = [
+            ip for ip, timestamps in self.requests.items()
+            if not timestamps or now - timestamps[-1] > self.window_seconds * 2
+        ]
+        for ip in stale_ips:
+            self.requests.pop(ip, None)
+
+        expired_blocks = [
+            ip for ip, unblock_time in self.blocked_ips.items()
+            if now > unblock_time
+        ]
+        for ip in expired_blocks:
+            self.blocked_ips.pop(ip, None)
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Middleware to apply rate limiting to specific route prefixes."""
+    """Rate limiting middleware with safer IP handling."""
 
     def __init__(
-        self, app, limiter: SimpleRateLimiter, paths: Optional[List[str]] = None
+        self,
+        app,
+        limiter: SimpleRateLimiter,
+        paths: Optional[List[str]] = None,
     ):
         super().__init__(app)
         self.limiter = limiter
-        self.paths = paths or []  # Empty list = no paths, must be explicitly set
+        self.paths = paths or []
+
+    def _get_client_ip(self, request: Request) -> str:
+        """
+        Safer IP extraction.
+        Trust X-Forwarded-For ONLY if behind proxy (Render/NGINX).
+        """
+        x_forwarded_for = request.headers.get("X-Forwarded-For")
+
+        # ⚠️ Trust only if present (Render sets it)
+        if x_forwarded_for:
+            return x_forwarded_for.split(",")[0].strip()
+
+        if request.client:
+            return request.client.host
+
+        return "unknown"
 
     async def dispatch(self, request: Request, call_next):
-        # Only rate limit matching route prefixes
-        if any(request.url.path.startswith(path) for path in self.paths):
-            # Get client IP, considering X-Forwarded-For if behind proxy (e.g., Render)
-            client_ip = "unknown"
-            if request.client:
-                client_ip = request.client.host
-            # Check X-Forwarded-For header (use first IP if multiple)
-            x_forwarded_for = request.headers.get("X-Forwarded-For")
-            if x_forwarded_for:
-                # Take the first IP in the list
-                client_ip = x_forwarded_for.split(",")[0].strip()
+        if any(request.url.path.startswith(p) for p in self.paths):
+            client_ip = self._get_client_ip(request)
 
-            allowed, message = self.limiter.is_allowed(client_ip)
+            allowed, message, retry_after = self.limiter.is_allowed(client_ip)
 
             if not allowed:
                 raise HTTPException(
-                    status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=message
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail=message,
+                    headers={"Retry-After": str(retry_after)},
                 )
 
-        response = await call_next(request)
-        return response
+        return await call_next(request)
 
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
-    """Middleware to add a unique request ID to each request."""
+    """Attach request ID to each request and response."""
 
     async def dispatch(self, request: Request, call_next):
         request_id = str(uuid.uuid4())
         request.state.request_id = request_id
+
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         return response
 
 
-# Auth endpoints: 20 requests/hour, 15-minute block
+# Auth limiter config
 auth_rate_limiter = SimpleRateLimiter(
-    max_requests=20, window_seconds=3600, block_duration_seconds=900
+    max_requests=20,
+    window_seconds=3600,
+    block_duration_seconds=900,
 )

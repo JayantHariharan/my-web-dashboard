@@ -5,9 +5,39 @@ Supports console output and optional file rotation.
 
 import logging
 import sys
+import re
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 from .config import settings
+
+
+# ✅ Sensitive patterns to mask
+SENSITIVE_PATTERNS = [
+    re.compile(r"(password\s*=\s*)(\S+)", re.IGNORECASE),
+    re.compile(r"(passwd\s*=\s*)(\S+)", re.IGNORECASE),
+    re.compile(r"(token\s*=\s*)(\S+)", re.IGNORECASE),
+    re.compile(r"(authorization\s*=\s*)(\S+)", re.IGNORECASE),
+    re.compile(r"(api[_-]?key\s*=\s*)(\S+)", re.IGNORECASE),
+]
+
+
+class SensitiveDataFilter(logging.Filter):
+    """Filter to mask sensitive data in logs."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.msg, str):
+            msg = record.msg
+
+            # ✅ Mask sensitive patterns
+            for pattern in SENSITIVE_PATTERNS:
+                msg = pattern.sub(r"\1****", msg)
+
+            # ✅ Prevent log injection (strip newlines)
+            msg = msg.replace("\n", "\\n").replace("\r", "\\r")
+
+            record.msg = msg
+
+        return True
 
 
 def setup_logging():
@@ -18,9 +48,14 @@ def setup_logging():
     # Clear any existing handlers
     logger.handlers.clear()
 
+    # Add global filter
+    sensitive_filter = SensitiveDataFilter()
+
     # Console handler (always)
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(settings.log_level)
+    console_handler.addFilter(sensitive_filter)
+
     console_formatter = logging.Formatter(
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S",
@@ -30,7 +65,6 @@ def setup_logging():
 
     # File handler (in production, rotate logs)
     if not settings.debug:
-        # Determine logs directory (relative to project root)
         base_dir = Path(__file__).parent.parent
         logs_dir = base_dir / "logs"
         logs_dir.mkdir(exist_ok=True)
@@ -40,12 +74,12 @@ def setup_logging():
         file_handler = RotatingFileHandler(
             log_file,
             maxBytes=10 * 1024 * 1024,  # 10 MB
-            backupCount=5,  # Keep 5 rotated files
+            backupCount=5,
             encoding="utf-8",
         )
-        file_handler.setLevel(
-            logging.INFO
-        )  # File gets INFO+ by default, can be configurable too
+        file_handler.setLevel(logging.INFO)
+        file_handler.addFilter(sensitive_filter)
+
         file_formatter = logging.Formatter(
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
@@ -53,7 +87,8 @@ def setup_logging():
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
 
-        logger.info(f"Logging to file: {log_file} (rotation: 10MB x 5)")
+        # ✅ Avoid exposing full path
+        logger.info("File logging enabled (rotation active)")
 
     # Reduce noise from uvicorn access logs in production
     if not settings.debug:
