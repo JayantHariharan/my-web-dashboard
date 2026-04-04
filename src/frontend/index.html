@@ -26,7 +26,8 @@
                 --forge-purple: #a855f7;
                 --forge-pink: #ec4899;
                 --forge-gold: #fbbf24;
-                --glass-bg: rgba(255, 255, 255, 0.05);
+                --glass-bg: rgba(10, 10, 18, 0.45); /* Darker base for better mobile contrast */
+                --glass-rim: rgba(255, 255, 255, 0.08); /* Sophisticated subtle white tint */
                 --glass-border: rgba(255, 255, 255, 0.1);
                 --glass-highlight: rgba(255, 255, 255, 0.2);
                 --success: #10b981;
@@ -124,8 +125,15 @@
                 max-width: 440px;
                 min-height: min-content;
                 background: var(--glass-bg);
-                backdrop-filter: blur(40px) saturate(150%);
-                -webkit-backdrop-filter: blur(40px) saturate(150%);
+                /* High-performance blur with cross-browser prefixes */
+                -webkit-backdrop-filter: blur(40px) saturate(180%);
+                backdrop-filter: blur(40px) saturate(180%);
+                
+                /* Fallback for browsers (mobile) without backdrop-filter support */
+                @supports not (backdrop-filter: blur(10px)) {
+                    background: rgba(15, 15, 25, 0.92);
+                }
+                
                 border: 1px solid var(--glass-border);
                 border-radius: 32px;
                 padding: 32px 28px;
