@@ -79,10 +79,11 @@ Only the auth experience is the active engineering priority right now. The other
 3. Login with a non-existent username returns `404 No user found`.
 4. Login with a wrong password returns `401 Invalid username or password`.
 5. On success, the frontend stores a lightweight client session in `sessionStorage` and mirrors it in `localStorage` for restore.
-6. The UI transitions from the auth portal into the hub view with a **creative ticket animation** (Identity Verified) and a scanning line effect.
-7. The hub view is revealed after a short transition, and the frontend restores the saved session automatically upon page reload.
+6. The UI transitions from the auth portal into the hub view directly revealing the **premium 'Secure Access Granted' success overlay**, eliminating distracting intermediate ticket animations.
+7. The hub view is revealed after a smooth cinematic fade-out of the login portal (`#auth-portal-section`). The frontend restores the saved session automatically upon page reload.
 8. Account deletion is credential-confirmed via `DELETE /api/auth/account`.
-9. **Deletion Flow**: After successful deletion, the UI shows a success state with a 3-second countdown before redirecting the user back to the login state.
+9. **Deletion Flow**: After successful deletion, the UI shows a red alert success state with a **dynamic real-time 3-second countdown** (3... 2... 1...) before safely redirecting the user back to the login portal.
+10. **Startup Sequence**: The auth portal initially stays hidden and drops in via a smooth fade-in handled by `cinematic-startup.js`, preventing harsh un-animated "pop-ins" on the first load.
 
 ## Database Notes
 
