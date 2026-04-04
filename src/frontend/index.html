@@ -66,7 +66,7 @@
             .orb-1 {
                 width: 600px;
                 height: 600px;
-                background: radial-gradient(circle, rgba(0, 212, 255, 0.15) 0%, transparent 70%);
+                background: radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%); /* Changed to purple for a subtler, unified theme */
                 top: -20%;
                 left: -10%;
                 animation-delay: 0s;
@@ -1195,8 +1195,6 @@
                 <div class="nexus-gradient-text" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.5rem; letter-spacing: 2px;">PLAYNEXUS</div>
             </div>
 
-            <!-- Theme Toggle -->
-            <button id="theme-toggle" style="background:none;border:none;color:#fff;cursor:pointer;font-size:1.2rem;margin-right:10px;" aria-label="Toggle light/dark theme">🌙</button>
 
             <div id="profile-manager" style="display: flex; align-items: center; gap: 20px;">
                 <div style="text-align: right;">
@@ -2058,18 +2056,23 @@
             }
 
             // Transition to Hub
-            const transitionDelay = authMode === 'resume' ? 0 : 2500;
+            const transitionDelay = authMode === 'resume' ? 0 : 3200; // Increased for a smoother "soak" time
             setTimeout(() => {
                 if (auth) {
-                    auth.style.transition = 'opacity 0.7s ease';
+                    auth.style.transition = 'opacity 1.2s ease, transform 1.2s ease';
+                    auth.style.opacity = '0';
+                    auth.style.transform = 'scale(1.05)';
                 }
                 const ticket = document.getElementById('auth-ticket-transition');
                 if (ticket) ticket.remove();
                 
-                showHubForAuthenticatedUser(username, {
-                    avatarUrl,
-                    updateHistory: true
-                });
+                // Allow the fade-out to complete before switching views
+                setTimeout(() => {
+                    showHubForAuthenticatedUser(username, {
+                        avatarUrl,
+                        updateHistory: true
+                    });
+                }, 1000);
             }, transitionDelay);
         }
 
@@ -2199,23 +2202,6 @@
             restorePersistedSession();
         });
 
-        // 🌗 Theme Toggle (kept separate for modularity)
-        (function initThemeToggle() {
-            const themeToggle = document.getElementById('theme-toggle');
-            const savedTheme = localStorage.getItem('playnexus_theme') || 'dark';
-            if (savedTheme === 'light') {
-                document.body.classList.add('light-theme');
-                if (themeToggle) themeToggle.textContent = '☀️';
-            }
-            if (themeToggle) {
-                themeToggle.addEventListener('click', () => {
-                    document.body.classList.toggle('light-theme');
-                    const isLight = document.body.classList.contains('light-theme');
-                    themeToggle.textContent = isLight ? '☀️' : '🌙';
-                    localStorage.setItem('playnexus_theme', isLight ? 'light' : 'dark');
-                });
-            }
-        })();
     </script>
 </body>
 </html>
