@@ -2147,14 +2147,25 @@
                 
                 modalTitle.textContent = 'ACCOUNT DELETED';
                 modalTitle.style.color = '#ef4444';
-                modalCopy.textContent = 'Identity purged. Redirecting to login in 3 seconds...';
+                
+                let countdown = 3;
+                modalCopy.textContent = `Identity purged. Redirecting to login in ${countdown} seconds...`;
+                
                 modalActions.style.display = 'none';
                 modalForms.forEach(f => f.style.display = 'none');
                 hideDeleteError();
 
                 Toast.success('Account permanently deleted', 3000);
                 
+                const countdownInterval = setInterval(() => {
+                    countdown--;
+                    if (countdown > 0) {
+                        modalCopy.textContent = `Identity purged. Redirecting to login in ${countdown} seconds...`;
+                    }
+                }, 1000);
+                
                 setTimeout(() => {
+                    clearInterval(countdownInterval);
                     closeDeleteModal();
                     // Reset modal for next time
                     modalTitle.textContent = 'Delete Account';
