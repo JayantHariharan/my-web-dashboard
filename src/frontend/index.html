@@ -66,7 +66,7 @@
             .orb-1 {
                 width: 600px;
                 height: 600px;
-                background: radial-gradient(circle, rgba(0, 212, 255, 0.15) 0%, transparent 70%);
+                background: radial-gradient(circle, rgba(168, 85, 247, 0.1) 0%, transparent 70%); /* Changed to purple for a subtler, unified theme */
                 top: -20%;
                 left: -10%;
                 animation-delay: 0s;
@@ -2058,18 +2058,23 @@
             }
 
             // Transition to Hub
-            const transitionDelay = authMode === 'resume' ? 0 : 2500;
+            const transitionDelay = authMode === 'resume' ? 0 : 3200; // Increased for a smoother "soak" time
             setTimeout(() => {
                 if (auth) {
-                    auth.style.transition = 'opacity 0.7s ease';
+                    auth.style.transition = 'opacity 1.2s ease, transform 1.2s ease';
+                    auth.style.opacity = '0';
+                    auth.style.transform = 'scale(1.05)';
                 }
                 const ticket = document.getElementById('auth-ticket-transition');
                 if (ticket) ticket.remove();
                 
-                showHubForAuthenticatedUser(username, {
-                    avatarUrl,
-                    updateHistory: true
-                });
+                // Allow the fade-out to complete before switching views
+                setTimeout(() => {
+                    showHubForAuthenticatedUser(username, {
+                        avatarUrl,
+                        updateHistory: true
+                    });
+                }, 1000);
             }, transitionDelay);
         }
 
