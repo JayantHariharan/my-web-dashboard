@@ -133,7 +133,7 @@ Configuration is environment-driven.
 ### Current protections
 
 - adaptive password hashing with `bcrypt` preferred and `pbkdf2_sha256` fallback
-- pepper from `SECRET_KEY`
+- `SECRET_KEY`-peppered adaptive password hashing with `bcrypt_sha256` preferred
 - auth rate limiting by IP
 - request ID tracing
 - security headers
@@ -144,6 +144,7 @@ Configuration is environment-driven.
 - in-memory rate limiting only
 - sessionStorage-based frontend state
 - no JWT or refresh-token model yet
+- `SECRET_KEY` is part of password verification, so each Render environment must keep a stable value
 
 ## What Is Intentionally Out of Scope Right Now
 
