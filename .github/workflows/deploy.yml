@@ -283,7 +283,7 @@ jobs:
         run: |
           # Determine service URL based on environment (same as smoke test)
           if [ "$APP_ENV" = "production" ] || [ "$APP_ENV" = "prod" ]; then
-            base_url="https://playnexus.onrender.com"
+            base_url="https://playnexus-prod.onrender.com"
           else
             base_url="https://playnexus-test.onrender.com"
           fi
@@ -318,7 +318,7 @@ jobs:
         run: |
           # Determine site URL based purely on branch (no Render API call)
           if [ "$APP_ENV" = "production" ] || [ "$APP_ENV" = "prod" ]; then
-            SITE_URL="https://playnexus.onrender.com"
+            SITE_URL="https://playnexus-prod.onrender.com"
           else
             SITE_URL="https://playnexus-test.onrender.com"
           fi

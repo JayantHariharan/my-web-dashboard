@@ -76,7 +76,10 @@ JWT or server-backed sessions can be added later.
         ]
     else:
         # In production, should be your domain(s)
-        allow_origins = ["https://playnexus.onrender.com"]
+        allow_origins = [
+            "https://playnexus-prod.onrender.com",
+            "https://playnexus-test.onrender.com",
+        ]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allow_origins,
