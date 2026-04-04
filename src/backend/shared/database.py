@@ -31,6 +31,7 @@ _pg_pool = None
 
 
 def get_pg_pool():
+    if not settings.database.is_postgres: return None
     """Retrieve or initialize the PostgreSQL connection pool."""
     global _pg_pool
     if settings.database.is_postgres and _pg_pool is None:
