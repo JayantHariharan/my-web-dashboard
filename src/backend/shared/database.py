@@ -290,16 +290,17 @@ class UserRepository(BaseRepository):
         self, username: str, login_ip: Optional[str] = None
     ) -> bool:
         """Update last_login_at and last_login_ip for a user."""
-        sets = ["last_login_at = CURRENT_TIMESTAMP"]
-        values = []
         placeholder = "%s" if self._is_postgres else "?"
+        
         if login_ip:
-            sets.append(f"last_login_ip = {placeholder}")
-            values.append(login_ip)
-        values.append(username)
-        sql = f"UPDATE {self.table_name} SET {', '.join(sets)} WHERE username = {placeholder}"
+            sql = f"UPDATE {self.table_name} SET last_login_at = CURRENT_TIMESTAMP, last_login_ip = {placeholder} WHERE username = {placeholder}"
+            values = (login_ip, username)
+        else:
+            sql = f"UPDATE {self.table_name} SET last_login_at = CURRENT_TIMESTAMP WHERE username = {placeholder}"
+            values = (username,)
+            
         with self.get_cursor() as cursor:
-            cursor.execute(sql, tuple(values))
+            cursor.execute(sql, values)
             return cursor.rowcount > 0
 
     def update_password(self, username: str, new_password_hash: str) -> bool:
