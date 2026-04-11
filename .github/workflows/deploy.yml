@@ -5,29 +5,12 @@ on:
     branches:
       - main
       - develop
-  pull_request:
-    branches:
-      - main
-      - develop
+      - 'feature/**'
   workflow_dispatch:
 
 jobs:
-  preview-guidance:
-    name: Render Preview Guidance
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Explain Render preview flow
-        run: |
-          echo "This pull request should use Render PR previews instead of the shared service deploy API."
-          echo "Render preview instances inherit the base service settings when created, including environment variables."
-          echo "For feature branches targeting develop, that means the preview should use the test/develop service configuration."
-          echo "Enable PR previews in the Render dashboard for the develop-linked service if they are not already enabled."
-
   deploy-and-test:
-    name: ${{ github.ref_name == 'main' && 'Production Deploy' || 'Staging Deploy' }}
-    if: github.event_name == 'push'
+    name: ${{ github.ref_name == 'main' && 'Production Deploy' || 'Test Deploy' }}
     runs-on: ubuntu-latest
 
     env:
@@ -36,32 +19,70 @@ jobs:
       SITE_URL: ${{ github.ref_name == 'main' && 'https://playnexus-prod.onrender.com' || 'https://playnexus-test.onrender.com' }}
       RENDER_API_KEY: ${{ github.ref_name == 'main' && secrets.RENDER_API_KEY_PROD || secrets.RENDER_API_KEY_TEST }}
       RENDER_SERVICE_ID: ${{ github.ref_name == 'main' && secrets.RENDER_SERVICE_ID_PROD || secrets.RENDER_SERVICE_ID_TEST }}
+      RENDER_DEPLOY_HOOK_URL: ${{ github.ref_name == 'main' && secrets.RENDER_DEPLOY_HOOK_PROD || secrets.RENDER_DEPLOY_HOOK_TEST }}
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Capture Current Deploy
+        run: |
+          set -euo pipefail
+          current_deploy_response="$(curl -fsS "https://api.render.com/v1/services/${{ env.RENDER_SERVICE_ID }}/deploys?limit=1" \
+            -H "Authorization: Bearer ${{ env.RENDER_API_KEY }}" \
+            -H "Accept: application/json")"
+
+          current_deploy_id="$(echo "$current_deploy_response" | jq -r '.deploys[0].id // .[0].id // empty')"
+          echo "PREVIOUS_RENDER_DEPLOY_ID=$current_deploy_id" >> "$GITHUB_ENV"
+          echo "Current deploy before trigger: ${current_deploy_id:-<none>}"
 
       - name: Trigger Render Deployment
         run: |
           set -euo pipefail
           echo "Triggering deploy for branch: ${{ github.ref_name }} to env: ${{ env.APP_ENV }}"
           echo "Target Service: ${{ env.RENDER_SERVICE_ID }}"
+          echo "Commit SHA: ${{ github.sha }}"
 
-          deploy_response="$(curl -fsS -X POST "https://api.render.com/v1/services/${{ env.RENDER_SERVICE_ID }}/deploys" \
-            -H "Authorization: Bearer ${{ env.RENDER_API_KEY }}" \
-            -H "Content-Type: application/json" \
-            -H "Accept: application/json" \
-            -d '{"clearCache":"do_not_clear"}')"
-
-          deploy_id="$(echo "$deploy_response" | jq -r '.deploy.id // .id // empty')"
-          if [ -z "$deploy_id" ]; then
-            echo "::error::Render deploy was triggered, but no deploy id was returned."
-            echo "$deploy_response"
+          if [ -z "${RENDER_DEPLOY_HOOK_URL}" ]; then
+            echo "::error::RENDER_DEPLOY_HOOK_URL is not configured for this environment."
             exit 1
           fi
 
-          echo "RENDER_DEPLOY_ID=$deploy_id" >> "$GITHUB_ENV"
-          echo "Deploy request accepted. Deploy id: $deploy_id"
+          separator='?'
+          case "$RENDER_DEPLOY_HOOK_URL" in
+            *\?*) separator='&' ;;
+          esac
+          deploy_hook_with_ref="${RENDER_DEPLOY_HOOK_URL}${separator}ref=${{ github.sha }}"
+
+          curl -fsS -X POST "$deploy_hook_with_ref" > /dev/null
+          echo "Deploy hook accepted the request."
+
+      - name: Detect New Render Deploy
+        run: |
+          set -euo pipefail
+          echo "Looking for the deploy started by this workflow..."
+
+          for attempt in {1..18}; do
+            deploys_response="$(curl -fsS "https://api.render.com/v1/services/${{ env.RENDER_SERVICE_ID }}/deploys?limit=5" \
+              -H "Authorization: Bearer ${{ env.RENDER_API_KEY }}" \
+              -H "Accept: application/json")"
+
+            deploy_id="$(echo "$deploys_response" | jq -r '.deploys[0].id // .[0].id // empty')"
+            deploy_commit="$(echo "$deploys_response" | jq -r '.deploys[0].commit.id // .deploys[0].commitId // .[0].commit.id // .[0].commitId // empty')"
+
+            if [ -n "$deploy_id" ] && [ "$deploy_id" != "${PREVIOUS_RENDER_DEPLOY_ID:-}" ]; then
+              echo "RENDER_DEPLOY_ID=$deploy_id" >> "$GITHUB_ENV"
+              echo "Detected new Render deploy id: $deploy_id"
+              echo "Render reported commit: ${deploy_commit:-unknown}"
+              exit 0
+            fi
+
+            echo "Attempt $attempt/18: waiting for a new deploy to appear..."
+            sleep 10
+          done
+
+          echo "::error::Could not find the new Render deploy after triggering the deploy hook."
+          exit 1
 
       - name: Wait for Render Deployment
         run: |
