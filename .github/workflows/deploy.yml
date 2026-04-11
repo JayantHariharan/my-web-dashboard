@@ -25,8 +25,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: 🛠️ Trigger Render Deployment
-        # Skip Render deployment for feature branches, only deploy on main and develop
-        if: env.RENDER_HOOK != '' && !startsWith(github.ref, 'refs/heads/feature/')
+        if: env.RENDER_HOOK != ''
         run: |
           echo "Triggering deploy for ${{ github.ref_name }} to ${{ env.APP_ENV }}..."
           curl -s "${{ env.RENDER_HOOK }}" > /dev/null
@@ -50,10 +49,14 @@ jobs:
           echo "Running automated smoke tests against: ${SITE_URL}"
           SITE_URL="${SITE_URL}" node tests/smoke.test.js
 
+      - name: 🧹 Sanitize Branch Name for Artifact
+        id: sanitize
+        run: echo "safe_ref=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV
+
       - name: 📸 Archive Screenshots
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: smoke-test-results-${{ github.ref_name }}
+          name: smoke-test-results-${{ env.safe_ref }}
           path: screenshot.png
           retention-days: 7
