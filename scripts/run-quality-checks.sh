@@ -128,33 +128,12 @@ else
 fi
 echo ""
 
-# 5. Verify documentation timestamps are current
-check "Documentation timestamps"
-if python - <<'PY'
-import re
-from pathlib import Path
-
-_ = Path(".").joinpath().resolve()
-docs = [
-    Path("docs/DEVELOPER.md"),
-    Path("docs/ARCHITECTURE.md"),
-    Path("docs/FLYWAY.md"),
-    Path("docs/MIGRATIONS.md"),
-    Path("docs/TROUBLESHOOTING.md"),
-]
-# If we have docs, we just ensure they exist for now.
-# Brittle date checks often fail in rapid prototype phases.
-issues = []
-for p in docs:
-    if not p.exists():
-        continue
-    # Just checking existence for now to avoid blocking push
-    pass
-PY
-then
-    pass "Documentation structure valid"
+# 5. README present (single source of project docs)
+check "README.md"
+if [ -f README.md ]; then
+    pass "README.md exists"
 else
-    warn "Documentation structure mismatch"
+    fail "README.md missing"
 fi
 echo ""
 

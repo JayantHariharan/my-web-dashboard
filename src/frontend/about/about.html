@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About PlayNexus</title>
+    <meta name="description" content="What PlayNexus is: auth hub, games, apps, and community—built for Render and Supabase free tier.">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="../css/crystal-portal.css">
+    <link rel="stylesheet" href="../css/site-chrome.css">
+    <style>
+        .about-hero {
+            max-width: 720px;
+            margin: 0 auto;
+            padding: 28px 5% 48px;
+        }
+        .about-hero h1 {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 800;
+            font-size: clamp(1.75rem, 4vw, 2.4rem);
+            letter-spacing: 0.06em;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .about-block {
+            font-family: 'Outfit', sans-serif;
+            color: rgba(255, 255, 255, 0.65);
+            line-height: 1.65;
+            margin-bottom: 28px;
+            font-size: 0.95rem;
+        }
+        .about-block strong {
+            color: rgba(6, 182, 212, 0.95);
+        }
+        .about-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .about-list li {
+            font-family: 'Outfit', sans-serif;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            color: rgba(255, 255, 255, 0.55);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body class="dark-theme site-with-chrome" data-root-prefix=".." data-chrome-active="about" data-chrome-pill="About" style="min-height: 100vh; display: flex; flex-direction: column;">
+
+    <div id="site-chrome-header"></div>
+
+    <main class="about-hero" style="flex: 1;">
+        <h1>About this project</h1>
+        <p class="about-block">
+            <strong>PlayNexus</strong> is an experimental portal: sign in once, then move between
+            <strong>Games</strong>, <strong>Apps</strong> (news, media tools, resume helpers, and more as we ship),
+            and <strong>Community</strong> spaces. The stack is deliberately small so it runs comfortably on
+            <strong>Render</strong> and <strong>Supabase</strong> free tiers.
+        </p>
+        <p class="about-block">
+            The <strong>command hub</strong> after login is your home base. Use the top navigation to switch sections,
+            or open full pages like the Play Center when you want a focused layout.
+        </p>
+        <h2 class="row-title" style="font-size: 0.85rem; letter-spacing: 0.2em; opacity: 0.8; margin: 32px 0 16px;">TECH STACK</h2>
+        <ul class="about-list">
+            <li>Backend: FastAPI, Python 3.12+</li>
+            <li>Frontend: static HTML, CSS, vanilla JavaScript</li>
+            <li>Database: SQLite locally; PostgreSQL (Supabase) in production</li>
+            <li>Auth: session in the browser today; token-based auth is on the roadmap</li>
+        </ul>
+        <p class="about-block" style="margin-top: 32px;">
+            Project structure, environment variables, and hooks are documented in <code>README.md</code> at the repository root.
+            Replace placeholder GitHub or Discord links on the Community page with your real URLs when you go live.
+        </p>
+        <p class="about-block">
+            <a href="../index.html" style="color: var(--nexus-cyan);">← Return to PlayNexus</a>
+        </p>
+    </main>
+
+    <div id="site-chrome-footer"></div>
+    <script src="../js/site-chrome.js"></script>
+</body>
+</html>

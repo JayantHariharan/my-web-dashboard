@@ -20,16 +20,36 @@ const CinematicGateway = {
         this.canvas = document.getElementById('cinematic-bg');
         if (!this.canvas) return;
         this.ctx = this.canvas.getContext('2d');
-        
+
         this.resize();
+        window.addEventListener('resize', () => this.resize());
+
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduceMotion) {
+            this.paintStaticBackdrop();
+            this.revealAuthCard();
+            return;
+        }
+
+        const saveData = navigator.connection && navigator.connection.saveData;
+        const isMobile = window.innerWidth < 768;
+        this._liteBackdrop = !!(saveData || isMobile);
+
         this.spawnParticles();
         this.spawnBlobs();
-        
-        window.addEventListener('resize', () => this.resize());
+
         requestAnimationFrame((t) => this.animate(t));
-        
-        // 🚀 Reveal Centered Hero Portal quickly (no long intro)
-        setTimeout(() => this.revealAuthCard(), 2000);
+
+        // Reveal auth portal (slightly faster when saving data / mobile)
+        const delay = this._liteBackdrop ? 900 : 2000;
+        setTimeout(() => this.revealAuthCard(), delay);
+    },
+
+    /** One-shot frame for accessibility and lighter CPU on auth screen */
+    paintStaticBackdrop() {
+        this.ctx.fillStyle = '#030308';
+        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        this.drawGodRays();
     },
 
     resize() {
@@ -41,7 +61,11 @@ const CinematicGateway = {
         // ✨ Golden Bokeh Particles (Refined for v8.0)
         // Reduce particle count on mobile for better performance
         const isMobile = window.innerWidth < 768;
-        const particleCount = isMobile ? 60 : 120;
+        const particleCount = this._liteBackdrop
+            ? (isMobile ? 28 : 40)
+            : isMobile
+              ? 60
+              : 120;
 
         for (let i = 0; i < particleCount; i++) {
             this.particles.push({
@@ -60,7 +84,8 @@ const CinematicGateway = {
 
     spawnBlobs() {
         const colors = ['#BB86FC', '#03DAC6', '#0a0a0f', '#060608'];
-        for (let i = 0; i < 6; i++) {
+        const count = this._liteBackdrop ? 3 : 6;
+        for (let i = 0; i < count; i++) {
             this.blobs.push({
                 x: Math.random() * this.canvas.width,
                 y: Math.random() * this.canvas.height,

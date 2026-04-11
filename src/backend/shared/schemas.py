@@ -1,5 +1,6 @@
 """Shared Pydantic models for the current PlayNexus backend."""
 
+import re
 from datetime import datetime
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field, field_validator
@@ -66,6 +67,12 @@ class LoginData(BaseModel):
         v = v.strip()
         if not v:
             raise ValueError("Username cannot be empty")
+        if len(v) < 3:
+            raise ValueError("Username must be at least 3 characters")
+        if not re.fullmatch(r"[a-zA-Z0-9_-]+", v):
+            raise ValueError(
+                "Username may only contain letters, numbers, underscores, and hyphens"
+            )
         if not any(c.isalpha() for c in v):
             raise ValueError("Username must contain at least one letter")
         return v
@@ -73,7 +80,10 @@ class LoginData(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
-        return v.strip()
+        v = v.strip()
+        if not v:
+            raise ValueError("Password cannot be empty")
+        return v
 
 
 class RegisterData(LoginData):
@@ -90,6 +100,16 @@ class RegisterData(LoginData):
         description="Password confirmation (must match password)",
         examples=["SecurePass123!", "MyP@ssw0rd2024", "GameTime2024"],
     )
+
+    @field_validator("password")
+    @classmethod
+    def validate_signup_password(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Password cannot be empty")
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
 
     @field_validator("confirm_password")
     @classmethod

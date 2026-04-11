@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional
 
+from ..config import settings
 from ..shared.database import user_repo
 from ..shared.security import get_dummy_password_hash, hash_password, verify_password
 from ..shared.schemas import DeleteAccountData, LoginData, RegisterData, UserResponse
@@ -150,6 +151,12 @@ async def signup(register_data: RegisterData, request: Request):
     - `429 Too Many Requests`: Rate limit exceeded
     - `500 Internal Server Error`: Database or hashing error
     """
+    if not settings.registration_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Registration is currently disabled",
+        )
+
     username = register_data.username
     password = register_data.password
     client_ip = get_client_ip(request)

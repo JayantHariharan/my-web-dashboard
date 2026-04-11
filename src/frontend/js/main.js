@@ -1,10 +1,36 @@
 /**
  * PlayNexus Crystal Portal - Main Logic & Physics
- * 
- * Features:
- * 1. Matter.js Physics (Google Antigravity)
- * 2. Navigation & Hub Interactions
+ *
+ * Matter.js is lazy-loaded when the signed-in hub starts physics, so the auth
+ * portal stays lightweight on first paint (important for free-tier hosting).
  */
+
+const MATTER_CDN =
+    "https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js";
+
+function loadMatterScript() {
+    return new Promise((resolve, reject) => {
+        if (typeof Matter !== "undefined") {
+            resolve();
+            return;
+        }
+        const existing = document.querySelector('script[data-playnexus="matter"]');
+        if (existing) {
+            existing.addEventListener("load", () => resolve());
+            existing.addEventListener("error", () =>
+                reject(new Error("Matter.js load failed"))
+            );
+            return;
+        }
+        const s = document.createElement("script");
+        s.src = MATTER_CDN;
+        s.async = true;
+        s.dataset.playnexus = "matter";
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("Matter.js load failed"));
+        document.head.appendChild(s);
+    });
+}
 
 const PlayNexus = {
     engine: null,
@@ -14,14 +40,18 @@ const PlayNexus = {
     isGravityOn: true,
     isActive: false, // Track if physics is actively running
     animationFrameId: null,
+    matterLoadAttempted: false,
 
     init() {
-        console.log("💎 PlayNexus Crystal Hub Initialized");
-        this.setupPhysics();
+        console.log("💎 PlayNexus Crystal Hub Initialized (physics deferred)");
         this.bindEvents();
     },
 
     setupPhysics() {
+        if (typeof Matter === "undefined") {
+            console.warn("Matter.js not available; physics disabled");
+            return;
+        }
         const { Engine, Render, Runner, Bodies, Composite } = Matter;
 
         this.engine = Engine.create();
@@ -59,14 +89,27 @@ const PlayNexus = {
     },
 
     /**
-     * Start the physics simulation (call when hub is active)
+     * Start the physics simulation (call when hub is active).
+     * Loads Matter.js from CDN on first use.
      */
-    startPhysics() {
-        if (this.isActive) return; // Already running
+    async startPhysics() {
+        if (this.isActive) return;
+
+        try {
+            await loadMatterScript();
+        } catch (e) {
+            console.warn("Skipping hub physics:", e && e.message);
+            return;
+        }
+
+        if (!this.engine) {
+            this.setupPhysics();
+        }
+        if (!this.engine) return;
 
         this.isActive = true;
-        this.runner = Runner.create();
-        Runner.run(this.runner, this.engine);
+        this.runner = Matter.Runner.create();
+        Matter.Runner.run(this.runner, this.engine);
         console.log("🎮 Physics engine started");
     },
 
@@ -168,10 +211,13 @@ const PlayNexus = {
         });
 
         // Reduce physics when tab is not visible
-        document.addEventListener('visibilitychange', () => {
+        document.addEventListener("visibilitychange", () => {
             if (document.hidden) {
                 this.stopPhysics();
-            } else if (document.querySelector('.crystal-card')) {
+                return;
+            }
+            const hub = document.getElementById("master-hub-container");
+            if (hub && !hub.classList.contains("hidden")) {
                 this.startPhysics();
             }
         });

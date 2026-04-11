@@ -1,6 +1,6 @@
 {
   "$comment": "Git hooks configuration via environment variables (preferred) or this JSON file.",
-  "$see": "See DEVELOPER.md for details on hook behavior and customization",
+  "$see": "See README.md for repo layout, env vars, and hooks; copy this file to customize hook behavior",
   "pre-commit": {
     "enabled": true,
     "skipChecks": [],

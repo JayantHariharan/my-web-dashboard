@@ -1,123 +1,110 @@
 # PlayNexus
 
-PlayNexus is currently in an auth-first phase: a FastAPI backend serves a static frontend, and the active product work is centered on account flows before the broader app hub expands.
+Auth-first web app: **FastAPI** serves JSON auth APIs and static files from `src/frontend/`. After login, the hub links **Games**, **Apps**, **Community**, and **About**. Tuned for **Render** + **Supabase (PostgreSQL)** on small plans.
 
-## Current Scope
+## Tech stack
 
-- Login
-- Signup
-- Delete account
-- Basic profile lookup
-- Static frontend served by the backend
-- SQLite for local development, PostgreSQL for deployment
+- Backend: Python 3.12, FastAPI  
+- Frontend: HTML, CSS, vanilla JS (`css/site-chrome.css`, `js/site-chrome.js` for shared header/footer)  
+- DB: SQLite locally (`data/playnexus.db`); PostgreSQL in production via `DATABASE_URL`  
+- Security: adaptive hashing + `SECRET_KEY` pepper, rate limits on `/api/auth/*`, security headers  
+- CI/CD: GitHub Actions (quality, deploy, Flyway migrate)
 
-## Tech Stack
+## API (quick reference)
 
-- Backend: FastAPI, Python 3.12
-- Frontend: HTML, CSS, vanilla JavaScript
-- Database: SQLite locally, PostgreSQL in hosted environments
-- Security: adaptive password hashing plus `SECRET_KEY`-based peppering, request IDs, security headers, auth rate limiting
-- Deployment: Render + GitHub Actions
+| Method | Path | Notes |
+|--------|------|--------|
+| POST | `/api/auth/login` | body: `username`, `password` |
+| POST | `/api/auth/signup` | body: `username`, `password`, `confirm_password` |
+| GET | `/api/auth/me?username=…` | Lightweight until token auth exists |
+| DELETE | `/api/auth/account` | body: `username`, `password`, optional `confirm_username` |
+| GET | `/health` | DB ping |
+| GET | `/docs` | OpenAPI UI when the server is running |
 
-## Current API
-
-- `POST /api/auth/login`
-- `POST /api/auth/signup`
-- `GET /api/auth/me?username=<name>`
-- `DELETE /api/auth/account`
-- `GET /health`
-
-## Local Development
-
-### Prerequisites
-
-- Python 3.12+
-- Git
-- Node.js only if you want to run the Playwright smoke test
-
-### Start the app
+## Local run
 
 ```bash
 pip install -r requirements.txt
-python src/backend/main.py
+python -m uvicorn src.backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Open `http://localhost:8000`.
+Open `http://127.0.0.1:8000`. Use **Chrome or Edge** (or any browser).  
+Pages: `/` (sign-in + hub), `/about/about.html` (public), `/games/games.html` and `/community/community.html` (redirect to `/` if not signed in).
 
-The backend serves the frontend directly from `src/frontend/`.
-
-### Environment notes
-
-- Local development can run with the default SQLite database and a local `.env` file if you want one.
-- Render should provide environment variables directly to the backend process.
-- Keep `SECRET_KEY` set on Render for both test and production.
-- Do not remove or rotate `SECRET_KEY` casually: it is part of the current password hashing flow, so changing it can break login and delete-account verification for existing users.
-
-### Optional frontend-only static server
+Optional static-only preview (API calls will fail unless you point the frontend at a running API):
 
 ```bash
-cd src/frontend
-python -m http.server 3000
+cd src/frontend && python -m http.server 3000
 ```
 
-### Quick API checks
+## Environment variables
 
-```bash
-curl -X POST http://localhost:8000/api/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"username":"testuser","password":"Test1234","confirm_password":"Test1234"}'
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | PostgreSQL connection string (e.g. Supabase). If unset, `PG*` vars or SQLite. |
+| `SECRET_KEY` | **Required** in production-like envs. Do **not** rotate casually—existing password hashes depend on it. |
+| `DEBUG` | `true` / `1` enables dev CORS list and debug logging. |
+| `CORS_ORIGINS` | Comma-separated browser origins if not using the default lists in `core/app.py`. |
+| `REGISTRATION_ENABLED` | `false` disables signups (`403` on `/api/auth/signup`). |
+| `ENV` / `APP_ENV` | `prod` / `production` → `_prod` table suffix; `test` / `dev` / `staging` → `_test`; else default. |
 
-curl -X POST http://localhost:8000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"testuser","password":"Test1234"}'
-
-curl "http://localhost:8000/api/auth/me?username=testuser"
-
-curl -X DELETE http://localhost:8000/api/auth/account \
-  -H "Content-Type: application/json" \
-  -d '{"username":"testuser","password":"Test1234"}'
-```
-
-## Project Layout
+## Project layout
 
 ```text
 my-web-dashboard/
-|-- src/
-|   |-- backend/
-|   |   |-- auth/            # Auth endpoints
-|   |   |-- core/            # App factory and middleware
-|   |   |-- shared/          # Database, security, schemas
-|   |   `-- main.py          # Entry point
-|   `-- frontend/            # Static site assets and pages
-|-- docs/                    # Project documentation
-|-- flyway/sql/              # SQL migrations
-|-- scripts/                 # Migration and quality scripts
-|-- tests/                   # Smoke test
-|-- README.md
-`-- requirements.txt
+├── src/
+│   ├── backend/          # FastAPI: auth/, core/, shared/, main.py, config.py
+│   └── frontend/         # index.html, css/, js/, assets/, about/, games/, community/
+├── flyway/sql/           # Versioned SQL (e.g. V1__create_users.sql)
+├── scripts/              # migrate.py, run-quality-checks.sh, install-hooks.*
+├── tests/                # smoke.test.js (Playwright; deploy uses this)
+├── requirements.txt
+└── README.md             # This file — only project doc we maintain
 ```
 
-## Documentation
+## Database migrations
 
-- `docs/DEVELOPER.md`: day-to-day workflow and coding guidance
-- `docs/ARCHITECTURE.md`: current runtime design
-- `docs/FLYWAY.md`: migration runner usage
-- `docs/MIGRATIONS.md`: migration philosophy
-- `docs/TROUBLESHOOTING.md`: debugging help
+- SQL lives in `flyway/sql/`.  
+- Local helper: `python scripts/migrate.py` (see script `--help`).  
+- Hosted: GitHub Action `.github/workflows/flyway-migrate.yml`.
 
-## Product Direction
+## Git hooks (optional)
 
-The current priority is to keep authentication stable, clean, and easy to extend:
+Install from repo root:
 
-- Keep the login, signup, and delete-account flows production-ready
-- Keep the backend small and easy to reason about
-- Remove stale multi-app assumptions from code and docs
+- macOS / Linux / Git Bash: `./scripts/install-hooks.sh`  
+- Windows: `pwsh -File scripts/install-hooks.ps1`
 
-After the auth foundation is stable, PlayNexus can grow back into a larger app hub with games and additional experiences.
+Optional config: copy `.hooks-config.example.json` and adjust (comments inside JSON).  
+CI runs `scripts/run-quality-checks.sh` on PRs.
 
-## Notes
+## curl examples
 
-- The frontend currently keeps the active username in `sessionStorage`.
-- `GET /api/auth/me` is still a simple username-based lookup, not full token auth yet.
-- Passwords are combined with `SECRET_KEY` and hashed with adaptive password schemes, using `bcrypt_sha256` when available or `pbkdf2_sha256` as a fallback.
-- The static `docs/API-REFERENCE.html` file may lag behind the code and should be treated as secondary to the source code and the docs above.
+```bash
+curl -X POST http://127.0.0.1:8000/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"Test1234","confirm_password":"Test1234"}'
+
+curl -X POST http://127.0.0.1:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"Test1234"}'
+```
+
+## Troubleshooting
+
+- **`ImportError` on `python src/backend/main.py`:** run `python -m uvicorn src.backend.main:app` from the **repo root** instead.  
+- **CORS errors from another origin:** set `CORS_ORIGINS` on Render to your exact site URL(s).  
+- **Auth always 429:** auth routes are rate-limited per IP; wait or test from another network.  
+- **`bcrypt` warning in logs:** fallback hashing still works; install `bcrypt` in the environment if you want the preferred backend.
+
+## Contributing
+
+Open PRs against `main` or `develop`. Before pushing, run `bash scripts/run-quality-checks.sh` when you can. Keep changes focused; match existing style in `src/frontend/`. Be respectful in issues and PRs.
+
+## Product note
+
+Session today is **client-side** (`sessionStorage` / `localStorage` mirror). `/api/auth/me` is a username lookup, not JWT yet—plan token-based auth when you outgrow this.
+
+---
+
+*Last updated: 2026-04-11*

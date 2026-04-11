@@ -27,6 +27,8 @@ ENV_KEYS = {
     "APP_ENV",
     "ENV",
     "DB_SCHEMA",
+    "CORS_ORIGINS",
+    "REGISTRATION_ENABLED",
 }
 has_runtime_env = any(os.environ.get(key) for key in ENV_KEYS)
 
@@ -150,6 +152,10 @@ class Settings:
         }
         log_level = log_level_map.get(log_level_str, logging.INFO)
 
+        registration_enabled = os.environ.get(
+            "REGISTRATION_ENABLED", "true"
+        ).lower() in ("true", "1", "yes")
+
         return cls(
             database=DatabaseConfig.from_env(),
             debug=debug,
@@ -158,6 +164,7 @@ class Settings:
                 os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
             ),
             log_level=log_level,
+            registration_enabled=registration_enabled,
         )
 
 

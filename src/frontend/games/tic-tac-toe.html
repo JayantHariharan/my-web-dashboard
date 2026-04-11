@@ -7,13 +7,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/crystal-portal.css">
+    <link rel="stylesheet" href="../css/site-chrome.css">
     <style>
         .game-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 15px;
-            width: 350px;
-            margin: 50px auto;
+            width: min(92vw, 350px);
+            margin: 36px auto;
         }
         .cell {
             aspect-ratio: 1;
@@ -23,49 +24,232 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.5rem;
+            font-size: clamp(1.8rem, 8vw, 2.5rem);
             font-weight: 800;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: background 0.2s, border-color 0.2s, transform 0.15s;
+            font-family: 'Outfit', sans-serif;
+            color: #fff;
         }
-        .cell:hover { background: rgba(255,255,255,0.1); border-color: var(--nexus-cyan); }
+        .cell:hover:not(.taken):not(.disabled) {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--nexus-cyan);
+        }
+        .cell.taken { cursor: default; }
+        .cell.disabled { pointer-events: none; opacity: 0.85; }
+        .cell.x { color: var(--nexus-cyan); }
+        .cell.o { color: var(--nexus-purple); }
     </style>
 </head>
-<body class="dark-theme" style="overflow: auto; padding-top: 100px;">
+<body class="dark-theme site-with-chrome" data-root-prefix=".." data-chrome-active="games" data-chrome-pill="Tic-Tac-Toe" style="min-height: 100vh; display: flex; flex-direction: column; overflow-x: hidden;">
 
-    <!-- 🚀 CRYSTAL HUD -->
-    <header style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 25px 5%; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); border-bottom: 1px solid var(--crystal-border);">
-        <div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="location.href='games.html'">
-            <div style="font-size: 1.5rem; color: #fff;">←</div>
-            <div style="font-family: 'Outfit'; font-weight: 800; font-size: 1.2rem; letter-spacing: 2px;">Back to Library</div>
-        </div>
-        <div style="font-weight: bold; background: rgba(0,0,0,0.5); padding: 5px 25px; border-radius: 40px; border: 1px solid var(--nexus-purple); font-family: 'Outfit'; letter-spacing: 2px;">
-            Tic-Tac-Toe Crystal
-        </div>
-    </header>
+    <script>
+        (function requirePlayNexusSession() {
+            var key = 'playnexus_session';
+            var raw = sessionStorage.getItem(key) || localStorage.getItem(key);
+            var legacy = sessionStorage.getItem('playnexus_user') || localStorage.getItem('playnexus_user');
+            if (!raw && !legacy) {
+                window.location.replace('../index.html');
+            }
+        })();
+    </script>
 
-    <main class="hub-row" style="text-align: center; max-width: 1200px; margin: 0 auto;">
+    <div id="site-chrome-header"></div>
+
+    <p style="text-align:center;margin:12px 16px 0;font-family:Outfit,sans-serif;font-size:0.8rem;">
+        <a href="games.html" style="color:var(--nexus-cyan);text-decoration:none;">← Back to Play Center library</a>
+    </p>
+
+    <main class="hub-row" style="text-align: center; max-width: 1200px; margin: 0 auto; padding: 0 16px 48px; flex: 1;">
         <h1 class="row-title">Tic-Tac-Toe Crystal</h1>
-        <p style="color: #aaa; margin-bottom: 40px;">Challenge the Nexus Agent AI</p>
+        <p id="mode-label" style="color: #aaa; margin-bottom: 8px;">Loading…</p>
 
-        <div class="game-grid">
-            <div class="cell" id="c0"></div>
-            <div class="cell" id="c1"></div>
-            <div class="cell" id="c2"></div>
-            <div class="cell" id="c3"></div>
-            <div class="cell" id="c4"></div>
-            <div class="cell" id="c5"></div>
-            <div class="cell" id="c6"></div>
-            <div class="cell" id="c7"></div>
-            <div class="cell" id="c8"></div>
+        <div class="game-grid" id="board" role="grid" aria-label="Tic tac toe board">
+            <button type="button" class="cell" id="c0" data-i="0" aria-label="Cell 1 empty"></button>
+            <button type="button" class="cell" id="c1" data-i="1" aria-label="Cell 2 empty"></button>
+            <button type="button" class="cell" id="c2" data-i="2" aria-label="Cell 3 empty"></button>
+            <button type="button" class="cell" id="c3" data-i="3" aria-label="Cell 4 empty"></button>
+            <button type="button" class="cell" id="c4" data-i="4" aria-label="Cell 5 empty"></button>
+            <button type="button" class="cell" id="c5" data-i="5" aria-label="Cell 6 empty"></button>
+            <button type="button" class="cell" id="c6" data-i="6" aria-label="Cell 7 empty"></button>
+            <button type="button" class="cell" id="c7" data-i="7" aria-label="Cell 8 empty"></button>
+            <button type="button" class="cell" id="c8" data-i="8" aria-label="Cell 9 empty"></button>
         </div>
 
-        <div id="game-status" style="font-size: 1.2rem; margin-top: 30px; font-weight: bold; color: var(--nexus-purple);">
-            Select a cell to begin
+        <div id="game-status" style="font-size: 1.2rem; margin-top: 24px; font-weight: bold; color: var(--nexus-purple);">
+            Your turn — you are X
         </div>
 
-        <button class="nexus-btn-luxe" style="width: auto; margin-top: 40px; padding: 15px 40px; border-radius: 12px; font-size: 0.9rem;" onclick="location.reload()">Reset Arena</button>
+        <button type="button" class="nexus-btn-luxe" style="width: auto; margin-top: 32px; padding: 15px 40px; border-radius: 12px; font-size: 0.9rem;" id="reset-btn">Reset arena</button>
     </main>
 
+    <div id="site-chrome-footer"></div>
+    <script src="../js/site-chrome.js"></script>
+    <script>
+        (function () {
+            var WIN_LINES = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+            var params = new URLSearchParams(window.location.search);
+            var mode = (params.get('mode') || 'single').toLowerCase();
+            var isSingle = mode !== 'multi';
+
+            var HUMAN = 'X';
+            var AI = 'O';
+            var board = Array(9).fill(null);
+            var gameOver = false;
+            var current = HUMAN;
+
+            var statusEl = document.getElementById('game-status');
+            var modeLabel = document.getElementById('mode-label');
+            var cells = document.querySelectorAll('.cell');
+
+            if (modeLabel) {
+                modeLabel.textContent = isSingle
+                    ? 'Single-player — you are X, Nexus Agent is O'
+                    : 'Local two-player — X goes first, then O';
+            }
+
+            function winner(b) {
+                for (var w = 0; w < WIN_LINES.length; w++) {
+                    var line = WIN_LINES[w];
+                    var a = line[0], x = line[1], y = line[2];
+                    if (b[a] && b[a] === b[x] && b[x] === b[y]) return b[a];
+                }
+                if (b.every(Boolean)) return 'draw';
+                return null;
+            }
+
+            function minimax(b, maximizing) {
+                var w = winner(b);
+                if (w === AI) return 1;
+                if (w === HUMAN) return -1;
+                if (w === 'draw') return 0;
+
+                if (maximizing) {
+                    var best = -Infinity;
+                    for (var i = 0; i < 9; i++) {
+                        if (b[i]) continue;
+                        var next = b.slice();
+                        next[i] = AI;
+                        best = Math.max(best, minimax(next, false));
+                    }
+                    return best;
+                }
+                var worst = Infinity;
+                for (var j = 0; j < 9; j++) {
+                    if (b[j]) continue;
+                    var n2 = b.slice();
+                    n2[j] = HUMAN;
+                    worst = Math.min(worst, minimax(n2, true));
+                }
+                return worst;
+            }
+
+            function bestAiMove(b) {
+                var bestScore = -Infinity;
+                var move = -1;
+                for (var i = 0; i < 9; i++) {
+                    if (b[i]) continue;
+                    var trial = b.slice();
+                    trial[i] = AI;
+                    var score = minimax(trial, false);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        move = i;
+                    }
+                }
+                return move;
+            }
+
+            function render() {
+                for (var i = 0; i < cells.length; i++) {
+                    var el = cells[i];
+                    var v = board[i];
+                    el.textContent = v || '';
+                    el.classList.toggle('taken', !!v);
+                    el.classList.toggle('x', v === 'X');
+                    el.classList.toggle('o', v === 'O');
+                    el.classList.toggle('disabled', gameOver || !!v);
+                    el.setAttribute('aria-label', 'Cell ' + (i + 1) + (v ? ' ' + v : ' empty'));
+                }
+            }
+
+            function setStatus(msg) {
+                if (statusEl) statusEl.textContent = msg;
+            }
+
+            function endGame(msg) {
+                gameOver = true;
+                setStatus(msg);
+                render();
+            }
+
+            function aiTurn() {
+                if (gameOver || !isSingle) return;
+                var idx = bestAiMove(board);
+                if (idx < 0) return;
+                board[idx] = AI;
+                var w = winner(board);
+                if (w === AI) endGame('Nexus Agent wins.');
+                else if (w === 'draw') endGame('Draw — grid locked.');
+                else {
+                    current = HUMAN;
+                    setStatus('Your turn — you are X');
+                    render();
+                }
+            }
+
+            function onCellClick(index) {
+                if (gameOver || board[index]) return;
+                if (!isSingle) {
+                    board[index] = current;
+                    var w = winner(board);
+                    if (w && w !== 'draw') endGame('Player ' + w + ' wins!');
+                    else if (w === 'draw') endGame('Draw — well played.');
+                    else {
+                        current = current === HUMAN ? AI : HUMAN;
+                        setStatus(current === HUMAN ? 'Player X — your turn' : 'Player O — your turn');
+                    }
+                    render();
+                    return;
+                }
+
+                board[index] = HUMAN;
+                var w2 = winner(board);
+                if (w2 === HUMAN) {
+                    endGame('You win — Nexus Agent offline?');
+                    return;
+                }
+                if (w2 === 'draw') {
+                    endGame('Draw — grid locked.');
+                    return;
+                }
+                setStatus('Nexus Agent is thinking…');
+                render();
+                for (var c = 0; c < cells.length; c++) cells[c].classList.add('disabled');
+
+                setTimeout(function () {
+                    for (var d = 0; d < cells.length; d++) cells[d].classList.remove('disabled');
+                    aiTurn();
+                }, 320);
+            }
+
+            cells.forEach(function (el) {
+                el.addEventListener('click', function () {
+                    var i = parseInt(el.getAttribute('data-i'), 10);
+                    if (!isNaN(i)) onCellClick(i);
+                });
+            });
+
+            document.getElementById('reset-btn').addEventListener('click', function () {
+                board = Array(9).fill(null);
+                gameOver = false;
+                current = HUMAN;
+                setStatus(isSingle ? 'Your turn — you are X' : 'Player X — your turn');
+                render();
+            });
+
+            render();
+        })();
+    </script>
 </body>
 </html>

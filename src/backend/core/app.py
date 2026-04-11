@@ -1,6 +1,7 @@
 """FastAPI application factory for the auth-first PlayNexus backend."""
 
 import logging
+import os
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -67,7 +68,10 @@ JWT or server-backed sessions can be added later.
 
     # 2. CORS - allow cross-origin requests (configure per environment)
     # For security, avoid wildcard with credentials. Use specific origins.
-    if settings.debug:
+    cors_extra = os.environ.get("CORS_ORIGINS", "").strip()
+    if cors_extra:
+        allow_origins = [o.strip() for o in cors_extra.split(",") if o.strip()]
+    elif settings.debug:
         allow_origins = [
             "http://localhost:8000",
             "http://127.0.0.1:8000",

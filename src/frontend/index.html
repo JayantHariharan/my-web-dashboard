@@ -9,6 +9,125 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@300;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/crystal-portal.css">
+    <link rel="stylesheet" href="css/site-chrome.css">
+    <style>
+        #hub-nav-tabs .hub-tab {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 0.75rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 10px 20px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: transparent;
+            color: rgba(255, 255, 255, 0.55);
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, color 0.2s;
+        }
+        #hub-nav-tabs .hub-tab-active {
+            background: rgba(187, 134, 252, 0.28) !important;
+            border-color: var(--nexus-purple, #bb86fc) !important;
+            color: #fff !important;
+            box-shadow: 0 0 24px rgba(187, 134, 252, 0.25);
+        }
+        #hub-nav-tabs .hub-tab:not(.hub-tab-active):hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.06);
+        }
+        #hub-nav-tabs {
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: min(100%, 560px);
+            row-gap: 8px;
+        }
+        #hub-nav-tabs .hub-tab {
+            padding: 8px 12px;
+            font-size: 0.65rem;
+        }
+        @media (min-width: 720px) {
+            #hub-nav-tabs .hub-tab {
+                padding: 10px 16px;
+                font-size: 0.72rem;
+            }
+        }
+        .hub-app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 20px;
+            margin-top: 8px;
+        }
+        .hub-lift-card {
+            position: relative;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.04);
+            padding: 22px 22px 20px;
+            font-family: 'Outfit', sans-serif;
+            color: #e8e8f0;
+            transition: transform 0.35s cubic-bezier(0.19, 1, 0.22, 1),
+                box-shadow 0.35s ease, border-color 0.35s ease;
+            animation: hub-rise 0.65s ease backwards;
+        }
+        .hub-lift-card:nth-child(1) { animation-delay: 0.04s; }
+        .hub-lift-card:nth-child(2) { animation-delay: 0.1s; }
+        .hub-lift-card:nth-child(3) { animation-delay: 0.16s; }
+        .hub-lift-card:nth-child(4) { animation-delay: 0.22s; }
+        .hub-lift-card:nth-child(5) { animation-delay: 0.28s; }
+        .hub-lift-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 22px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(187, 134, 252, 0.35);
+            border-color: rgba(187, 134, 252, 0.45);
+        }
+        .hub-lift-card .hub-card-ico {
+            font-size: 1.75rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+        .hub-lift-card h3 {
+            margin: 0 0 8px;
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+        }
+        .hub-lift-card p {
+            margin: 0;
+            font-size: 0.85rem;
+            line-height: 1.45;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .hub-lift-card .hub-soon {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            font-size: 0.6rem;
+            font-weight: 900;
+            letter-spacing: 0.15em;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.12);
+            color: rgba(255, 255, 255, 0.75);
+        }
+        @keyframes hub-rise {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .hub-lift-card {
+                animation: none;
+                transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            }
+            .hub-lift-card:hover {
+                transform: none;
+            }
+        }
+    </style>
 </head>
 <body class="dark-theme">
 
@@ -42,7 +161,7 @@
                 position: relative;
                 overflow: hidden;
                 background: radial-gradient(ellipse at center, rgba(10, 10, 15, 0.4) 0%, rgba(0, 0, 0, 0.6) 100%);
-                padding: 20px;
+                padding: 20px 20px 80px;
                 box-sizing: border-box;
             }
 
@@ -1183,20 +1302,28 @@
                 </div>
             </div>
         </div>
+        <div id="site-chrome-footer-auth"></div>
     </section>
 
     <!-- 🏗️ MASTER HUB (Revealed after successful login - Dark Compatible) -->
     <main id="master-hub-container" class="hidden hub-dark-theme" style="opacity: 0; transition: opacity 2s;">
         
         <!-- 🚀 HUB NAV (Right-Aligned Profile with AI Avatar) -->
-        <header id="universal-hud" style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 30px 5%; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(40px); border-bottom: 1px solid var(--crystal-border);">
-            <div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="location.href='index.html'">
-                <img src="assets/logo.png" style="width: 40px; height: auto;" alt="Nexus Logo">
-                <div class="nexus-gradient-text" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.5rem; letter-spacing: 2px;">PLAYNEXUS</div>
-            </div>
+        <header id="universal-hud" class="site-header site-header--hub hub-dark-theme">
+            <a href="index.html" class="site-header__brand" style="justify-self: start;">
+                <img src="assets/logo.png" width="40" height="40" alt="">
+                <span>PLAY<span class="accent">NEXUS</span></span>
+            </a>
 
+            <nav id="hub-nav-tabs" aria-label="Hub sections" style="display: flex; align-items: center; gap: 8px; justify-self: center;">
+                <button type="button" class="hub-tab hub-tab-active" data-hub-tab="home">Home</button>
+                <button type="button" class="hub-tab" data-hub-tab="games">Games</button>
+                <button type="button" class="hub-tab" data-hub-tab="apps">Apps</button>
+                <button type="button" class="hub-tab" data-hub-tab="community">Community</button>
+                <button type="button" class="hub-tab" data-hub-tab="about">About</button>
+            </nav>
 
-            <div id="profile-manager" style="display: flex; align-items: center; gap: 20px;">
+            <div id="profile-manager" style="display: flex; align-items: center; gap: 20px; justify-self: end;">
                 <div style="text-align: right;">
                     <div style="font-weight: 800; color: #fff; font-size: 1rem;" id="display-username">Explorer</div>
                     <div style="display: flex; justify-content: flex-end; gap: 14px; font-size: 0.7rem; letter-spacing: 2px;">
@@ -1210,56 +1337,165 @@
             </div>
         </header>
 
-        <!-- 🏢 CONTENT EXPLORER (4 Sections) -->
+        <!-- 🏢 CONTENT EXPLORER -->
         <div style="padding-top: 160px; padding-bottom: 100px;">
-            <!-- 🌟 RECENTLY OPENED (Featured Continue) - Hidden until apps are available -->
-            <!-- <section class="hub-row" style="margin-bottom: 60px;">
-                <h2 class="row-title" style="color: #fff; opacity: 0.5; font-size: 0.85rem; letter-spacing: 4px; margin-bottom: 25px;">RECENTLY ACCESSED</h2>
-                <div class="hub-carousel" style="gap: 30px;">
-                    <div class="featured-item-hero" style="min-width: 580px; height: 300px; background: linear-gradient(90deg, rgba(7,11,20,0.95) 0%, rgba(7,11,20,0.4) 60%, transparent 100%), url('assets/tictactoe-cover.svg') center/cover; padding: 50px; position: relative; overflow: hidden; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;" onclick="location.href='games/tic-tac-toe.html'">
-
-                        <span class="badge" style="background: rgba(255,255,255,0.9); color: #000; padding: 6px 14px; border-radius: 6px; font-weight: 900; font-size: 0.7rem; position: absolute; top: 40px; left: 50px;">CONTINUE PLAYING</span>
-                        <div class="info" style="margin-top: 70px;">
-                            <h3 style="font-size: 2.2rem; margin-bottom: 10px;">Tic-Tac-Toe Crystal</h3>
-                            <p style="font-size: 1rem; color: #999;">Last session: 4 minutes ago</p>
-                            <button class="nexus-btn-luxe" style="margin-top: 30px; width: auto; min-width: 160px; padding: 14px 25px; font-size: 0.8rem; background: #fff; color: #000; border-radius: 8px; box-shadow: 0 10px 20px rgba(255,255,255,0.1);" onclick="event.stopPropagation(); location.href='games/games.html'">
-                                <span style="font-size: 1rem; vertical-align: middle; margin-right: 8px;">▶</span> LAUNCH CENTER
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </section> -->
-
+            <div id="hub-panel-home">
             <section class="hub-row">
-                <h2 class="row-title nexus-gradient-text">🎮 NEXUS SYSTEM APPS</h2>
-                <div class="system-categories-grid">
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
-                        <div class="sys-category-overlay">
-                            <span class="badge badge-soon">COMING SOON</span>
-                        </div>
-                    </div>
-
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
-                        <div class="sys-category-overlay">
-                            <span class="badge badge-soon">COMING SOON</span>
-                        </div>
-                    </div>
-
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
-                        <div class="sys-category-overlay">
-                            <span class="badge badge-soon">COMING SOON</span>
-                        </div>
-                    </div>
-
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
-                        <div class="sys-category-overlay">
-                            <span class="badge badge-soon">COMING SOON</span>
-                        </div>
-                    </div>
+                <h2 class="row-title nexus-gradient-text">COMMAND DECK</h2>
+                <p style="color: rgba(255,255,255,0.55); font-family: 'Outfit', sans-serif; max-width: 560px; line-height: 1.55; margin-bottom: 8px;">
+                    Choose where to go next—each area opens its hub tab. Games and Community also have full pages for a focused layout.
+                </p>
+                <div class="hub-launcher-grid">
+                    <button type="button" class="hub-launcher-tile" onclick="setHubTab('games')">
+                        <span class="hub-launcher-tile__ico" aria-hidden="true">🕹️</span>
+                        <h3 class="hub-launcher-tile__title">Games</h3>
+                        <p class="hub-launcher-tile__desc">Play Center, Tic-Tac-Toe Crystal, and future titles.</p>
+                    </button>
+                    <button type="button" class="hub-launcher-tile" onclick="setHubTab('apps')">
+                        <span class="hub-launcher-tile__ico" aria-hidden="true">⚡</span>
+                        <h3 class="hub-launcher-tile__title">Apps</h3>
+                        <p class="hub-launcher-tile__desc">News, media tools, resume helpers—shipping incrementally.</p>
+                    </button>
+                    <button type="button" class="hub-launcher-tile" onclick="setHubTab('community')">
+                        <span class="hub-launcher-tile__ico" aria-hidden="true">🌐</span>
+                        <h3 class="hub-launcher-tile__title">Community</h3>
+                        <p class="hub-launcher-tile__desc">Feedback, showcase, and social links when you wire them up.</p>
+                    </button>
+                    <button type="button" class="hub-launcher-tile" onclick="setHubTab('about')">
+                        <span class="hub-launcher-tile__ico" aria-hidden="true">✦</span>
+                        <h3 class="hub-launcher-tile__title">About</h3>
+                        <p class="hub-launcher-tile__desc">What PlayNexus is, stack, and hosting notes—or open the full About page.</p>
+                    </button>
                 </div>
+                <p style="margin-top: 24px; font-family: 'Outfit', sans-serif; font-size: 0.85rem;">
+                    <a href="about/about.html" style="color: var(--nexus-cyan); text-decoration: none;">Open full About page →</a>
+                    <span style="color: rgba(255,255,255,0.35);"> · Public; no sign-in required.</span>
+                </p>
             </section>
+            </div>
+
+            <div id="hub-panel-games" class="hidden">
+                <section class="hub-row" style="margin-bottom: 40px;">
+                    <h2 class="row-title nexus-gradient-text">🕹️ PLAY CENTER</h2>
+                    <p style="color: rgba(255,255,255,0.55); font-family: 'Outfit', sans-serif; max-width: 520px; line-height: 1.5; margin-bottom: 28px;">Launch the full library or jump straight into Tic-Tac-Toe Crystal.</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+                        <button type="button" class="nexus-btn-luxe" style="width: auto; padding: 14px 28px; font-size: 0.85rem; border-radius: 12px;" onclick="location.href='games/games.html'">Open game library</button>
+                    </div>
+                </section>
+                <section class="hub-row">
+                    <h2 class="row-title" style="color: #fff; font-size: 0.85rem; letter-spacing: 4px; opacity: 0.75; margin-bottom: 20px;">FEATURED</h2>
+                    <div class="hub-carousel" style="gap: 30px;">
+                        <div class="featured-item-hero" style="min-width: min(100%, 580px); height: 300px; background: linear-gradient(90deg, rgba(7,11,20,0.95) 0%, rgba(7,11,20,0.4) 60%, transparent 100%), url('assets/tictactoe-cover.svg') center/cover; padding: 50px; position: relative; overflow: hidden; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;" onclick="location.href='games/tic-tac-toe.html?mode=single'" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();location.href='games/tic-tac-toe.html?mode=single';}">
+                            <span class="badge" style="background: rgba(6, 182, 212, 0.95); color: #000; padding: 6px 14px; border-radius: 6px; font-weight: 900; font-size: 0.7rem; position: absolute; top: 40px; left: 50px;">PLAYABLE</span>
+                            <div class="info" style="margin-top: 70px;">
+                                <h3 style="font-size: 2.2rem; margin-bottom: 10px; color: #fff;">Tic-Tac-Toe Crystal</h3>
+                                <p style="font-size: 1rem; color: #999;">Vs Nexus Agent AI or local two-player.</p>
+                                <button type="button" class="nexus-btn-luxe" style="margin-top: 30px; width: auto; min-width: 160px; padding: 14px 25px; font-size: 0.8rem; background: #fff; color: #000; border-radius: 8px; box-shadow: 0 10px 20px rgba(255,255,255,0.1);" onclick="event.stopPropagation(); location.href='games/games.html'">
+                                    <span style="font-size: 1rem; vertical-align: middle; margin-right: 8px;">▶</span> CHOOSE MODE
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="hub-panel-apps" class="hidden">
+                <section class="hub-row" style="margin-bottom: 28px;">
+                    <h2 class="row-title nexus-gradient-text">⚡ NEXUS APPS</h2>
+                    <p style="color: rgba(255,255,255,0.55); font-family: 'Outfit', sans-serif; max-width: 640px; line-height: 1.55;">
+                        Lightweight utilities that run mostly in your browser—friendly to Render and Supabase free tiers. Wire each to its own route or micro-page as you ship.
+                    </p>
+                </section>
+                <section class="hub-row">
+                    <div class="hub-app-grid">
+                        <div class="hub-lift-card">
+                            <span class="hub-soon">SOON</span>
+                            <span class="hub-card-ico" aria-hidden="true">📰</span>
+                            <h3>News digest</h3>
+                            <p>Curated headlines and reading list—stay informed without leaving the hub.</p>
+                        </div>
+                        <div class="hub-lift-card">
+                            <span class="hub-soon">SOON</span>
+                            <span class="hub-card-ico" aria-hidden="true">🎬</span>
+                            <h3>Video toolkit</h3>
+                            <p>Client-side helpers for clips and downloads where policy allows—no heavy server transcode on day one.</p>
+                        </div>
+                        <div class="hub-lift-card">
+                            <span class="hub-soon">SOON</span>
+                            <span class="hub-card-ico" aria-hidden="true">💼</span>
+                            <h3>Resume &amp; LinkedIn</h3>
+                            <p>Paste a profile or upload a PDF for quick validation and improvement hints.</p>
+                        </div>
+                        <div class="hub-lift-card">
+                            <span class="hub-soon">SOON</span>
+                            <span class="hub-card-ico" aria-hidden="true">✨</span>
+                            <h3>More labs</h3>
+                            <p>Drop new app cards here as you grow the monorepo—keep each feature behind its own static page until the API needs it.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="hub-panel-community" class="hidden">
+                <section class="hub-row" style="margin-bottom: 32px;">
+                    <h2 class="row-title nexus-gradient-text">🌐 COMMUNITY</h2>
+                    <p style="color: rgba(255,255,255,0.55); font-family: 'Outfit', sans-serif; max-width: 560px; line-height: 1.55;">
+                        Forums, showcases, and feedback loops live here. The hub tab keeps discovery one click away from games and apps.
+                    </p>
+                    <button type="button" class="nexus-btn-luxe" style="width: auto; margin-top: 12px; padding: 14px 28px; font-size: 0.85rem; border-radius: 12px;" onclick="location.href='community/community.html'">
+                        Open community space
+                    </button>
+                </section>
+                <section class="hub-row">
+                    <div class="hub-app-grid">
+                        <div class="hub-lift-card">
+                            <span class="hub-soon">PLANNED</span>
+                            <span class="hub-card-ico" aria-hidden="true">💬</span>
+                            <h3>Discussions</h3>
+                            <p>Threaded topics tied to your auth session when you are ready to connect Supabase realtime or a forum backend.</p>
+                        </div>
+                        <div class="hub-lift-card">
+                            <span class="hub-soon">PLANNED</span>
+                            <span class="hub-card-ico" aria-hidden="true">🏆</span>
+                            <h3>Showcase</h3>
+                            <p>Highlight builds, high scores, and community creations from games on the platform.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="hub-panel-about" class="hidden">
+                <section class="hub-row" style="margin-bottom: 28px;">
+                    <h2 class="row-title nexus-gradient-text">✦ ABOUT PLAYNEXUS</h2>
+                    <p style="color: rgba(255,255,255,0.55); font-family: 'Outfit', sans-serif; max-width: 640px; line-height: 1.6;">
+                        This hub is built for a small, fast footprint on <strong style="color: rgba(6,182,212,0.9);">Render</strong> with
+                        <strong style="color: rgba(187,134,252,0.95);">Supabase</strong> PostgreSQL. You get Games, Apps, and Community in one authenticated session—expand each area at your own pace.
+                    </p>
+                </section>
+                <section class="hub-row">
+                    <div class="hub-app-grid">
+                        <div class="hub-lift-card">
+                            <span class="hub-card-ico" aria-hidden="true">🚀</span>
+                            <h3>Mission</h3>
+                            <p>One portal for play, utilities, and community—without bloating the free tier.</p>
+                        </div>
+                        <div class="hub-lift-card">
+                            <span class="hub-card-ico" aria-hidden="true">🧩</span>
+                            <h3>Stack</h3>
+                            <p>FastAPI backend, static HTML/CSS/JS, Flyway SQL. See <code>README.md</code> in the repo.</p>
+                        </div>
+                        <div class="hub-lift-card">
+                            <span class="hub-card-ico" aria-hidden="true">📄</span>
+                            <h3>Full write-up</h3>
+                            <p>The public About page is shareable with anyone—perfect for READMEs and portfolios.</p>
+                            <button type="button" class="nexus-btn-luxe" style="width: auto; margin-top: 16px; padding: 10px 22px; font-size: 0.78rem; border-radius: 10px;" onclick="location.href='about/about.html'">Open About page</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
         </div>
 
+        <div id="site-chrome-footer-hub" class="site-footer--hub-dock"></div>
     </main>
 
     <!-- 🧬 Physics & Cinematic Core -->
@@ -1318,7 +1554,7 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="js/site-chrome.js"></script>
     <script src="js/toast.js"></script>
     <script src="js/cinematic-startup.js"></script>
     <script src="js/main.js"></script>
@@ -1563,10 +1799,63 @@
             confirmInput.addEventListener('blur', validateConfirmField);
         }
 
+        function initHubTabs() {
+            const tabRoot = document.getElementById('hub-nav-tabs');
+            if (!tabRoot) return;
+            tabRoot.querySelectorAll('[data-hub-tab]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var tab = btn.getAttribute('data-hub-tab');
+                    if (tab) setHubTab(tab);
+                });
+            });
+            window.addEventListener('hashchange', syncHubTabFromHash);
+        }
+
+        function setHubTab(tab, options) {
+            options = options || {};
+            var skipHash = options.skipHash === true;
+            var allowed = { home: 1, games: 1, apps: 1, community: 1, about: 1 };
+            var active = allowed[tab] ? tab : 'home';
+            var panels = {
+                home: document.getElementById('hub-panel-home'),
+                games: document.getElementById('hub-panel-games'),
+                apps: document.getElementById('hub-panel-apps'),
+                community: document.getElementById('hub-panel-community'),
+                about: document.getElementById('hub-panel-about')
+            };
+            if (!panels.home) return;
+            Object.keys(panels).forEach(function (key) {
+                if (panels[key]) {
+                    panels[key].classList.toggle('hidden', key !== active);
+                }
+            });
+            var tabs = document.querySelectorAll('#hub-nav-tabs [data-hub-tab]');
+            tabs.forEach(function (b) {
+                var isActive = b.getAttribute('data-hub-tab') === active;
+                b.classList.toggle('hub-tab-active', isActive);
+            });
+            if (!skipHash) {
+                var nextHash = '#' + active;
+                if (window.location.hash !== nextHash) {
+                    window.location.hash = active;
+                }
+            }
+        }
+
+        function syncHubTabFromHash() {
+            var raw = (window.location.hash || '#home').replace(/^#/, '').toLowerCase();
+            var allowed = { home: 1, games: 1, apps: 1, community: 1, about: 1 };
+            var tab = allowed[raw] ? raw : 'home';
+            setHubTab(tab, { skipHash: true });
+        }
+
+        window.setHubTab = setHubTab;
+
         // Call setup on page load
         document.addEventListener('DOMContentLoaded', () => {
             setupRealtimeValidation();
             setupPasswordToggle();
+            initHubTabs();
         });
 
         function getAvatarUrl(username) {
@@ -1662,6 +1951,8 @@
             if (window.PlayNexus && window.PlayNexus.startPhysics) {
                 window.PlayNexus.startPhysics();
             }
+
+            syncHubTabFromHash();
         }
 
         function showAuthPortal(immediate = true) {
@@ -1705,7 +1996,7 @@
 
             showHubForAuthenticatedUser(savedSession.username, {
                 avatarUrl: savedSession.avatar_url,
-                updateHistory: true
+                updateHistory: false
             });
 
             if (!API_BASE) {
@@ -1988,7 +2279,11 @@
                     }
                 } else {
                     // For signup, provide specific feedback
-                    if (data.detail) {
+                    if (response.status === 403 && typeof data.detail === 'string') {
+                        errorMsg = data.detail;
+                        setFieldStatus(usernameInput, '', '');
+                        setFieldStatus(passwordInput, '', '');
+                    } else if (data.detail) {
                         // Handle Pydantic validation errors (array format)
                         if (Array.isArray(data.detail)) {
                             // Find the first error related to username or password
