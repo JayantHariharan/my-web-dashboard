@@ -1,61 +1,63 @@
-const { chromium } = require('playwright');
+const { request } = require('playwright');
 
 /**
- * PlayNexus Visual Smoke Test
+ * PlayNexus API Smoke Test
  *
  * Purpose:
- * 1. Pass the ProFreeHost anti-bot challenge (real browser).
- * 2. Take a full-page screenshot of the produced site.
- * 3. Verify specifically that the text "PlayNexus" exists (ensures no blank page).
- *
- * Environment fallbacks:
- * - If SITE_URL is not set or is "null", uses hardcoded URLs based on APP_ENV:
- *   - production: https://playnexus.onrender.com (or your production URL)
- *   - staging/test: https://playnexus-test.onrender.com
+ * Performs a full authentication lifecycle (Signup -> Login -> Fetch -> Delete)
+ * to verify that the PostgreSQL/SQLite database and FastAPI endpoints are actively live.
  */
 
 (async () => {
   let url = process.env.SITE_URL;
-
-  // Fallback to environment-specific hardcoded URLs if SITE_URL is missing or null
   if (!url || url === 'null' || url === 'undefined') {
-    const env = process.env.APP_ENV || process.env.ENV || process.env.NODE_ENV || 'staging';
-    console.log(`⚠️  SITE_URL not provided (value: ${url}), using fallback for environment: ${env}`);
-
-    if (env === 'production' || env === 'prod') {
-      url = 'https://playnexus.onrender.com'; // TODO: Update with actual production URL
-    } else {
-      url = 'https://playnexus-test.onrender.com'; // staging/test default
-    }
-    console.log(`🔧 Using fallback URL: ${url}`);
+    const env = process.env.APP_ENV || 'staging';
+    url = (env === 'production') ? 'https://playnexus-prod.onrender.com' : 'https://playnexus-test.onrender.com';
   }
 
-  console.log(`🔍 Starting Smoke Test for: ${url}`);
-  const browser = await chromium.launch();
-  const page = await browser.newPage();
+  // Fallback to local if no https
+  if (!url.startsWith('http')) url = 'http://127.0.0.1:8000';
+
+  console.log(`🔍 Starting API Smoke Test against: ${url}`);
+  const context = await request.newContext({ baseURL: url });
+  const dummyUser = `test_runner_${Date.now()}`;
+  const dummyPass = `P@ssword123!`;
 
   try {
-    // 1. Navigate to the site
-    // networkidle: Wait until there are no more than 0 network connections for at least 500 ms.
-    await page.goto(url, { waitUntil: 'networkidle', timeout: 60000 });
+    // 1. SIGNUP
+    console.log(`👤 Creating test account: ${dummyUser}...`);
+    let res = await context.post('/api/auth/signup', {
+      data: { username: dummyUser, password: dummyPass, confirm_password: dummyPass }
+    });
+    if (!res.ok()) throw new Error(`Signup failed: ${await res.text()}`);
+    console.log('✅ Signup successful.');
 
-    // 2. Take a Full-Page Screenshot
-    await page.screenshot({ path: 'screenshot.png', fullPage: true });
-    console.log("📸 Screenshot captured: screenshot.png");
+    // 2. LOGIN
+    console.log(`🔑 Logging into test account...`);
+    res = await context.post('/api/auth/login', {
+      data: { username: dummyUser, password: dummyPass }
+    });
+    if (!res.ok()) throw new Error(`Login failed: ${await res.text()}`);
+    console.log('✅ Login successful.');
 
-    // 3. Verify Page Content
-    const content = await page.textContent('body');
-    if (content.includes('PlayNexus')) {
-      console.log("✅ SUCCESS: 'PlayNexus' found on the page.");
-    } else {
-      console.error("❌ FAILURE: 'PlayNexus' NOT found. The page might be blank or redirecting.");
-      process.exit(1);
-    }
+    // 3. CHECK ENDPOINT STATUS
+    console.log(`📡 Checking user endpoint status...`);
+    res = await context.get(`/api/auth/me?username=${dummyUser}`);
+    if (!res.ok()) throw new Error(`Status check failed: ${await res.text()}`);
+    console.log('✅ Active user profile state verified.');
+
+    // 4. DELETE ACCOUNT
+    console.log(`🧨 Deleting dummy account...`);
+    res = await context.delete('/api/auth/account', {
+      data: { username: dummyUser, password: dummyPass }
+    });
+    if (!res.ok()) throw new Error(`Delete failed: ${await res.text()}`);
+    console.log('✅ Account successfully deleted.');
+
+    console.log("🎉 ALL ENDPOINTS ACTIVE AND HEALTHY.");
 
   } catch (error) {
     console.error("❌ ERROR during smoke test:", error.message);
     process.exit(1);
-  } finally {
-    await browser.close();
   }
 })();

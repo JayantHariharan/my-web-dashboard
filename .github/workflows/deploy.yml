@@ -18,7 +18,7 @@ jobs:
       IS_PROD: ${{ contains(github.ref, 'refs/heads/main') }}
       APP_ENV: ${{ contains(github.ref, 'refs/heads/main') && 'production' || 'test' }}
       SITE_URL: ${{ contains(github.ref, 'refs/heads/main') && 'https://playnexus-prod.onrender.com' || 'https://playnexus-test.onrender.com' }}
-      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_API_KEY: ${{ contains(github.ref, 'refs/heads/main') && secrets.RENDER_API_KEY_PROD || secrets.RENDER_API_KEY_TEST }}
       RENDER_SERVICE_ID: ${{ contains(github.ref, 'refs/heads/main') && secrets.RENDER_SERVICE_ID_PROD || secrets.RENDER_SERVICE_ID_TEST }}
 
     steps:
@@ -51,15 +51,3 @@ jobs:
         run: |
           echo "Running automated smoke tests against: ${SITE_URL}"
           SITE_URL="${SITE_URL}" node tests/smoke.test.js
-
-      - name: 🧹 Sanitize Branch Name for Artifact
-        id: sanitize
-        run: echo "safe_ref=${GITHUB_REF_NAME//\//-}" >> $GITHUB_ENV
-
-      - name: 📸 Archive Screenshots
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: smoke-test-results-${{ env.safe_ref }}
-          path: screenshot.png
-          retention-days: 7
