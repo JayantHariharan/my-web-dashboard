@@ -107,7 +107,9 @@ Shutdown sequence:
 ## Deployment workflow
 
 - GitHub Actions deploys from `.github/workflows/deploy.yml`.
-- The workflow triggers a Render deploy, captures the returned deploy id, and waits for Render to report that deploy as complete before continuing.
+- Pushes to `main` deploy production; pushes to `develop` deploy the shared test environment.
+- Feature branches still run the workflow, but they skip the Render deploy path because the configured Render services are branch-bound and cannot safely deploy every feature branch.
+- For deployable branches, the workflow triggers a Render deploy, captures the returned deploy id, and waits for Render to report that deploy as complete before continuing.
 - After Render finishes, the workflow polls `${SITE_URL}/health` until the service is ready, then runs the smoke test suite in `tests/smoke.test.js`.
 - If the Render deploy fails or does not become healthy in time, the workflow stops before later verification steps run.
 

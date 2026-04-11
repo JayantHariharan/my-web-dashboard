@@ -19,12 +19,21 @@ jobs:
       SITE_URL: ${{ github.ref_name == 'main' && 'https://playnexus-prod.onrender.com' || 'https://playnexus-test.onrender.com' }}
       RENDER_API_KEY: ${{ github.ref_name == 'main' && secrets.RENDER_API_KEY_PROD || secrets.RENDER_API_KEY_TEST }}
       RENDER_SERVICE_ID: ${{ github.ref_name == 'main' && secrets.RENDER_SERVICE_ID_PROD || secrets.RENDER_SERVICE_ID_TEST }}
+      DEPLOY_ENABLED: ${{ github.ref_name == 'main' || github.ref_name == 'develop' }}
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Explain Feature Branch Behavior
+        if: env.DEPLOY_ENABLED != 'true'
+        run: |
+          echo "Branch '${{ github.ref_name }}' is a feature branch."
+          echo "Render deploys are only triggered for 'main' and 'develop' because each Render service is tied to a connected branch."
+          echo "Skipping deploy, health-check, and smoke-test steps for this run."
+
       - name: Trigger Render Deployment
+        if: env.DEPLOY_ENABLED == 'true'
         run: |
           set -euo pipefail
           echo "Triggering deploy for branch: ${{ github.ref_name }} to env: ${{ env.APP_ENV }}"
@@ -32,7 +41,9 @@ jobs:
 
           deploy_response="$(curl -fsS -X POST "https://api.render.com/v1/services/${{ env.RENDER_SERVICE_ID }}/deploys" \
             -H "Authorization: Bearer ${{ env.RENDER_API_KEY }}" \
-            -H "Accept: application/json")"
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{"clearCache":"do_not_clear"}')"
 
           deploy_id="$(echo "$deploy_response" | jq -r '.deploy.id // .id // empty')"
           if [ -z "$deploy_id" ]; then
@@ -45,6 +56,7 @@ jobs:
           echo "Deploy request accepted. Deploy id: $deploy_id"
 
       - name: Wait for Render Deployment
+        if: env.DEPLOY_ENABLED == 'true'
         run: |
           set -euo pipefail
           echo "Waiting for Render deploy ${RENDER_DEPLOY_ID} to finish..."
@@ -76,6 +88,7 @@ jobs:
           exit 1
 
       - name: Wait for Service Health
+        if: env.DEPLOY_ENABLED == 'true'
         run: |
           echo "Checking health of ${SITE_URL}/health..."
 
@@ -97,6 +110,7 @@ jobs:
           npm -v
 
       - name: Run Smoke Tests
+        if: env.DEPLOY_ENABLED == 'true'
         run: |
           echo "Running automated smoke tests against: ${SITE_URL}"
           SITE_URL="${SITE_URL}" node tests/smoke.test.js
