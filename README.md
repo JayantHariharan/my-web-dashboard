@@ -114,12 +114,6 @@ Shutdown sequence:
 - After Render finishes, the workflow polls `${SITE_URL}/health` until the service is ready, then runs the smoke test suite in `tests/smoke.test.js`.
 - If the Render deploy fails or does not become healthy in time, the workflow stops before later verification steps run.
 
-## Code scanning
-
-- Repository CodeQL analysis is defined in `.github/workflows/codeql.yml`.
-- The workflow scans `actions`, `python`, and `javascript-typescript` on pushes, pull requests, and a weekly schedule.
-- It uses GitHub's advanced setup with `CODEQL_ACTION_FILE_COVERAGE_ON_PRS=true` so pull-request analyses keep file coverage enabled and avoid the April 2026 warning shown by default setup.
-
 ## Git hooks (optional)
 
 Install from the repo root:
