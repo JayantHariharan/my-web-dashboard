@@ -14,21 +14,20 @@ jobs:
     runs-on: ubuntu-latest
     
     env:
-      # Logic: 'main' -> production, everything else (develop, feature/*) -> test
-      IS_PROD: ${{ contains(github.ref, 'refs/heads/main') }}
-      APP_ENV: ${{ contains(github.ref, 'refs/heads/main') && 'production' || 'test' }}
-      SITE_URL: ${{ contains(github.ref, 'refs/heads/main') && 'https://playnexus-prod.onrender.com' || 'https://playnexus-test.onrender.com' }}
-      RENDER_API_KEY: ${{ contains(github.ref, 'refs/heads/main') && secrets.RENDER_API_KEY_PROD || secrets.RENDER_API_KEY_TEST }}
-      RENDER_SERVICE_ID: ${{ contains(github.ref, 'refs/heads/main') && secrets.RENDER_SERVICE_ID_PROD || secrets.RENDER_SERVICE_ID_TEST }}
+      # Using ref_name for cleaner and more robust branching logic
+      APP_ENV: ${{ github.ref_name == 'main' && 'production' || 'test' }}
+      SITE_URL: ${{ github.ref_name == 'main' && 'https://playnexus-prod.onrender.com' || 'https://playnexus-test.onrender.com' }}
+      RENDER_API_KEY: ${{ github.ref_name == 'main' && secrets.RENDER_API_KEY_PROD || secrets.RENDER_API_KEY_TEST }}
+      RENDER_SERVICE_ID: ${{ github.ref_name == 'main' && secrets.RENDER_SERVICE_ID_PROD || secrets.RENDER_SERVICE_ID_TEST }}
 
     steps:
       - name: 🛰️ Checkout Repository
         uses: actions/checkout@v4
 
       - name: 🛠️ Trigger Render Deployment
-        if: env.RENDER_SERVICE_ID != '' && env.RENDER_API_KEY != ''
         run: |
-          echo "Triggering deploy for ${{ github.ref_name }} to ${{ env.APP_ENV }} at service ${{ env.RENDER_SERVICE_ID }}..."
+          echo "Triggering deploy for branch: ${{ github.ref_name }} to env: ${{ env.APP_ENV }}"
+          echo "Target Service: ${{ env.RENDER_SERVICE_ID }}"
           curl -s -X POST "https://api.render.com/v1/services/${{ env.RENDER_SERVICE_ID }}/deploys" \
             -H "Authorization: Bearer ${{ env.RENDER_API_KEY }}" \
             -H "Accept: application/json" > /dev/null
