@@ -107,10 +107,10 @@ Shutdown sequence:
 ## Deployment workflow
 
 - GitHub Actions deploys from `.github/workflows/deploy.yml`.
-- Pushes to `main` deploy production; pushes to `develop` and `feature/**` deploy the shared test environment with the test/develop secrets.
+- Pushes to `main` deploy production with `RENDER_SERVICE_ID_PROD`; pushes to `develop` and `feature/**` deploy the shared test environment with `RENDER_SERVICE_ID_TEST`.
 - Shared-service deploys are triggered through Render deploy hooks, which support deploying a specific commit SHA via the `ref` query parameter.
 - The workflow uses `RENDER_DEPLOY_HOOK_PROD` for production and `RENDER_DEPLOY_HOOK_TEST` for `develop` and feature branches, then waits for the new deploy to appear before polling its status.
-- Required GitHub secrets for this workflow are `RENDER_API_KEY_PROD`, `RENDER_API_KEY_TEST`, `RENDER_SERVICE_ID_PROD`, `RENDER_SERVICE_ID_TEST`, `RENDER_DEPLOY_HOOK_PROD`, and `RENDER_DEPLOY_HOOK_TEST`.
+- Required GitHub secrets for this workflow are `RENDER_SERVICE_ID_PROD` and `RENDER_SERVICE_ID_TEST`, plus either a shared `RENDER_API_KEY` or environment-specific API key secrets. Deploy-hook secrets are optional but needed for the most reliable feature-branch deploy path.
 - After Render finishes, the workflow polls `${SITE_URL}/health` until the service is ready, then runs the smoke test suite in `tests/smoke.test.js`.
 - If the Render deploy fails or does not become healthy in time, the workflow stops before later verification steps run.
 
