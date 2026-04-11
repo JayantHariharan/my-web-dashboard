@@ -1,11 +1,15 @@
 /**
- * PlayNexus Cinematic Gateway - Dark Elegance & AI Identity (v8.0)
- * 
+ * PlayNexus Cinematic Gateway – Dark Elegance & AI Identity (v8.0)
+ *
+ * Renders the animated canvas background seen on the auth portal.
+ *
  * Features:
- * - Robust Logo-Bloom Logic (Fixed selector/timing)
- * - AI Identity Manager (Random Avatar Generator)
+ * - Robust Logo-Bloom logic (fixed selector / timing)
  * - Cinematic God Rays & Bokeh (v8.0)
- * - Persistent User Identity HUD
+ * - Accessible: honours `prefers-reduced-motion` and `saveData` hints
+ * - Lightweight mobile path (fewer particles, shorter reveal delay)
+ *
+ * @module cinematic-startup
  */
 
 const CinematicGateway = {
@@ -208,5 +212,11 @@ const CinematicGateway = {
     }
 };
 
-window.onload = () => CinematicGateway.init();
-
+/**
+ * Bootstrap the cinematic gateway once all page resources have loaded.
+ *
+ * Using `addEventListener` instead of assigning `window.onload` directly
+ * prevents this handler from accidentally overwriting any other `load`
+ * listeners registered elsewhere in the page.
+ */
+window.addEventListener('load', () => CinematicGateway.init());

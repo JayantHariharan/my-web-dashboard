@@ -1,8 +1,27 @@
 /**
- * Shared site header/footer for PlayNexus static pages.
- * Set body[data-root-prefix] to ".." for one level under frontend root (games, community, about).
- * Set body[data-chrome-active] to hub | games | apps | community | about for nav highlight.
- * Optional body[data-chrome-pill] for a small label next to the logo.
+ * Shared site header and footer for PlayNexus static pages.
+ *
+ * Usage
+ * -----
+ * Include this script on any sub-page.  Configure behaviour via
+ * ``<body>`` data attributes:
+ *
+ * | Attribute            | Purpose                                               |
+ * |----------------------|-------------------------------------------------------|
+ * | `data-root-prefix`   | Path prefix to reach the frontend root (e.g. `".."` for one level deep). Omit or set to `""` for root-level pages. |
+ * | `data-chrome-active` | Nav link to highlight: `hub`, `games`, `apps`, `community`, or `about`. |
+ * | `data-chrome-pill`   | Optional small label rendered next to the logo.       |
+ *
+ * Inject points
+ * -------------
+ * The script looks for the following element IDs and sets their `innerHTML`:
+ *
+ * - `#site-chrome-header`      – full site header (sub-pages).
+ * - `#site-chrome-footer`      – full site footer (sub-pages).
+ * - `#site-chrome-footer-hub`  – full footer at the hub root (prefix = `""`).
+ * - `#site-chrome-footer-auth` – minimal footer shown on the auth/login screen.
+ *
+ * @module site-chrome
  */
 (function () {
     "use strict";

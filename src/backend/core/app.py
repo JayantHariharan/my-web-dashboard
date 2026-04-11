@@ -1,7 +1,17 @@
-"""FastAPI application factory for the auth-first PlayNexus backend."""
+"""
+FastAPI application factory for the PlayNexus backend.
+
+Call :func:`create_app` once at process startup (typically from
+``main.py``) to obtain a fully-configured :class:`fastapi.FastAPI`
+instance.  The optional *lifespan* parameter lets the caller inject a
+``@asynccontextmanager`` function that owns startup / shutdown logic,
+keeping lifecycle code out of this module and avoiding the deprecated
+``@app.on_event`` pattern.
+"""
 
 import logging
 import os
+from typing import Any, Optional
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -25,41 +35,66 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 
-def create_app() -> FastAPI:
+def create_app(lifespan: Optional[Any] = None) -> FastAPI:
     """
-    Factory function to create and configure the FastAPI application.
+    Create and configure the FastAPI application.
+
+    Args:
+        lifespan: An ``@asynccontextmanager`` async generator function that
+            manages the application lifecycle (startup before ``yield``,
+            shutdown after ``yield``).  When *None* no lifespan handler is
+            registered – useful in unit tests that do not need a real DB.
 
     Returns:
-        Configured FastAPI app instance
+        A fully configured :class:`fastapi.FastAPI` instance with all
+        middleware, exception handlers, and the ``/health`` endpoint attached.
+
+    Middleware stack (applied in order; innermost middleware runs first
+    because Starlette wraps them in reverse):
+
+    1. ``RequestIdMiddleware``    – attaches ``X-Request-ID`` to every response.
+    2. ``CORSMiddleware``         – controls cross-origin access per environment.
+    3. ``SecurityHeadersMiddleware`` – adds ``X-Frame-Options``, ``HSTS``, etc.
+    4. ``GZipMiddleware``         – compresses responses ≥ 1 kB.
+    5. ``CacheControlMiddleware`` – sets appropriate ``Cache-Control`` headers.
+    6. ``RateLimitMiddleware``    – limits ``/api/auth/*`` to 20 req/hour per IP.
+
+    Note:
+        ``setup_logging()`` is called here so that the factory can be used
+        safely in isolation (e.g. in tests).  When invoked from ``main.py``
+        logging will already be configured; the second call is a no-op because
+        :func:`~backend.log_config.setup_logging` clears existing handlers
+        before re-adding them.
     """
     app = FastAPI(
         title="PlayNexus API",
         description="""
-Backend API for the current PlayNexus auth-first phase.
+Backend API for the PlayNexus platform.
 
 ## Features
-- Account authentication and account lifecycle endpoints
-- Secure authentication with adaptive password hashing + pepper
-- Request tracing and security headers
-- IP audit logging
-- Versioned database migrations
-- Health monitoring endpoint
+- Account authentication and full account-lifecycle endpoints
+- Adaptive password hashing with bcrypt + server-side pepper
+- Per-request tracing (X-Request-ID) and security headers
+- IP audit logging for all auth events
+- Versioned database migrations via Flyway SQL
+- Health-check endpoint with database connectivity test
 
 ## Authentication
-The frontend currently stores the active username in sessionStorage.
-JWT or server-backed sessions can be added later.
+The frontend stores the active username in ``sessionStorage``.
+JWT / server-backed sessions are on the roadmap.
 
 ## Rate Limits (per IP)
-- **Auth endpoints** (`/api/auth/*`): 20 requests/hour, 15min block
+- **Auth endpoints** (``/api/auth/*``): 20 requests / hour, 15-minute block
 
 ## Environment
-- **Development**: DEBUG=true, SQLite database
-- **Production**: DEBUG=false, PostgreSQL database
+- **Development**: ``DEBUG=true``, SQLite auto-bootstrapped database
+- **Production**: ``DEBUG=false``, PostgreSQL (Supabase) database
 """,
         version="1.0.0",
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
+        lifespan=lifespan,
     )
 
     # Add middleware (order matters)
@@ -116,7 +151,7 @@ JWT or server-backed sessions can be added later.
     # 4. Gzip compression for all responses
     app.add_middleware(GZipMiddleware, minimum_size=1000)
 
-    # 3b. Cache control for static assets (CSS, JS, images)
+    # 3b. Cache-Control headers for static assets and HTML pages
     class CacheControlMiddleware(BaseHTTPMiddleware):
         async def dispatch(self, request: Request, call_next):
             response = await call_next(request)
@@ -139,7 +174,7 @@ JWT or server-backed sessions can be added later.
         RateLimitMiddleware, limiter=auth_rate_limiter, paths=["/api/auth"]
     )
 
-    # Health check endpoint (no rate limit)
+    # Health-check endpoint – exempt from rate limiting
     @app.get("/health", tags=["Health"])
     async def health_check():
         """

@@ -391,3 +391,81 @@ body.site-with-chrome {
         transform: none;
     }
 }
+
+/* ——— Responsive Adjustments (iOS, Android, PC) ——— */
+
+@media (max-width: 900px) {
+    .site-header__inner {
+        padding: 10px 4%;
+    }
+    .site-header__nav {
+        gap: 2px;
+    }
+    .site-header__link {
+        font-size: 0.6rem;
+        padding: 6px 10px;
+    }
+    .site-header__pill {
+        display: none; /* Hide extra info on smaller tablets */
+    }
+}
+
+@media (max-width: 600px) {
+    body.site-with-chrome {
+        padding-top: 100px; /* More space for wrapped header */
+    }
+    .site-header__inner {
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding-bottom: 12px;
+    }
+    .site-header__left {
+        width: 100%;
+        justify-content: center;
+    }
+    .site-header__nav {
+        width: 100%;
+        justify-content: center;
+        gap: 4px;
+        flex-wrap: nowrap; /* Prevent messy wrapping */
+        overflow-x: auto; /* Allow horizontal scroll for many tabs */
+        padding-bottom: 5px;
+    }
+    .site-header__link {
+        flex-shrink: 0;
+    }
+    .site-header__brand {
+        font-size: 1.1rem;
+    }
+    
+    #profile-manager {
+        width: 100%;
+        justify-content: center;
+        gap: 8px;
+        font-size: 0.7rem;
+    }
+
+    .site-header__hub-btn {
+        padding: 8px 12px;
+        font-size: 0.65rem;
+    }
+}
+
+/* Specific fix for Tic-Tac-Toe Arena overlapping on small mobiles */
+@media (max-width: 400px) {
+    .site-header__brand span.brand-text-nexus {
+        font-size: 0.9rem; /* Shrink logo text even more */
+    }
+    .site-header__inner {
+        gap: 10px;
+    }
+}
+
+/* Fix for overlapping buttons on hub subpages */
+#profile-manager {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}

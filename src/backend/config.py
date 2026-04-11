@@ -1,8 +1,21 @@
 """
-Configuration management for PlayNexus backend.
-Handles environment-based settings with validation.
-- Environment variables for connection & secrets
-- Simplified: no database-based runtime config (auth-only mode)
+Configuration management for the PlayNexus backend.
+
+All runtime settings are read from environment variables at process startup.
+No file-based config (e.g. ``.env``) is loaded in CI or production-like
+environments; a ``.env`` file is only read locally when **none** of the
+recognised environment variables are set (via ``python-dotenv``).
+
+Quick reference
+---------------
+See :class:`DatabaseConfig` and :class:`Settings` for the full list of
+recognised environment variables and their defaults.
+
+Production guard
+----------------
+``SECRET_KEY`` must be set (and not left as the default placeholder) when
+``ENV=prod`` / ``APP_ENV=production``.  The application raises a
+:class:`RuntimeError` at import time if this condition is not met.
 """
 
 import logging
@@ -29,6 +42,8 @@ ENV_KEYS = {
     "DB_SCHEMA",
     "CORS_ORIGINS",
     "REGISTRATION_ENABLED",
+    "OPENAI_API_KEY",
+    "OPENAI_MODEL",
 }
 has_runtime_env = any(os.environ.get(key) for key in ENV_KEYS)
 
@@ -47,7 +62,32 @@ if (
 
 @dataclass
 class DatabaseConfig:
-    """Database configuration."""
+    """
+    Database connection configuration.
+
+    Built from environment variables by :meth:`from_env`.
+
+    Environment variables
+    ---------------------
+    .. list-table::
+       :header-rows: 1
+       :widths: 25 75
+
+       * - Variable
+         - Purpose
+       * - ``DATABASE_URL``
+         - Full PostgreSQL connection string.  Takes priority over individual
+           ``PG*`` variables.
+       * - ``PGHOST`` / ``PGPORT`` / ``PGUSER`` / ``PGPASSWORD`` / ``PGDATABASE``
+         - Composited into a ``postgresql://`` URL when ``DATABASE_URL`` is absent.
+       * - ``DB_SCHEMA``
+         - PostgreSQL schema to set as ``search_path`` (default: ``public``).
+       * - ``DB_POOL_SIZE``
+         - Max open connections per worker (default: ``5``; Supabase free tier max is 10–20).
+       * - ``ENV`` / ``APP_ENV``
+         - Derives the table-name suffix: ``prod`` → ``_prod``;
+           ``test``/``dev``/``staging`` → ``_test``; unset → no suffix.
+    """
 
     url: str
     is_postgres: bool
@@ -125,13 +165,43 @@ class DatabaseConfig:
 
 @dataclass
 class Settings:
-    """Application settings (auth-only mode)."""
+    """
+    Top-level application settings.
+
+    Built from environment variables by :meth:`from_env`.  A singleton
+    instance (``settings``) is created at module import time and imported
+    by the rest of the application.
+
+    Environment variables
+    ---------------------
+    .. list-table::
+       :header-rows: 1
+       :widths: 25 75
+
+       * - Variable
+         - Purpose
+       * - ``SECRET_KEY``
+         - Server-side pepper for password hashing.  **Required** in production.
+           Changing this value invalidates all stored password hashes.
+       * - ``DEBUG``
+         - ``true`` / ``1`` enables dev CORS origins and ``DEBUG``-level logging.
+       * - ``LOG_LEVEL``
+         - Override the log verbosity (``DEBUG``, ``INFO``, ``WARNING``, etc.).
+       * - ``REGISTRATION_ENABLED``
+         - ``false`` disables new signups (returns ``403`` on ``/api/auth/signup``).
+       * - ``ACCESS_TOKEN_EXPIRE_MINUTES``
+         - Reserved for future JWT implementation (default: ``30``).
+    """
 
     database: DatabaseConfig
     debug: bool = False
     secret_key: str = "change-me-in-production"
     access_token_expire_minutes: int = 30
     log_level: int = logging.INFO
+
+    # AI settings
+    openai_api_key: str = ""
+    openai_model: str = "gpt-3.5-turbo"
 
     # Auth-related settings
     registration_enabled: bool = True  # Allow new user signups
@@ -165,6 +235,8 @@ class Settings:
             ),
             log_level=log_level,
             registration_enabled=registration_enabled,
+            openai_api_key=os.environ.get("OPENAI_API_KEY", ""),
+            openai_model=os.environ.get("OPENAI_MODEL", "gpt-3.5-turbo"),
         )
 
 

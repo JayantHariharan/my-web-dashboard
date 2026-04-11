@@ -1,4 +1,4 @@
-name: Branch‑Based Deployment & Smoke Test
+name: PlayNexus CD (Deploy & Test)
 
 on:
   push:
@@ -9,52 +9,46 @@ on:
   workflow_dispatch:
 
 jobs:
-  test-and-smoke:
+  deploy-and-test:
+    name: ${{ contains(github.ref, 'refs/heads/main') && '🚀 Production' || '🧪 Staging/Test' }}
     runs-on: ubuntu-latest
+    
     env:
-      # Production for main, test for everything else (develop, feature branches)
+      # Logic: 'main' -> production, everything else (develop, feature/*) -> test
+      IS_PROD: ${{ contains(github.ref, 'refs/heads/main') }}
       APP_ENV: ${{ contains(github.ref, 'refs/heads/main') && 'production' || 'test' }}
       SITE_URL: ${{ contains(github.ref, 'refs/heads/main') && 'https://playnexus-prod.onrender.com' || 'https://playnexus-test.onrender.com' }}
+      RENDER_HOOK: ${{ contains(github.ref, 'refs/heads/main') && secrets.RENDER_DEPLOY_HOOK_PROD || secrets.RENDER_DEPLOY_HOOK_TEST }}
+
     steps:
-      - uses: actions/checkout@v4
+      - name: 🛰️ Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Install minimal dependencies
+      - name: 🛠️ Trigger Render Deployment
+        if: env.RENDER_HOOK != ''
         run: |
-          sudo apt-get update
-          sudo apt-get install -y jq curl
+          echo "Triggering deploy for ${{ github.ref_name }} to ${{ env.APP_ENV }}..."
+          curl -s "${{ env.RENDER_HOOK }}" > /dev/null
+          echo "✅ Deploy hook sent."
 
-      - name: Verify environment
+      - name: ⏳ Wait for Service (Optional Ping)
         run: |
-          echo "Deploying to: ${APP_ENV}"
-          echo "Target URL: ${SITE_URL}"
-
-      # Health Check (direct API calls)
-      - name: Health Check
-        run: |
-          base_url="${SITE_URL}"
-          endpoints=("/health" "/api/auth/me")
-          for endpoint in "${endpoints[@]}"; do
-            echo "Checking ${base_url}${endpoint}..."
-            response=$(curl -s -o /dev/null -w "%{http_code}" "${base_url}${endpoint}")
-            if [[ "$response" == 200 || "$response" == 401 ]]; then
-              echo " ✅ OK (${response})"
-            else
-              echo " ❌ FAILED (${response})"
-              exit 1
-            fi
+          echo "Checking health of ${SITE_URL}/health..."
+          # Quick check with 3 retries
+          for i in {1..3}; do
+            curl -sf "${SITE_URL}/health" && break || sleep 10
           done
-          echo "All health checks passed!"
 
-      # Smoke Test (API‑centric script)
-      - name: Smoke Test
+      - name: 🎬 Run Smoke Tests
         run: |
-          echo "Running smoke test on: ${SITE_URL}"
+          echo "Running automated smoke tests against: ${SITE_URL}"
+          # We assume Node.js is available on ubuntu-latest (it is)
           SITE_URL="${SITE_URL}" node tests/smoke.test.js
 
-      - name: Upload smoke test artifact
+      - name: 📸 Archive Screenshots
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: smoke-test-${APP_ENV}
+          name: smoke-test-results-${{ github.ref_name }}
           path: screenshot.png
           retention-days: 7

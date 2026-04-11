@@ -1,7 +1,21 @@
 """
 Database layer for PlayNexus.
-Provides BaseRepository for generic CRUD and specific repositories per domain.
-Supports SQLite (development) and PostgreSQL (production).
+
+Provides a :class:`BaseRepository` with generic CRUD helpers and two
+specialized repositories:
+
+- :class:`UserRepository`        – manages the ``users`` table.
+- :class:`UserProfileRepository` – manages the ``user_profiles`` table.
+
+Both SQLite (local development) and PostgreSQL (production via Supabase)
+are supported.  The active database is selected via environment variables
+at startup; see :mod:`backend.config` for details.
+
+SQL injection prevention strategy
+----------------------------------
+* All user-supplied *values* are passed through parameterised queries.
+* Column and table names are sanitised with an allowlist (alphanumeric
+  plus ``_``) before being interpolated into SQL strings.
 """
 
 import logging
@@ -15,19 +29,28 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseError(Exception):
-    """Base database exception."""
-
-    pass
+    """Raised when a database operation fails unexpectedly."""
 
 
-class ConnectionError(DatabaseError):
-    """Database connection error."""
-
-    pass
+class ConnectionError(DatabaseError):  # noqa: A001 – shadows built-in intentionally
+    """Raised when a database connection cannot be established."""
 
 
 def configure_sqlite_connection(conn: sqlite3.Connection) -> sqlite3.Connection:
-    """Apply SQLite pragmas that are safer for this local runtime environment."""
+    """
+    Apply pragmas that improve safety and performance for local SQLite use.
+
+    * ``foreign_keys = ON``   – enforce referential integrity.
+    * ``journal_mode = MEMORY`` – lighter write-ahead for local dev.
+    * ``synchronous = NORMAL``  – balanced durability / speed trade-off.
+    * ``temp_store = MEMORY``   – keep temp tables in RAM.
+
+    Args:
+        conn: An open :class:`sqlite3.Connection`.
+
+    Returns:
+        The same connection, with pragmas applied.
+    """
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = MEMORY")
     conn.execute("PRAGMA synchronous = NORMAL")
@@ -37,18 +60,35 @@ def configure_sqlite_connection(conn: sqlite3.Connection) -> sqlite3.Connection:
 
 def get_connection(is_postgres: bool, db_url: str, schema: str = "public"):
     """
-    Get a raw database connection.
+    Return a raw DB-API connection.
+
     Args:
-        is_postgres: Whether to use PostgreSQL driver
-        db_url: Database connection URL
-        schema: PostgreSQL schema to use (sets search_path). Ignored for SQLite.
+        is_postgres: ``True`` when a PostgreSQL URL is configured.
+        db_url:      Database connection URL (``postgresql://...`` or
+                     ``sqlite:///...``).
+        schema:      PostgreSQL schema to activate via ``SET search_path``.
+                     Ignored for SQLite.
+
     Returns:
-        DB-API connection object
+        A DB-API 2.0 connection object (either :mod:`psycopg2` or
+        :mod:`sqlite3`).
+
+    Raises:
+        ConnectionError: If the connection cannot be established.
+
+    Note:
+        When ``is_postgres`` is ``True`` but the URL is missing or malformed,
+        the function transparently falls back to SQLite and logs a warning,
+        preventing a hard crash during a misconfigured Render boot.
     """
     try:
         if is_postgres:
             if not db_url or not db_url.startswith(("postgresql://", "postgres://")):
-                # Fallback to SQLite if URL is missing/wrong (Render boot safety)
+                # URL is absent / malformed – fall back to the configured SQLite path
+                # so Render can still boot and serve a useful error page.
+                logger.warning(
+                    "PostgreSQL URL missing or invalid; falling back to SQLite for this request."
+                )
                 db_path = settings.database.url.replace("sqlite:///", "")
                 conn = sqlite3.connect(db_path)
                 return configure_sqlite_connection(conn)
@@ -73,7 +113,16 @@ def get_connection(is_postgres: bool, db_url: str, schema: str = "public"):
 
 
 class BaseRepository:
-    """Base repository with generic CRUD operations. Extend for each table."""
+    """
+    Generic CRUD repository backed by either SQLite or PostgreSQL.
+
+    Extend this class for each database table and add domain-specific
+    query methods.  All SQL values are passed through parameterised
+    queries; table / column names are sanitised before interpolation.
+
+    Attributes:
+        table_name: Fully-qualified table name (with optional suffix).
+    """
 
     def __init__(self, table_name: str):
         self.table_name = table_name
@@ -90,8 +139,17 @@ class BaseRepository:
     @contextmanager
     def get_cursor(self):
         """
-        Context manager for database cursor.
-        Automatically handles connection, commit, and cleanup.
+        Context manager that yields a database cursor.
+
+        Automatically acquires a connection, commits on success, rolls
+        back on any exception, and closes both cursor and connection on
+        exit.  Converts all database exceptions to :class:`DatabaseError`.
+
+        Yields:
+            A DB-API cursor (``sqlite3.Cursor`` or psycopg2 ``DictCursor``).
+
+        Raises:
+            DatabaseError: Wraps any underlying DB-API exception.
         """
         conn = self._get_connection()
         cursor = None
@@ -139,22 +197,49 @@ class BaseRepository:
             return dict(row) if row else None
 
     def create(self, data: Dict[str, Any]) -> int:
-        """Create a new record."""
+        """
+        Insert a new row and return its generated primary key.
+
+        For **real** psycopg2 connections the INSERT statement is appended
+        with ``RETURNING id`` because ``cursor.lastrowid`` is always ``None``
+        in psycopg2.  For SQLite (including the SQLite fallback used when the
+        PostgreSQL URL is absent) ``cursor.lastrowid`` is used instead.
+
+        Args:
+            data: Mapping of column names to their values.
+
+        Returns:
+            The auto-generated ``id`` of the newly created row.
+        """
         columns = list(data.keys())
-        placeholders = ["%s" if self._is_postgres else "?"] * len(columns)
         cols_str = ", ".join(columns)
-        placeholders_str = ", ".join(placeholders)
-        sql = f"INSERT INTO {self.table_name} ({cols_str}) VALUES ({placeholders_str})"
+
         with self.get_cursor() as cursor:
-            cursor.execute(sql, tuple(data.values()))
-            if self._is_postgres:
-                # Handle SQLite fallback in PG mode
-                if hasattr(cursor, 'lastrowid') and cursor.lastrowid is not None:
-                    return cursor.lastrowid
-                cursor.execute("SELECT LASTVAL() as id")
+            # Detect the *actual* connection at runtime: the PostgreSQL
+            # configuration may transparently fall back to SQLite when the
+            # PG URL is absent (see get_connection()).
+            is_real_pg = self._is_postgres and not isinstance(
+                cursor.connection, sqlite3.Connection
+            )
+            placeholder = "%s" if is_real_pg else "?"
+            placeholders_str = ", ".join([placeholder] * len(columns))
+
+            if is_real_pg:
+                # psycopg2 does not expose lastrowid; use RETURNING to retrieve
+                # the server-assigned primary key in a single round-trip.
+                sql = (
+                    f"INSERT INTO {self.table_name} ({cols_str}) "
+                    f"VALUES ({placeholders_str}) RETURNING id"
+                )
+                cursor.execute(sql, tuple(data.values()))
                 result = cursor.fetchone()
                 return result["id"]
             else:
+                sql = (
+                    f"INSERT INTO {self.table_name} ({cols_str}) "
+                    f"VALUES ({placeholders_str})"
+                )
+                cursor.execute(sql, tuple(data.values()))
                 return cursor.lastrowid
 
     def update(self, pk_value, data: Dict[str, Any]) -> bool:
@@ -391,6 +476,166 @@ class UserProfileRepository(BaseRepository):
             return cursor.rowcount > 0
 
 
+class GameRepository(BaseRepository):
+    """Manages the games table."""
+
+    def __init__(self):
+        from ..config import settings
+        table_name = f"games{settings.database.table_suffix}"
+        super().__init__(table_name)
+
+    def find_by_code(self, code: str) -> Optional[Dict[str, Any]]:
+        """Find a game by its join code."""
+        return self.find_one({"join_code": code})
+
+
+class GamePlayerRepository(BaseRepository):
+    """Manages the game_players table."""
+
+    def __init__(self):
+        from ..config import settings
+        table_name = f"game_players{settings.database.table_suffix}"
+        super().__init__(table_name)
+
+    def find_by_game(self, game_id: int) -> List[Dict[str, Any]]:
+        """Get all players for a specific game, including usernames."""
+        from ..config import settings
+        user_table = f"users{settings.database.table_suffix}"
+        placeholder = "%s" if self._is_postgres else "?"
+        sql = f"""
+            SELECT gp.*, u.username 
+            FROM {self.table_name} gp
+            LEFT JOIN {user_table} u ON gp.user_id = u.id
+            WHERE gp.game_id = {placeholder}
+            ORDER BY gp.id ASC
+        """
+        with self.get_cursor() as cursor:
+            cursor.execute(sql, (game_id,))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows] if rows else []
+
+
+class GameMoveRepository(BaseRepository):
+    """Manages the game_moves table."""
+
+    def __init__(self):
+        from ..config import settings
+        table_name = f"game_moves{settings.database.table_suffix}"
+        super().__init__(table_name)
+
+    def find_by_game(self, game_id: int) -> List[Dict[str, Any]]:
+        """Get all moves for a specific game in order."""
+        from ..config import settings
+        placeholder = "%s" if self._is_postgres else "?"
+        sql = f"SELECT * FROM {self.table_name} WHERE game_id = {placeholder} ORDER BY created_at ASC"
+        with self.get_cursor() as cursor:
+            cursor.execute(sql, (game_id,))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows] if rows else []
+
+
+class LeaderboardRepository(BaseRepository):
+    """Manages the leaderboard table."""
+
+    def __init__(self):
+        from ..config import settings
+        table_name = f"leaderboard{settings.database.table_suffix}"
+        super().__init__(table_name)
+
+    def get_top(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get the top players by ELO."""
+        from ..config import settings
+        user_table = f"users{settings.database.table_suffix}"
+        sql = f"""
+            SELECT l.*, u.username 
+            FROM {self.table_name} l
+            JOIN {user_table} u ON l.user_id = u.id
+            ORDER BY l.elo_rating DESC, l.wins DESC
+            LIMIT {limit}
+        """
+        with self.get_cursor() as cursor:
+            cursor.execute(sql)
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows] if rows else []
+
+
+class ActivityRepository(BaseRepository):
+    """Manages the user_activity table for the Home page resume feature."""
+
+    def __init__(self):
+        from ..config import settings
+        table_name = f"user_activity{settings.database.table_suffix}"
+        super().__init__(table_name)
+
+    def log_activity(self, user_id: int, a_type: str, a_name: str, a_id: str = None):
+        """Log a new activity for the user."""
+        return self.create({
+            "user_id": user_id,
+            "activity_type": a_type,
+            "activity_name": a_name,
+            "activity_id": a_id
+        })
+
+    def get_recent(self, user_id: int, limit: int = 4) -> List[Dict[str, Any]]:
+        """Get the most recent unique activities for a user."""
+        from ..config import settings
+        placeholder = "%s" if self._is_postgres else "?"
+        # Get unique activities, keep most recent
+        sql = f"""
+            SELECT * FROM {self.table_name} 
+            WHERE user_id = {placeholder}
+            GROUP BY activity_name
+            ORDER BY created_at DESC
+            LIMIT {limit}
+        """
+        with self.get_cursor() as cursor:
+            cursor.execute(sql, (user_id,))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows] if rows else []
+
+
+class AwardsRepository(BaseRepository):
+    """Manages the user_awards table for the PS5-style trophy feature."""
+
+    def __init__(self):
+        from ..config import settings
+        table_name = f"user_awards{settings.database.table_suffix}"
+        super().__init__(table_name)
+
+    def get_by_user(self, user_id: int) -> List[Dict[str, Any]]:
+        """Get all awards earned by a user."""
+        from ..config import settings
+        placeholder = "%s" if self._is_postgres else "?"
+        sql = f"SELECT * FROM {self.table_name} WHERE user_id = {placeholder} ORDER BY earned_at DESC"
+        with self.get_cursor() as cursor:
+            cursor.execute(sql, (user_id,))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows] if rows else []
+
+    def award_if_not_exists(self, user_id: int, name: str, tier: str, ico: str, desc: str):
+        """Award a trophy if the user doesn't already have it."""
+        from ..config import settings
+        placeholder = "%s" if self._is_postgres else "?"
+        sql = f"SELECT id FROM {self.table_name} WHERE user_id = {placeholder} AND award_name = {placeholder}"
+        with self.get_cursor() as cursor:
+            cursor.execute(sql, (user_id, name))
+            if cursor.fetchone():
+                return
+            self.create({
+                "user_id": user_id,
+                "award_name": name,
+                "award_tier": tier,
+                "award_ico": ico,
+                "description": desc
+            })
+
+
 # Global repository instances
 user_repo = UserRepository()
 user_profile_repo = UserProfileRepository()
+game_repo = GameRepository()
+game_player_repo = GamePlayerRepository()
+game_move_repo = GameMoveRepository()
+leaderboard_repo = LeaderboardRepository()
+activity_repo = ActivityRepository()
+awards_repo = AwardsRepository()

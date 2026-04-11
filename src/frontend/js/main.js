@@ -1,13 +1,24 @@
 /**
- * PlayNexus Crystal Portal - Main Logic & Physics
+ * PlayNexus Crystal Portal – Main Logic & Physics
  *
- * Matter.js is lazy-loaded when the signed-in hub starts physics, so the auth
- * portal stays lightweight on first paint (important for free-tier hosting).
+ * Matter.js is lazy-loaded **only** when the signed-in hub activates
+ * physics, so the auth portal stays lightweight on first paint
+ * (important for free-tier cold starts on Render).
+ *
+ * @module main
  */
 
 const MATTER_CDN =
     "https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js";
 
+/**
+ * Dynamically load Matter.js from the CDN if it has not already been imported.
+ *
+ * The function is idempotent: if Matter.js is already available (e.g. loaded
+ * by a previous call) it resolves immediately without touching the DOM.
+ *
+ * @returns {Promise<void>} Resolves when Matter.js is ready, rejects on load error.
+ */
 function loadMatterScript() {
     return new Promise((resolve, reject) => {
         if (typeof Matter !== "undefined") {
@@ -32,6 +43,20 @@ function loadMatterScript() {
     });
 }
 
+/**
+ * Singleton controller for the Matter.js physics simulation.
+ *
+ * Physics is deliberately deferred until the user reaches the signed-in hub,
+ * so the unauthenticated auth portal incurs zero physics overhead.
+ *
+ * Public API
+ * ----------
+ * - {@link PlayNexus.init}                 – bind DOM events (called on script load).
+ * - {@link PlayNexus.startPhysics}          – load Matter.js & start the simulation.
+ * - {@link PlayNexus.stopPhysics}           – pause the simulation (e.g. on tab hide).
+ * - {@link PlayNexus.toggleGravity}         – flip gravity on/off.
+ * - {@link PlayNexus.addPhysicsToElement}   – attach a DOM element to the world.
+ */
 const PlayNexus = {
     engine: null,
     render: null,
@@ -114,13 +139,18 @@ const PlayNexus = {
     },
 
     /**
-     * Stop the physics simulation to save CPU (call when leaving hub)
+     * Stop the physics simulation to free CPU (e.g. when leaving the hub
+     * or when the page becomes hidden).
+     *
+     * Bug fix: the original code called the bare `Runner.stop()` which throws
+     * a ReferenceError because `Runner` is only destructured inside
+     * `setupPhysics()`.  The correct call is `Matter.Runner.stop()`.
      */
     stopPhysics() {
         if (!this.isActive) return;
 
         if (this.runner) {
-            Runner.stop(this.runner);
+            Matter.Runner.stop(this.runner); // Fix: was `Runner.stop()` – ReferenceError
             this.runner = null;
         }
         this.isActive = false;

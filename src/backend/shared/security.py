@@ -1,4 +1,27 @@
-"""Security utilities for PlayNexus authentication."""
+"""
+Security utilities for PlayNexus authentication.
+
+Password hashing strategy
+--------------------------
+Passwords are stored as adaptive hashes produced by one of these schemes
+(tried in priority order):
+
+1. ``bcrypt_sha256`` – bcrypt wrapped in SHA-256, which eliminates bcrypt's
+   72-byte input limit and allows arbitrarily long passwords.
+2. ``bcrypt``        – plain bcrypt (fallback when bcrypt_sha256 is absent).
+3. ``pbkdf2_sha256`` – pure-Python fallback for environments where the
+   compiled bcrypt C extension is unavailable (e.g. restricted Render
+   buildpacks).
+
+A **server-side pepper** (``settings.secret_key``) is appended to every
+password before hashing.  This means a leaked database dump is useless
+without also stealing the server secret.
+
+Note:
+    ``passlib`` handles algorithm agility automatically via its
+    ``deprecated="auto"`` setting: hashes produced by an older scheme are
+    re-hashed on the next successful login without any extra application code.
+"""
 
 import logging
 from typing import Optional
@@ -10,31 +33,46 @@ logger = logging.getLogger(__name__)
 try:
     import bcrypt  # noqa: F401
 
+    # Prefer bcrypt_sha256 (removes the 72-byte bcrypt input limit), then plain
+    # bcrypt as a direct fallback, then pbkdf2_sha256 as a pure-Python escape hatch.
     PASSWORD_SCHEMES = ["bcrypt_sha256", "bcrypt", "pbkdf2_sha256"]
-except ImportError:  # pragma: no cover - depends on installed environment
+except ImportError:  # pragma: no cover – bcrypt C extension not installed
     PASSWORD_SCHEMES = ["pbkdf2_sha256"]
     logger.warning(
-        "bcrypt backend not available; falling back to pbkdf2_sha256 for password hashing"
+        "bcrypt C extension not available; using pbkdf2_sha256 for password hashing. "
+        "Install 'bcrypt' for stronger security."
     )
 
 def _peppered_password_input(password: str, pepper: str) -> str:
     """
-    Bind the password to the server-side secret before adaptive hashing.
+    Concatenate the password with the server-side pepper before hashing.
 
-    `bcrypt_sha256` safely handles long inputs internally, avoiding bcrypt's
-    72-byte limit without requiring custom hashing logic in application code.
+    The combined string is passed to the adaptive hasher.  Using
+    ``bcrypt_sha256`` (the preferred scheme) means the 72-byte bcrypt input
+    limit is never hit, even for very long passwords.
+
+    Args:
+        password: The plain-text password supplied by the user.
+        pepper:   The server-side secret (``settings.secret_key``).
+
+    Returns:
+        The peppered string to be hashed.
     """
     return password + pepper
 
 
 def _build_password_context() -> CryptContext:
     """
-    Build the adaptive hashing context and actively verify the preferred scheme.
+    Build and validate the adaptive password-hashing context.
 
-    Some Render/Python environments expose a partially working bcrypt backend:
-    passlib can import it, but the first real hash call fails during backend
-    self-checks. If that happens, fall back to pbkdf2_sha256 so the app can
-    still start and authentication keeps working.
+    Performs a live self-test hash on startup to detect broken bcrypt
+    installations (common on some Render buildpacks where the C extension
+    imports successfully but raises on the first real call).  Falls back
+    gracefully to ``pbkdf2_sha256`` when the preferred scheme fails.
+
+    Returns:
+        A validated :class:`passlib.context.CryptContext` instance ready
+        for production use.
     """
     preferred_context = CryptContext(schemes=PASSWORD_SCHEMES, deprecated="auto")
 
@@ -55,12 +93,18 @@ _dummy_password_hash: Optional[str] = None
 
 def hash_password(password: str, pepper: Optional[str] = None) -> str:
     """
-    Hash a password using the configured adaptive scheme with optional pepper.
+    Hash a password using the configured adaptive scheme.
+
+    The pepper is appended to the password before hashing so that a stolen
+    database cannot be brute-forced without also knowing the server secret.
+
     Args:
-        password: Plain text password
-        pepper: Additional secret (from SECRET_KEY). If None, uses settings.SECRET_KEY
+        password: Plain-text password supplied by the user.
+        pepper:   Server-side secret to bind the hash to this deployment.
+                  Defaults to ``settings.secret_key`` when ``None``.
+
     Returns:
-        Hashed password string
+        An encoded hash string (e.g. ``$2b$12$...``) safe to store in the DB.
     """
     if pepper is None:
         pepper = settings.secret_key
@@ -73,13 +117,19 @@ def verify_password(
     plain_password: str, hashed_password: str, pepper: Optional[str] = None
 ) -> bool:
     """
-    Verify a password against its hash using the same pepper.
+    Verify a plain-text password against a stored hash.
+
+    Applies the same pepper used during hashing before comparison.  Returns
+    ``False`` (never raises) if the hash is malformed or from an unknown
+    scheme, which keeps the caller's error-handling simple.
+
     Args:
-        plain_password: Plain text password to verify
-        hashed_password: Stored password hash
-        pepper: Additional secret (from SECRET_KEY). If None, uses settings.SECRET_KEY
+        plain_password:  Password entered by the user.
+        hashed_password: Hash retrieved from the database.
+        pepper:          Server-side secret; defaults to ``settings.secret_key``.
+
     Returns:
-        True if password matches, False otherwise
+        ``True`` if the password matches the hash, ``False`` otherwise.
     """
     if pepper is None:
         pepper = settings.secret_key
@@ -92,7 +142,19 @@ def verify_password(
 
 
 def get_dummy_password_hash() -> str:
-    """Return a valid hash for timing-safe dummy verification."""
+    """
+    Return a pre-computed hash for constant-time dummy verification.
+
+    Used in the login endpoint when the requested username does not exist:
+    calling :func:`verify_password` against this hash ensures the response
+    time is indistinguishable from a real failed login, preventing
+    username-enumeration via timing attacks.
+
+    The hash is generated once and cached for the lifetime of the process.
+
+    Returns:
+        A valid bcrypt hash of a known dummy string.
+    """
     global _dummy_password_hash
 
     if _dummy_password_hash is None:
