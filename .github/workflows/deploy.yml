@@ -32,7 +32,7 @@ jobs:
             -H "Authorization: Bearer ${{ env.RENDER_API_KEY }}" \
             -H "Accept: application/json")"
 
-          current_deploy_id="$(echo "$current_deploy_response" | jq -r '.deploys[0].id // .[0].id // empty')"
+          current_deploy_id="$(echo "$current_deploy_response" | jq -r 'if type == "array" then .[0].id // empty else .deploys[0].id // .[0].id // empty end')"
           echo "PREVIOUS_RENDER_DEPLOY_ID=$current_deploy_id" >> "$GITHUB_ENV"
           echo "Current deploy before trigger: ${current_deploy_id:-<none>}"
 
@@ -109,8 +109,8 @@ jobs:
               -H "Authorization: Bearer ${{ env.RENDER_API_KEY }}" \
               -H "Accept: application/json")"
 
-            deploy_id="$(echo "$deploys_response" | jq -r '.deploys[0].id // .[0].id // empty')"
-            deploy_commit="$(echo "$deploys_response" | jq -r '.deploys[0].commit.id // .deploys[0].commitId // .[0].commit.id // .[0].commitId // empty')"
+            deploy_id="$(echo "$deploys_response" | jq -r 'if type == "array" then .[0].id // empty else .deploys[0].id // .[0].id // empty end')"
+            deploy_commit="$(echo "$deploys_response" | jq -r 'if type == "array" then .[0].commit.id // .[0].commitId // empty else .deploys[0].commit.id // .deploys[0].commitId // .[0].commit.id // .[0].commitId // empty end')"
 
             if [ -n "$deploy_id" ] && [ "$deploy_id" != "${PREVIOUS_RENDER_DEPLOY_ID:-}" ]; then
               echo "RENDER_DEPLOY_ID=$deploy_id" >> "$GITHUB_ENV"
