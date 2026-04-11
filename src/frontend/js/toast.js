@@ -1,6 +1,20 @@
 /**
  * Toast Notification System
- * Provides unobtrusive, auto-dismissing notifications.
+ *
+ * Provides auto-dismissing, stackable notification toasts rendered in the
+ * top-right corner of the viewport.  Toasts slide in from the right and
+ * fade out after a configurable duration (or on click).
+ *
+ * Quick start
+ * -----------
+ * ```js
+ * Toast.success('Account created!');
+ * Toast.error('Invalid password', 6000);
+ * Toast.info('Loading…');
+ * Toast.warning('Rate limit approaching.');
+ * ```
+ *
+ * @module toast
  */
 const Toast = {
     container: null,

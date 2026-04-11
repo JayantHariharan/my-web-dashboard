@@ -4,68 +4,333 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tic-Tac-Toe Crystal | PlayNexus</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;600;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="../css/crystal-portal.css">
+    <link rel="stylesheet" href="../css/site-chrome.css">
     <style>
-        .game-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            width: 350px;
-            margin: 50px auto;
+        :root {
+            --cell-size: 120px;
+            --grid-gap: 15px;
+            --neon-shadow: 0 0 20px rgba(187, 134, 252, 0.4);
         }
+
+        .game-wrapper {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 5%;
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 60px;
+            align-items: center;
+        }
+
+        /* 🟦 Game Arena */
+        .arena {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .board-container {
+            position: relative;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            padding: 30px;
+            border-radius: 30px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 30px 60px rgba(0,0,0,0.5);
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, var(--cell-size));
+            grid-template-rows: repeat(3, var(--cell-size));
+            gap: var(--grid-gap);
+        }
+
         .cell {
-            aspect-ratio: 1;
-            background: rgba(255,255,255,0.05);
-            border: 1px solid var(--crystal-border);
-            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 2.5rem;
-            font-weight: 800;
-            cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-size: 3.5rem;
+            position: relative;
+            overflow: hidden;
         }
-        .cell:hover { background: rgba(255,255,255,0.1); border-color: var(--nexus-cyan); }
+
+        .cell:hover {
+            background: rgba(255, 255, 255, 0.06);
+            transform: scale(1.05);
+            border-color: var(--nexus-purple);
+            box-shadow: var(--neon-shadow);
+        }
+
+        .cell.occupied {
+            cursor: default;
+            transform: none !important;
+        }
+
+        /* 🎇 X and O Aesthetics */
+        .symbol-x {
+            color: var(--nexus-cyan);
+            text-shadow: 0 0 20px rgba(6, 182, 212, 0.8), 0 0 40px rgba(6, 182, 212, 0.4);
+            filter: drop-shadow(0 0 5px var(--nexus-cyan));
+            animation: symbol-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        .symbol-o {
+            color: var(--nexus-purple);
+            text-shadow: 0 0 20px rgba(187, 134, 252, 0.8), 0 0 40px rgba(187, 134, 252, 0.4);
+            filter: drop-shadow(0 0 5px var(--nexus-purple));
+            animation: symbol-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        @keyframes symbol-pop {
+            0% { transform: scale(0) rotate(-180deg); opacity: 0; }
+            80% { transform: scale(1.1) rotate(10deg); }
+            100% { transform: scale(1) rotate(0); opacity: 1; }
+        }
+
+        /* 🧠 AI Thinking Bar */
+        .thinking-bar {
+            height: 4px;
+            width: 0;
+            background: linear-gradient(90deg, var(--nexus-purple), var(--nexus-cyan));
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px var(--nexus-cyan);
+        }
+
+        .shake {
+            animation: haptic-shake 0.3s ease-in-out;
+        }
+
+        @keyframes haptic-shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            50% { transform: translateX(5px); }
+            75% { transform: translateX(-5px); }
+        }
+
+        /* 📊 Sidebar Info */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .info-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 20px;
+            padding: 25px;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-pill {
+            display: inline-block;
+            padding: 6px 15px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: var(--nexus-cyan);
+            color: #000;
+            margin-bottom: 10px;
+        }
+
+        .player-vs {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        .player-node {
+            text-align: center;
+            flex: 1;
+        }
+
+        .player-node .avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            border: 2px solid rgba(255,255,255,0.1);
+            background-size: cover;
+            background-position: center;
+        }
+
+        .player-node.active .avatar {
+            border-color: var(--nexus-purple);
+            box-shadow: 0 0 15px var(--nexus-purple);
+        }
+
+        .match-score {
+            font-family: 'Outfit';
+            font-size: 2rem;
+            font-weight: 800;
+            opacity: 0.3;
+        }
+
+        /* 🏆 Leaderboard Preview */
+        .leaderboard-mini {
+            list-style: none;
+            padding: 0;
+            margin: 15px 0 0;
+        }
+
+        .leaderboard-mini li {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.9rem;
+        }
+
+        /* 🔘 Buttons */
+        .btn-nexus {
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            border: none;
+            font-family: 'Outfit';
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+        }
+
+        .btn-nexus:hover {
+            background: var(--nexus-purple);
+            box-shadow: 0 10px 30px rgba(187, 134, 252, 0.3);
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 900px) {
+            .game-wrapper { grid-template-columns: 1fr; }
+            :root { --cell-size: 90px; }
+        }
+
+        @media (max-width: 450px) {
+            :root { 
+                --cell-size: clamp(70px, 20vw, 85px);
+                --grid-gap: 8px;
+            }
+            .game-wrapper {
+                padding: 20px 3%;
+                gap: 30px;
+            }
+            .board-container {
+                padding: 15px;
+                border-radius: 20px;
+            }
+            #match-title {
+                font-size: 1.8rem;
+                margin-bottom: 20px;
+            }
+        }
     </style>
 </head>
-<body class="dark-theme" style="overflow: auto; padding-top: 100px;">
+<body class="dark-theme site-with-chrome" data-root-prefix=".." data-chrome-active="games" data-chrome-pill="🎮 Tic-Tac-Toe">
 
-    <!-- 🚀 CRYSTAL HUD -->
-    <header style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 25px 5%; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.8); backdrop-filter: blur(20px); border-bottom: 1px solid var(--crystal-border);">
-        <div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="location.href='games.html'">
-            <div style="font-size: 1.5rem; color: #fff;">←</div>
-            <div style="font-family: 'Outfit'; font-weight: 800; font-size: 1.2rem; letter-spacing: 2px;">Back to Library</div>
-        </div>
-        <div style="font-weight: bold; background: rgba(0,0,0,0.5); padding: 5px 25px; border-radius: 40px; border: 1px solid var(--nexus-purple); font-family: 'Outfit'; letter-spacing: 2px;">
-            Tic-Tac-Toe Crystal
-        </div>
-    </header>
+    <div id="site-chrome-header"></div>
 
-    <main class="hub-row" style="text-align: center; max-width: 1200px; margin: 0 auto;">
-        <h1 class="row-title">Tic-Tac-Toe Crystal</h1>
-        <p style="color: #aaa; margin-bottom: 40px;">Challenge the Nexus Agent AI</p>
+    <main class="game-wrapper">
+        
+        <!-- 🕹️ The Grid -->
+        <section class="arena">
+            <div id="game-status-label" class="status-pill" style="opacity: 0;">WAITING FOR PLAYER</div>
+            <h1 id="match-title" style="margin-bottom: 30px; font-weight: 900; font-size: 2.5rem; letter-spacing: -1px;">TIC-TAC-TOE <span style="color: var(--nexus-purple);">CRYSTAL</span></h1>
+            
+            <div class="board-container">
+                <div class="thinking-bar" id="thinking-bar"></div>
+                <div class="board" id="game-board">
+                    <!-- 9 Cells generated by JS -->
+                    <div class="cell" data-index="0"></div>
+                    <div class="cell" data-index="1"></div>
+                    <div class="cell" data-index="2"></div>
+                    <div class="cell" data-index="3"></div>
+                    <div class="cell" data-index="4"></div>
+                    <div class="cell" data-index="5"></div>
+                    <div class="cell" data-index="6"></div>
+                    <div class="cell" data-index="7"></div>
+                    <div class="cell" data-index="8"></div>
+                </div>
+            </div>
 
-        <div class="game-grid">
-            <div class="cell" id="c0"></div>
-            <div class="cell" id="c1"></div>
-            <div class="cell" id="c2"></div>
-            <div class="cell" id="c3"></div>
-            <div class="cell" id="c4"></div>
-            <div class="cell" id="c5"></div>
-            <div class="cell" id="c6"></div>
-            <div class="cell" id="c7"></div>
-            <div class="cell" id="c8"></div>
-        </div>
+            <div style="margin-top: 40px; text-align: center;">
+                <p id="turn-indicator" style="color: rgba(255,255,255,0.4); font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 2px;">X'S TURN TO STRIKE</p>
+            </div>
+        </section>
 
-        <div id="game-status" style="font-size: 1.2rem; margin-top: 30px; font-weight: bold; color: var(--nexus-purple);">
-            Select a cell to begin
-        </div>
+        <!-- 📊 Stats & Meta -->
+        <aside class="sidebar">
+            
+            <!-- Match Details -->
+            <div class="info-card">
+                <div style="font-size: 0.7rem; color: #888; font-weight: 800; text-transform: uppercase;">Current Match</div>
+                <div class="player-vs">
+                    <div class="player-node active" id="player-p1">
+                        <div class="avatar" style="background-image: url('../assets/avatar-placeholder.png')"></div>
+                        <div style="font-size: 0.8rem; font-weight: 800;" id="p1-name">YOU</div>
+                        <div style="font-size: 0.6rem; color: var(--nexus-cyan);">PIECE: X</div>
+                    </div>
+                    
+                    <div class="match-score">vs</div>
 
-        <button class="nexus-btn-luxe" style="width: auto; margin-top: 40px; padding: 15px 40px; border-radius: 12px; font-size: 0.9rem;" onclick="location.reload()">Reset Arena</button>
+                    <div class="player-node" id="player-p2">
+                        <div class="avatar" style="background-image: url('../assets/nexus-ai-avatar.png')"></div>
+                        <div style="font-size: 0.8rem; font-weight: 800;" id="p2-name">NEXUS AGENT</div>
+                        <div style="font-size: 0.6rem; color: var(--nexus-purple);">PIECE: O</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Join/Group Info -->
+            <div class="info-card" id="multiplayer-info" style="display: none;">
+                <div style="font-size: 0.7rem; color: #888; font-weight: 800; text-transform: uppercase; margin-bottom: 10px;">Transmit Join Code</div>
+                <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 10px; text-align: center;">
+                    <span id="game-join-code" style="font-family: monospace; font-size: 1.5rem; color: var(--nexus-cyan); letter-spacing: 5px; font-weight: 800;">------</span>
+                </div>
+                <p style="font-size: 0.7rem; color: #555; margin-top: 10px;">Send this code to your partner to bridge the connection.</p>
+            </div>
+
+            <!-- Mini Leaderboard -->
+            <div class="info-card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 0.7rem; color: #888; font-weight: 800; text-transform: uppercase;">Global Nexus Rating</div>
+                    <div style="font-size: 0.6rem; color: var(--nexus-cyan); cursor: pointer;">FULL RANKINGS</div>
+                </div>
+                <ul class="leaderboard-mini" id="leaderboard-list">
+                    <li><span>1. Agent Alpha</span> <span>2400 ELO</span></li>
+                    <li><span>2. CyberGhost</span> <span>2150 ELO</span></li>
+                    <li><span>3. NexusOne</span> <span>1980 ELO</span></li>
+                </ul>
+            </div>
+
+            <button class="btn-nexus" onclick="location.reload()">Reset Arena</button>
+            <button class="btn-nexus" style="background: rgba(255, 68, 68, 0.1); color: #ff4444;" onclick="location.href='games.html'">Quit Match</button>
+        </aside>
+
     </main>
 
+    <div id="site-chrome-footer"></div>
+
+    <script src="../js/site-chrome.js"></script>
+    <script src="../js/toast.js"></script>
+    <script src="../js/tic-tac-toe.js"></script>
 </body>
 </html>

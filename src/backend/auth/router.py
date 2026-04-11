@@ -1,6 +1,17 @@
 """
 Authentication API router.
-Handles user login, signup, and session management.
+
+Exposes the following endpoints under the ``/api/auth`` prefix:
+
+- ``POST /login``    – Authenticate an existing user.
+- ``POST /signup``   – Register a new user account.
+- ``GET  /me``       – Return the current user's profile (demo; no JWT yet).
+- ``DELETE /account`` – Permanently delete an account after credential confirmation.
+
+All endpoints apply the IP-based rate limiter (20 requests / hour) configured
+in :mod:`backend.core.middlewares`.  Client IP addresses are extracted from
+``X-Forwarded-For`` (Render / reverse-proxy environments) or
+``request.client.host`` as a fallback.
 """
 
 import logging
@@ -8,7 +19,8 @@ from fastapi import APIRouter, Request, HTTPException, status
 from pydantic import BaseModel
 from typing import Optional
 
-from ..shared.database import user_repo
+from ..config import settings
+from ..shared.database import user_repo, activity_repo, awards_repo
 from ..shared.security import get_dummy_password_hash, hash_password, verify_password
 from ..shared.schemas import DeleteAccountData, LoginData, RegisterData, UserResponse
 
@@ -150,6 +162,12 @@ async def signup(register_data: RegisterData, request: Request):
     - `429 Too Many Requests`: Rate limit exceeded
     - `500 Internal Server Error`: Database or hashing error
     """
+    if not settings.registration_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Registration is currently disabled",
+        )
+
     username = register_data.username
     password = register_data.password
     client_ip = get_client_ip(request)
@@ -187,10 +205,12 @@ async def signup(register_data: RegisterData, request: Request):
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(username: Optional[str] = None):
     """
-    Get current user profile.
+    Return the current user's profile.
 
-    ## Authentication
-    Currently uses simple username from session (future: JWT token).
+    .. warning::
+        This endpoint is a **temporary demo** that accepts the username as a
+        plain query parameter.  There is no authentication token involved.
+        It will be replaced with proper JWT bearer-token authentication.
 
     ## Response Example
     ```json
@@ -204,7 +224,7 @@ async def get_current_user(username: Optional[str] = None):
     ```
 
     ## Error Responses
-    - `401 Unauthorized`: Not logged in
+    - `401 Unauthorized`: No username provided
     - `404 Not Found`: User not found
     """
     # Note: Implement proper JWT authentication
@@ -221,6 +241,20 @@ async def get_current_user(username: Optional[str] = None):
         )
 
     return UserResponse(**user)
+
+
+@router.get("/me/activity")
+async def get_my_activity(user_id: int):
+    """Get recent activity for the current user."""
+    return activity_repo.get_recent(user_id)
+
+
+@router.get("/me/awards")
+async def get_my_awards(user_id: int):
+    """Get trophies and achievements for the current user."""
+    # Seed a "First Strike" award if not any exist for demo
+    awards_repo.award_if_not_exists(user_id, "Nexus Initiate", "bronze", "🥉", "Enter the Nexus for the first time.")
+    return awards_repo.get_by_user(user_id)
 
 
 @router.delete("/account", response_model=AuthSuccess)
@@ -264,7 +298,20 @@ async def delete_account(delete_data: DeleteAccountData, request: Request):
 
 
 def get_client_ip(request: Request) -> str:
-    """Extract client IP address from request."""
+    """
+    Extract the real client IP from the request.
+
+    Checks ``X-Forwarded-For`` first (populated by Render's reverse proxy and
+    other load balancers) and falls back to ``request.client.host`` for direct
+    connections (local dev).  Returns ``"unknown"`` only when no IP can be
+    determined at all.
+
+    Args:
+        request: The incoming FastAPI / Starlette request object.
+
+    Returns:
+        A string containing the client's IPv4 or IPv6 address.
+    """
     x_forwarded_for = request.headers.get("X-Forwarded-For")
     if x_forwarded_for:
         return x_forwarded_for.split(",")[0].strip()

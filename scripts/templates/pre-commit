@@ -147,47 +147,15 @@ else
     echo -e "${GREEN}[PASS] (no workflow changes)${NC}"
 fi
 
-# 6. Update documentation timestamps
-echo -n "  Updating doc timestamps... "
-python - <<'PY' 2>/dev/null
-import datetime, re, sys
-date_str = datetime.date.today().strftime('%Y-%m-%d')
-files = ['docs/DEVELOPER.md', 'docs/ARCHITECTURE.md', 'docs/FLYWAY.md', 'docs/MIGRATIONS.md', 'docs/TROUBLESHOOTING.md']
-updated = []
-for path in files:
-    try:
-        with open(path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        if re.search(r'## Last Updated\s+\d{4}-\d{2}-\d{2}', content):
-            new_content = re.sub(
-                r'(## Last Updated\s+)\d{4}-\d{2}-\d{2}',
-                r'\1' + date_str,
-                content
-            )
-        elif re.search(r'Last (?:updated|Updated):\s+\d{4}-\d{2}-\d{2}', content):
-            new_content = re.sub(
-                r'(Last\s+(?:updated|Updated):\s+)\d{4}-\d{2}-\d{2}',
-                r'\1' + date_str,
-                content
-            )
-        else:
-            new_content = content
-        if new_content != content:
-            with open(path, 'w', encoding='utf-8') as f:
-                f.write(new_content)
-            updated.append(path)
-    except: pass
-if updated:
-    print(f"    Updated: {', '.join(updated)}")
-    print("    Please 'git add' these updated docs.")
-PY
-echo -e "${GREEN}[PASS]${NC}"
+# 6. README only (project docs consolidated); optional: bump *Last updated* in README manually
+echo -n "  Documentation... "
+echo -e "${GREEN}[SKIP]${NC}"
 
 # Summary
 echo ""
 if [ $FAIL -eq 0 ]; then
     echo -e "${GREEN}[PASS] All pre-commit checks passed!${NC}"
-    echo "   [PASS] Python syntax, secrets, TODOs, workflow validation, doc timestamps"
+    echo "   [PASS] Python syntax, secrets, TODOs, workflow validation"
     exit 0
 else
     echo ""

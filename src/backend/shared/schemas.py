@@ -1,5 +1,28 @@
-"""Shared Pydantic models for the current PlayNexus backend."""
+"""
+Pydantic request and response models for the PlayNexus backend.
 
+Model hierarchy
+---------------
+::
+
+    BaseModel
+    ├── BaseResponse          – generic success envelope (not actively used in auth).
+    ├── ErrorResponse         – standard ``{"detail": ..., "code": ...}`` error shape.
+    ├── UserBase
+    │   └── UserResponse          – safe user data returned by GET endpoints.
+    ├── LoginData             – login request body; validates username format.
+    │   └── RegisterData          – signup body; adds password confirmation & length.
+    ├── DeleteAccountData     – account-deletion request with optional username confirmation.
+    ├── UserProfileUpdate     – partial profile update (all fields optional).
+    └── UserProfileResponse   – full profile data shape.
+
+Username rules (enforced by :class:`LoginData`):
+- 3 – 100 characters.
+- Allowed characters: ``A-Z a-z 0-9 _ -`` only.
+- Must contain at least one letter (no all-numeric or all-symbol names).
+"""
+
+import re
 from datetime import datetime
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field, field_validator
@@ -31,7 +54,12 @@ class UserBase(BaseModel):
 
 
 class UserResponse(UserBase):
-    """User data returned in API responses (no sensitive info)."""
+    """
+    Public user data returned by the ``GET /api/auth/me`` endpoint.
+
+    Sensitive fields (password hash, IPs) are **never** included.
+    ``profile`` is ``None`` until a profile row exists in ``user_profiles``.
+    """
 
     id: int
     created_at: datetime
@@ -39,11 +67,18 @@ class UserResponse(UserBase):
     profile: Optional[Dict[str, Any]] = None
 
     class Config:
-        from_attributes = True  # Enable ORM mode (for SQLAlchemy later, now for dict)
+        from_attributes = True  # Allow construction from ORM objects / dicts
 
 
 class LoginData(BaseModel):
-    """Login request model."""
+    """
+    Login request body.
+
+    Validates the username against the allowed character set and minimum length
+    before passing it to the authentication service.  The password field is
+    only stripped of surrounding whitespace (no minimum length on login so that
+    users who registered with the old validation can still sign in).
+    """
 
     username: str = Field(
         ...,
@@ -66,6 +101,12 @@ class LoginData(BaseModel):
         v = v.strip()
         if not v:
             raise ValueError("Username cannot be empty")
+        if len(v) < 3:
+            raise ValueError("Username must be at least 3 characters")
+        if not re.fullmatch(r"[a-zA-Z0-9_-]+", v):
+            raise ValueError(
+                "Username may only contain letters, numbers, underscores, and hyphens"
+            )
         if not any(c.isalpha() for c in v):
             raise ValueError("Username must contain at least one letter")
         return v
@@ -73,11 +114,22 @@ class LoginData(BaseModel):
     @field_validator("password")
     @classmethod
     def validate_password(cls, v: str) -> str:
-        return v.strip()
+        v = v.strip()
+        if not v:
+            raise ValueError("Password cannot be empty")
+        return v
 
 
 class RegisterData(LoginData):
-    """Registration request model."""
+    """
+    Signup request body.  Extends :class:`LoginData` with:
+
+    - A stricter 8-character minimum on ``password``.
+    - A ``confirm_password`` field that must exactly match ``password``.
+
+    Validators run in field declaration order; ``password`` is validated
+    before ``confirm_password``.
+    """
 
     password: str = Field(
         ...,
@@ -91,6 +143,16 @@ class RegisterData(LoginData):
         examples=["SecurePass123!", "MyP@ssw0rd2024", "GameTime2024"],
     )
 
+    @field_validator("password")
+    @classmethod
+    def validate_signup_password(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("Password cannot be empty")
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters")
+        return v
+
     @field_validator("confirm_password")
     @classmethod
     def validate_confirm_password(cls, v: str, info) -> str:
@@ -101,7 +163,15 @@ class RegisterData(LoginData):
 
 
 class DeleteAccountData(BaseModel):
-    """Delete-account request model."""
+    """
+    Account-deletion request body.
+
+    Requires the user to re-enter their ``username`` and ``password`` for
+    confirmation (no bearer token is used in the current session model).
+    The optional ``confirm_username`` is a second username field that, when
+    provided, must exactly match ``username`` — useful for a typed
+    confirmation UX pattern.
+    """
 
     username: str = Field(..., min_length=1, max_length=100)
     password: str = Field(..., min_length=1, max_length=100)
@@ -136,7 +206,11 @@ class DeleteAccountData(BaseModel):
 
 
 class UserProfileUpdate(BaseModel):
-    """Update user profile."""
+    """
+    Partial profile update payload.  All fields are optional; only
+    provided fields will be persisted.  ``preferences`` accepts any
+    JSON-serialisable dict (stored as TEXT in the database).
+    """
 
     display_name: Optional[str] = Field(None, max_length=100)
     bio: Optional[str] = Field(None, max_length=500)
@@ -144,7 +218,7 @@ class UserProfileUpdate(BaseModel):
 
 
 class UserProfileResponse(BaseModel):
-    """User profile data."""
+    """Full user-profile data returned by profile endpoints."""
 
     user_id: int
     username: str

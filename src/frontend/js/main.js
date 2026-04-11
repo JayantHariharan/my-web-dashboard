@@ -1,11 +1,62 @@
 /**
- * PlayNexus Crystal Portal - Main Logic & Physics
- * 
- * Features:
- * 1. Matter.js Physics (Google Antigravity)
- * 2. Navigation & Hub Interactions
+ * PlayNexus Crystal Portal – Main Logic & Physics
+ *
+ * Matter.js is lazy-loaded **only** when the signed-in hub activates
+ * physics, so the auth portal stays lightweight on first paint
+ * (important for free-tier cold starts on Render).
+ *
+ * @module main
  */
 
+const MATTER_CDN =
+    "https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js";
+
+/**
+ * Dynamically load Matter.js from the CDN if it has not already been imported.
+ *
+ * The function is idempotent: if Matter.js is already available (e.g. loaded
+ * by a previous call) it resolves immediately without touching the DOM.
+ *
+ * @returns {Promise<void>} Resolves when Matter.js is ready, rejects on load error.
+ */
+function loadMatterScript() {
+    return new Promise((resolve, reject) => {
+        if (typeof Matter !== "undefined") {
+            resolve();
+            return;
+        }
+        const existing = document.querySelector('script[data-playnexus="matter"]');
+        if (existing) {
+            existing.addEventListener("load", () => resolve());
+            existing.addEventListener("error", () =>
+                reject(new Error("Matter.js load failed"))
+            );
+            return;
+        }
+        const s = document.createElement("script");
+        s.src = MATTER_CDN;
+        s.async = true;
+        s.dataset.playnexus = "matter";
+        s.onload = () => resolve();
+        s.onerror = () => reject(new Error("Matter.js load failed"));
+        document.head.appendChild(s);
+    });
+}
+
+/**
+ * Singleton controller for the Matter.js physics simulation.
+ *
+ * Physics is deliberately deferred until the user reaches the signed-in hub,
+ * so the unauthenticated auth portal incurs zero physics overhead.
+ *
+ * Public API
+ * ----------
+ * - {@link PlayNexus.init}                 – bind DOM events (called on script load).
+ * - {@link PlayNexus.startPhysics}          – load Matter.js & start the simulation.
+ * - {@link PlayNexus.stopPhysics}           – pause the simulation (e.g. on tab hide).
+ * - {@link PlayNexus.toggleGravity}         – flip gravity on/off.
+ * - {@link PlayNexus.addPhysicsToElement}   – attach a DOM element to the world.
+ */
 const PlayNexus = {
     engine: null,
     render: null,
@@ -14,14 +65,18 @@ const PlayNexus = {
     isGravityOn: true,
     isActive: false, // Track if physics is actively running
     animationFrameId: null,
+    matterLoadAttempted: false,
 
     init() {
-        console.log("💎 PlayNexus Crystal Hub Initialized");
-        this.setupPhysics();
+        console.log("💎 PlayNexus Crystal Hub Initialized (physics deferred)");
         this.bindEvents();
     },
 
     setupPhysics() {
+        if (typeof Matter === "undefined") {
+            console.warn("Matter.js not available; physics disabled");
+            return;
+        }
         const { Engine, Render, Runner, Bodies, Composite } = Matter;
 
         this.engine = Engine.create();
@@ -59,25 +114,43 @@ const PlayNexus = {
     },
 
     /**
-     * Start the physics simulation (call when hub is active)
+     * Start the physics simulation (call when hub is active).
+     * Loads Matter.js from CDN on first use.
      */
-    startPhysics() {
-        if (this.isActive) return; // Already running
+    async startPhysics() {
+        if (this.isActive) return;
+
+        try {
+            await loadMatterScript();
+        } catch (e) {
+            console.warn("Skipping hub physics:", e && e.message);
+            return;
+        }
+
+        if (!this.engine) {
+            this.setupPhysics();
+        }
+        if (!this.engine) return;
 
         this.isActive = true;
-        this.runner = Runner.create();
-        Runner.run(this.runner, this.engine);
+        this.runner = Matter.Runner.create();
+        Matter.Runner.run(this.runner, this.engine);
         console.log("🎮 Physics engine started");
     },
 
     /**
-     * Stop the physics simulation to save CPU (call when leaving hub)
+     * Stop the physics simulation to free CPU (e.g. when leaving the hub
+     * or when the page becomes hidden).
+     *
+     * Bug fix: the original code called the bare `Runner.stop()` which throws
+     * a ReferenceError because `Runner` is only destructured inside
+     * `setupPhysics()`.  The correct call is `Matter.Runner.stop()`.
      */
     stopPhysics() {
         if (!this.isActive) return;
 
         if (this.runner) {
-            Runner.stop(this.runner);
+            Matter.Runner.stop(this.runner); // Fix: was `Runner.stop()` – ReferenceError
             this.runner = null;
         }
         this.isActive = false;
@@ -168,10 +241,13 @@ const PlayNexus = {
         });
 
         // Reduce physics when tab is not visible
-        document.addEventListener('visibilitychange', () => {
+        document.addEventListener("visibilitychange", () => {
             if (document.hidden) {
                 this.stopPhysics();
-            } else if (document.querySelector('.crystal-card')) {
+                return;
+            }
+            const hub = document.getElementById("master-hub-container");
+            if (hub && !hub.classList.contains("hidden")) {
                 this.startPhysics();
             }
         });

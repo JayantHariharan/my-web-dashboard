@@ -1,123 +1,176 @@
 # PlayNexus
 
-PlayNexus is currently in an auth-first phase: a FastAPI backend serves a static frontend, and the active product work is centered on account flows before the broader app hub expands.
+Auth-first web app: **FastAPI** serves JSON auth APIs and static files from `src/frontend/`. After login, the hub links **Games**, **Apps**, **Community**, and **About**. Tuned for **Render** + **Supabase (PostgreSQL)** on small plans.
 
-## Current Scope
+## Tech stack
 
-- Login
-- Signup
-- Delete account
-- Basic profile lookup
-- Static frontend served by the backend
-- SQLite for local development, PostgreSQL for deployment
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.12+, FastAPI |
+| Frontend | HTML, CSS, vanilla JS (Crystal Portal CSS, Sound Engine API) |
+| Database | SQLite/PostgreSQL with Flyway Migrations |
+| AI Agent | Minimax + Alpha-Beta Pruning (Nexus Agent Alpha) |
+| Security | Adaptive bcrypt + pepper, security headers, rate limiting |
 
-## Tech Stack
+## API (quick reference)
 
-- Backend: FastAPI, Python 3.12
-- Frontend: HTML, CSS, vanilla JavaScript
-- Database: SQLite locally, PostgreSQL in hosted environments
-- Security: adaptive password hashing plus `SECRET_KEY`-based peppering, request IDs, security headers, auth rate limiting
-- Deployment: Render + GitHub Actions
+| Method | Path | Notes |
+|--------|------|--------|
+| `POST` | `/api/auth/login` | Body: `username`, `password` |
+| `POST` | `/api/auth/signup` | Body: `username`, `password`, `confirm_password` |
+| `GET` | `/api/auth/me?username=…` | Temporary demo; JWT token auth is on the roadmap |
+| `DELETE` | `/api/auth/account` | Body: `username`, `password`, optional `confirm_username` |
+| `GET` | `/health` | Database connectivity ping |
+| `GET` | `/docs` | OpenAPI Swagger UI (when server is running) |
 
-## Current API
-
-- `POST /api/auth/login`
-- `POST /api/auth/signup`
-- `GET /api/auth/me?username=<name>`
-- `DELETE /api/auth/account`
-- `GET /health`
-
-## Local Development
-
-### Prerequisites
-
-- Python 3.12+
-- Git
-- Node.js only if you want to run the Playwright smoke test
-
-### Start the app
+## Local run
 
 ```bash
 pip install -r requirements.txt
-python src/backend/main.py
+python -m uvicorn src.backend.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-Open `http://localhost:8000`.
+Open `http://127.0.0.1:8000` in any modern browser.
 
-The backend serves the frontend directly from `src/frontend/`.
+| Page | Access |
+|------|--------|
+| `/` | Sign-in + hub (public) |
+| `/about/about.html` | Public |
+| `/games/games.html` | Redirects to `/` if not signed in |
+| `/community/community.html` | Redirects to `/` if not signed in |
 
-### Environment notes
-
-- Local development can run with the default SQLite database and a local `.env` file if you want one.
-- Render should provide environment variables directly to the backend process.
-- Keep `SECRET_KEY` set on Render for both test and production.
-- Do not remove or rotate `SECRET_KEY` casually: it is part of the current password hashing flow, so changing it can break login and delete-account verification for existing users.
-
-### Optional frontend-only static server
+**Static-only preview** (API calls will fail without a running backend):
 
 ```bash
-cd src/frontend
-python -m http.server 3000
+cd src/frontend && python -m http.server 3000
 ```
 
-### Quick API checks
+## Environment variables
 
-```bash
-curl -X POST http://localhost:8000/api/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{"username":"testuser","password":"Test1234","confirm_password":"Test1234"}'
+| Variable | Purpose |
+|----------|---------|
+| `DATABASE_URL` | PostgreSQL connection string (e.g. Supabase). Falls back to individual `PG*` vars, then SQLite. |
+| `SECRET_KEY` | **Required in production.** Do **not** rotate casually — existing password hashes depend on it. |
+| `DEBUG` | `true` / `1` enables dev CORS origins and debug-level logging. |
+| `CORS_ORIGINS` | Comma-separated origins; overrides the environment-specific default list in `core/app.py`. |
+| `REGISTRATION_ENABLED` | Set to `false` to disable new signups (`403` on `/api/auth/signup`). |
+| `ENV` / `APP_ENV` | `prod`/`production` → `_prod` table suffix; `test`/`dev`/`staging` → `_test`; unset → default (no suffix). |
 
-curl -X POST http://localhost:8000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"testuser","password":"Test1234"}'
-
-curl "http://localhost:8000/api/auth/me?username=testuser"
-
-curl -X DELETE http://localhost:8000/api/auth/account \
-  -H "Content-Type: application/json" \
-  -d '{"username":"testuser","password":"Test1234"}'
-```
-
-## Project Layout
+## Project layout
 
 ```text
 my-web-dashboard/
-|-- src/
-|   |-- backend/
-|   |   |-- auth/            # Auth endpoints
-|   |   |-- core/            # App factory and middleware
-|   |   |-- shared/          # Database, security, schemas
-|   |   `-- main.py          # Entry point
-|   `-- frontend/            # Static site assets and pages
-|-- docs/                    # Project documentation
-|-- flyway/sql/              # SQL migrations
-|-- scripts/                 # Migration and quality scripts
-|-- tests/                   # Smoke test
-|-- README.md
-`-- requirements.txt
+├── src/
+│   ├── backend/
+│   │   ├── auth/           # router.py – /api/auth/* endpoints
+│   │   ├── core/           # app.py (factory), middlewares.py
+│   │   ├── shared/         # database.py, schemas.py, security.py
+│   │   ├── config.py       # Settings dataclass (reads env vars)
+│   │   ├── log_config.py   # Console + rotating-file logging setup
+│   │   └── main.py         # Entry point: lifespan, router, static mount
+│   └── frontend/
+│       ├── index.html      # Auth portal + signed-in hub (single page)
+│       ├── css/            # style.css, crystal-portal.css, site-chrome.css
+│       ├── js/             # main.js, cinematic-startup.js, site-chrome.js, toast.js
+│       ├── assets/         # SVG covers, logo
+│       ├── about/          # about.html
+│       ├── games/          # games.html, tic-tac-toe.html
+│       └── community/      # community.html
+├── flyway/sql/             # Versioned SQL migrations (V1__initial_schema.sql, etc.)
+├── scripts/                # migrate.py, run-quality-checks.sh, install-hooks.*
+├── tests/                  # smoke.test.js (Playwright; run by deploy workflow)
+├── data/                   # SQLite database (local dev only; git-ignored)
+├── requirements.txt
+└── README.md
 ```
 
-## Documentation
+## Application lifecycle
 
-- `docs/DEVELOPER.md`: day-to-day workflow and coding guidance
-- `docs/ARCHITECTURE.md`: current runtime design
-- `docs/FLYWAY.md`: migration runner usage
-- `docs/MIGRATIONS.md`: migration philosophy
-- `docs/TROUBLESHOOTING.md`: debugging help
+The backend uses FastAPI's **`lifespan` context manager** (introduced in FastAPI 0.93 / Starlette 0.27) instead of the deprecated `@app.on_event("startup")` / `@app.on_event("shutdown")` hooks.
 
-## Product Direction
+Startup sequence (runs before the server accepts requests):
 
-The current priority is to keep authentication stable, clean, and easy to extend:
+1. Log the active environment and database type.
+2. Bootstrap the local SQLite schema from `flyway/sql/V1__initial_schema.sql` if needed.
+3. Migrate any plain-text passwords to bcrypt (idempotent; no-op when all are already hashed).
 
-- Keep the login, signup, and delete-account flows production-ready
-- Keep the backend small and easy to reason about
-- Remove stale multi-app assumptions from code and docs
+Shutdown sequence:
 
-After the auth foundation is stable, PlayNexus can grow back into a larger app hub with games and additional experiences.
+- Emit a graceful shutdown log line.
 
-## Notes
+## Database migrations
 
-- The frontend currently keeps the active username in `sessionStorage`.
-- `GET /api/auth/me` is still a simple username-based lookup, not full token auth yet.
-- Passwords are combined with `SECRET_KEY` and hashed with adaptive password schemes, using `bcrypt_sha256` when available or `pbkdf2_sha256` as a fallback.
-- The static `docs/API-REFERENCE.html` file may lag behind the code and should be treated as secondary to the source code and the docs above.
+- SQL lives in `flyway/sql/`.
+- Local helper: `python scripts/migrate.py` (see `--help`).
+- Hosted: GitHub Action `.github/workflows/flyway-migrate.yml` runs Flyway against the production database on every merge to `main`.
+
+## Deployment workflow
+
+- GitHub Actions deploys from `.github/workflows/deploy.yml`.
+- Pushes to `main` deploy production with `RENDER_SERVICE_ID_PROD`; pushes to `develop` and `feature/**` deploy the shared test environment with `RENDER_SERVICE_ID_TEST`.
+- Shared-service deploys are triggered through Render deploy hooks, which support deploying a specific commit SHA via the `ref` query parameter.
+- The workflow uses `RENDER_DEPLOY_HOOK_PROD` for production and `RENDER_DEPLOY_HOOK_TEST` for `develop` and feature branches, then waits for the new deploy to appear before polling its status.
+- Required GitHub secrets for this workflow are `RENDER_SERVICE_ID_PROD` and `RENDER_SERVICE_ID_TEST`, plus either a shared `RENDER_API_KEY` or environment-specific API key secrets. Deploy-hook secrets are optional but needed for the most reliable feature-branch deploy path.
+- After Render finishes, the workflow polls `${SITE_URL}/health` until the service is ready, then runs the smoke test suite in `tests/smoke.test.js`.
+- If the Render deploy fails or does not become healthy in time, the workflow stops before later verification steps run.
+
+## Git hooks (optional)
+
+Install from the repo root:
+
+```bash
+# macOS / Linux / Git Bash
+./scripts/install-hooks.sh
+
+# Windows PowerShell
+pwsh -File scripts/install-hooks.ps1
+```
+
+Copy `.hooks-config.example.json` and adjust as needed (comments inside the file explain each option). CI runs `scripts/run-quality-checks.sh` on every PR.
+
+## curl examples
+
+```bash
+# Register a new account
+curl -X POST http://127.0.0.1:8000/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"Test1234!","confirm_password":"Test1234!"}'
+
+# Login
+curl -X POST http://127.0.0.1:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"testuser","password":"Test1234!"}'
+
+# Health check
+curl http://127.0.0.1:8000/health
+```
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---------|-----|
+| `ImportError` when running `python src/backend/main.py` | Run from the **repo root** with `python -m uvicorn src.backend.main:app --reload` instead. |
+| CORS errors from a different origin | Set `CORS_ORIGINS` on Render to your exact frontend URL(s). |
+| Auth endpoints always return `429` | Rate limit is 20 requests/hour per IP; wait it out or test from a different network. |
+| `bcrypt` warning in logs | The pure-Python pbkdf2 fallback is active but fully functional. Install `bcrypt` via pip for the preferred hashing backend. |
+| `SECRET_KEY` warning on startup | Set the `SECRET_KEY` environment variable; the default `"change-me-in-production"` causes a hard crash when `ENV=prod`. |
+
+## Security notes
+
+- **`X-Frame-Options: DENY`** – clickjacking protection.
+- **`Strict-Transport-Security`** – applied in production only (requires HTTPS).
+- **`X-Content-Type-Options: nosniff`** – prevents MIME-sniffing attacks.
+- **Constant-time password comparison** – a dummy hash is verified even when the username does not exist, preventing username enumeration via timing.
+- **Logger hygiene** – passwords and sensitive values are never logged; only usernames and IP addresses appear in audit lines.
+
+## Contributing
+
+Open PRs against `main` or `develop`. Run `bash scripts/run-quality-checks.sh` before pushing. Keep changes focused and match the existing code style. Be respectful in issues and PRs.
+
+## Product note
+
+Session state today is **client-side** (`sessionStorage` / `localStorage`). `/api/auth/me` is a plain username lookup, not a JWT validation — token-based authentication is planned once the project outgrows this stage.
+
+---
+
+*Last updated: 2026-04-12*

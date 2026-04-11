@@ -9,6 +9,405 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=Outfit:wght@300;600;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/crystal-portal.css">
+    <link rel="stylesheet" href="css/site-chrome.css">
+    <style>
+        /* 🛠️ Nexus Dashboard Utilities */
+        .hidden { display: none !important; }
+        
+        /* 🌌 Dashboard Atmosphere */
+        #hub-atmosphere {
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: radial-gradient(circle at 20% 30%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+                        radial-gradient(circle at 80% 70%, rgba(168, 85, 247, 0.08) 0%, transparent 50%);
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        /* 🕹️ Action Rail (PS5 Style) */
+        .action-rail-header {
+            margin-bottom: 30px;
+            animation: fadeSlideDown 0.8s ease both;
+        }
+        .action-rail-title {
+            font-family: 'Outfit';
+            font-size: 2.2rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            margin: 0;
+            color: #fff;
+        }
+        .action-rail-subtitle {
+            color: rgba(255,255,255,0.4);
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        .action-rail {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding: 10px 5px 40px;
+            scroll-behavior: smooth;
+        }
+        .action-rail::-webkit-scrollbar { display: none; }
+        
+        .action-card {
+            min-width: 280px;
+            height: 160px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 18px;
+            position: relative;
+            overflow: hidden;
+            flex-shrink: 0;
+            transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1), border-color 0.3s ease;
+            cursor: pointer;
+        }
+        .action-card:hover {
+            transform: scale(1.05) translateY(-5px);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 20px rgba(0, 212, 255, 0.2);
+        }
+        .action-card-bg {
+            position: absolute;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            opacity: 0.5;
+            transition: opacity 0.3s ease;
+        }
+        .action-card:hover .action-card-bg { opacity: 0.8; }
+        .action-card-content {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+        }
+        .action-card-title {
+            font-weight: 800;
+            font-size: 0.85rem;
+            color: #fff;
+            margin-bottom: 4px;
+        }
+        .action-card-meta {
+            font-size: 0.65rem;
+            color: var(--neon-cyan);
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        /* 📊 Intel Grid */
+        .intel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .intel-pane {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 20px;
+            padding: 25px;
+            min-height: 200px;
+        }
+        .glass-surface {
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        
+        /* 🔗 Launcher Chips */
+        .launcher-chip {
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.75rem;
+            font-weight: 700;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .launcher-chip:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(255,255,255,0.2);
+            color: #fff;
+            transform: translateY(-2px);
+        }
+
+        #hub-nav-tabs .hub-tab {
+            font-family: 'Outfit', sans-serif;
+            font-weight: 700;
+            font-size: 0.75rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 10px 20px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: transparent;
+            color: rgba(255, 255, 255, 0.55);
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, color 0.2s;
+        }
+        #hub-nav-tabs .hub-tab-active {
+            background: rgba(187, 134, 252, 0.28) !important;
+            border-color: var(--nexus-purple, #bb86fc) !important;
+            color: #fff !important;
+            box-shadow: 0 0 24px rgba(187, 134, 252, 0.25);
+        }
+        #hub-nav-tabs .hub-tab:not(.hub-tab-active):hover {
+            color: #fff;
+            background: rgba(255, 255, 255, 0.06);
+        }
+        #hub-nav-tabs {
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: min(100%, 560px);
+            row-gap: 8px;
+        }
+        #hub-nav-tabs .hub-tab {
+            padding: 8px 12px;
+            font-size: 0.65rem;
+        }
+        @media (min-width: 720px) {
+            #hub-nav-tabs .hub-tab {
+                padding: 10px 16px;
+                font-size: 0.72rem;
+            }
+        }
+        .hub-app-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 20px;
+            margin-top: 8px;
+        }
+        .hub-lift-card {
+            position: relative;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.04);
+            padding: 22px 22px 20px;
+            font-family: 'Outfit', sans-serif;
+            color: #e8e8f0;
+            transition: transform 0.35s cubic-bezier(0.19, 1, 0.22, 1),
+                box-shadow 0.35s ease, border-color 0.35s ease;
+            animation: hub-rise 0.65s ease backwards;
+        }
+        .hub-lift-card:nth-child(1) { animation-delay: 0.04s; }
+        .hub-lift-card:nth-child(2) { animation-delay: 0.1s; }
+        .hub-lift-card:nth-child(3) { animation-delay: 0.16s; }
+        .hub-lift-card:nth-child(4) { animation-delay: 0.22s; }
+        .hub-lift-card:nth-child(5) { animation-delay: 0.28s; }
+        .hub-lift-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 22px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(187, 134, 252, 0.35);
+            border-color: rgba(187, 134, 252, 0.45);
+        }
+        .hub-lift-card .hub-card-ico {
+            font-size: 1.75rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+        .hub-lift-card h3 {
+            margin: 0 0 8px;
+            font-size: 1.05rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+        }
+        .hub-lift-card p {
+            margin: 0;
+            font-size: 0.85rem;
+            line-height: 1.45;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        .hub-lift-card .hub-soon {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            padding: 4px 10px;
+            background: rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.6);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.12);
+            color: rgba(255, 255, 255, 0.75);
+        }
+        @keyframes hub-rise {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .hub-lift-card {
+                animation: none;
+                transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            }
+            .hub-lift-card:hover {
+                transform: none;
+            }
+        }
+        /* 🛰️ Truly Centered Console Navigation */
+        .site-header--hub {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            z-index: 1000;
+            padding: 15px 5%;
+            display: flex !important;
+            align-items: center;
+            justify-content: space-between;
+            height: 90px;
+            background: var(--chrome-glass);
+            backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--chrome-border);
+        }
+
+        .site-header--hub .site-header__brand,
+        .site-header--hub #profile-manager {
+            flex: 1;
+            max-width: 300px;
+        }
+        
+        .site-header--hub #profile-manager {
+            display: flex !important;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 20px;
+        }
+
+        #hub-nav-tabs {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            display: flex !important;
+            gap: clamp(8px, 2vw, 24px);
+            z-index: 1001;
+        }
+
+        @media (max-width: 1024px) {
+            #hub-nav-tabs {
+                gap: 12px;
+            }
+            .site-header__brand span {
+                display: none;
+            }
+        }
+
+        /* 🏰 Platform Layout Reset - HARDENED */
+        body.hub-mode {
+            display: block !important;
+            height: auto !important;
+            min-height: 100vh !important;
+            overflow-y: auto !important;
+            align-items: flex-start !important;
+            justify-content: flex-start !important;
+            padding-top: 0 !important;
+        }
+
+        body.hub-mode #master-hub-container {
+            display: block !important;
+            width: 100% !important;
+            height: auto !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+        }
+
+        /* 📱 Mobile Hub Responsiveness */
+        @media (max-width: 768px) {
+            .site-header--hub {
+                flex-direction: column;
+                height: auto;
+                padding: 15px 15px 10px;
+                gap: 15px;
+                position: fixed;
+            }
+            #hub-nav-tabs {
+                position: static;
+                transform: none;
+                width: 100%;
+                overflow-x: auto;
+                justify-content: flex-start !important;
+                padding-bottom: 5px;
+                display: flex !important;
+                gap: 8px;
+            }
+            #master-hub-container {
+                padding-top: 220px !important;
+            }
+            #profile-manager {
+                width: 100%;
+                justify-content: space-between !important;
+                background: rgba(255,255,255,0.03);
+                padding: 10px;
+                border-radius: 12px;
+                display: flex !important;
+            }
+            #hub-nav-tabs .hub-tab {
+                flex-shrink: 0;
+                padding: 6px 14px;
+                font-size: 0.65rem;
+            }
+        }
+
+        /* 🏆 Trophy / Medal Animation */
+        .trophy-cup {
+            font-size: 2.5rem;
+            filter: drop-shadow(0 0 15px rgba(251, 191, 36, 0.6));
+            animation: floatTrophy 4s ease-in-out infinite, pulseGlow 2s ease-in-out infinite alternate;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .trophy-cup:hover {
+            transform: scale(1.15) rotate(5deg);
+        }
+        @keyframes floatTrophy {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+        @keyframes pulseGlow {
+            0% { filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.4)); }
+            100% { filter: drop-shadow(0 0 25px rgba(251, 191, 36, 0.9)); }
+        }
+        
+        /* Profile Row Layout */
+        .profile-row {
+            display: flex;
+            align-items: center;
+            gap: 25px;
+            padding: 0 5%;
+            max-width: 1400px;
+            margin: 0 auto;
+            flex-wrap: wrap;
+        }
+        @media (max-width: 768px) {
+            .profile-row {
+                flex-direction: column;
+                text-align: center;
+                align-items: center;
+                gap: 15px;
+            }
+            .profile-row > div:nth-child(2) {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
+        body.hub-mode #master-hub-container {
+            display: block !important;
+            width: 100%;
+            height: auto;
+            min-height: 100vh;
+        }
+    </style>
 </head>
 <body class="dark-theme">
 
@@ -42,7 +441,7 @@
                 position: relative;
                 overflow: hidden;
                 background: radial-gradient(ellipse at center, rgba(10, 10, 15, 0.4) 0%, rgba(0, 0, 0, 0.6) 100%);
-                padding: 20px;
+                padding: 20px 20px 80px;
                 box-sizing: border-box;
             }
 
@@ -475,15 +874,261 @@
                     0 12px 28px rgba(117, 79, 255, 0.28),
                     inset 0 1px 0 rgba(255, 255, 255, 0.24);
             }
-
             .auth-btn:active {
                 transform: translateY(-1px) scale(0.98);
             }
 
-            .auth-btn:disabled {
-                opacity: 0.5;
-                cursor: not-allowed;
-                transform: none;
+            /* 🏆 PlayStation Trophy Aesthetics */
+            .trophy-grid {
+                display: flex;
+                gap: 15px;
+                margin-top: 20px;
+            }
+            .trophy-case {
+                width: 50px;
+                height: 50px;
+                border-radius: 12px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.5rem;
+                position: relative;
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.1);
+                transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                cursor: help;
+            }
+            .trophy-case:hover {
+                transform: scale(1.2) rotate(5deg);
+                border-color: var(--nexus-purple);
+                box-shadow: 0 0 20px rgba(187, 134, 252, 0.4);
+            }
+            .trophy-case::after {
+                content: '';
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(135deg, transparent, rgba(255,255,255,0.4), transparent);
+                transform: translateX(-100%);
+                transition: transform 0.6s;
+            }
+            .trophy-case:hover::after {
+                transform: translateX(100%);
+            }
+
+            .level-badge {
+                background: linear-gradient(135deg, var(--nexus-purple), var(--nexus-cyan));
+                color: #000;
+                padding: 4px 12px;
+                border-radius: 20px;
+                font-weight: 900;
+                font-size: 0.7rem;
+                letter-spacing: 1px;
+                box-shadow: 0 5px 15px rgba(187, 134, 252, 0.3);
+            }
+
+            /* 📱 Mobile Header Optimization */
+            @media (max-width: 600px) {
+                .site-header__brand span {
+                    display: none; /* Hide text logo on very small screens to save space */
+                }
+                .site-header {
+                    padding: 0 15px;
+                }
+                #hub-nav-tabs {
+                    gap: 4px;
+                }
+                .hub-tab {
+                    padding: 6px 10px;
+                    font-size: 0.6rem;
+                }
+                
+                /* Profile & Settings spacing */
+                #profile-manager {
+                    margin-top: 15px;
+                    justify-content: center;
+                    width: 100%;
+                    padding-top: 10px;
+                    border-top: 1px solid rgba(255,255,255,0.05);
+                }
+                .danger-secondary-btn--mini {
+                    margin-left: 15px;
+                    opacity: 0.5;
+                }
+            }
+
+            .trophy-grid {
+                min-height: 50px;
+            }
+
+            /* 🎮 DASHBOARD V2: PS5 CINEMATIC STYLE */
+            #hub-atmosphere {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: radial-gradient(circle at 50% 30%, rgba(187,134,252,0.1) 0%, rgba(3,3,8,0) 70%);
+                z-index: -1;
+                pointer-events: none;
+                transition: background 1.5s ease;
+            }
+
+            .hub-hero-container {
+                padding: 10px 0 40px;
+            }
+
+            .action-rail-header {
+                margin: 0 0 24px 5px;
+            }
+
+            .action-rail-title {
+                font-family: 'Outfit', sans-serif;
+                font-weight: 900;
+                font-size: 0.75rem;
+                letter-spacing: 0.3em;
+                color: var(--nexus-cyan);
+                text-transform: uppercase;
+                margin: 0 0 8px;
+            }
+
+            .action-rail-subtitle {
+                font-size: 0.9rem;
+                color: rgba(255,255,255,0.45);
+                margin: 0;
+            }
+
+            .action-rail {
+                display: flex;
+                gap: 20px;
+                overflow-x: auto;
+                padding: 10px 5px 30px;
+                scroll-snap-type: x mandatory;
+                scrollbar-width: none;
+            }
+
+            .action-rail::-webkit-scrollbar { display: none; }
+
+            .action-card {
+                flex: 0 0 280px;
+                aspect-ratio: 16/9;
+                background: rgba(255,255,255,0.03);
+                border-radius: 20px;
+                border: 1px solid rgba(255,255,255,0.05);
+                overflow: hidden;
+                position: relative;
+                cursor: pointer;
+                transition: all 0.4s cubic-bezier(0.19, 1, 0.22, 1);
+                scroll-snap-align: start;
+            }
+
+            .action-card:hover {
+                transform: translateY(-8px) scale(1.02);
+                border-color: var(--nexus-cyan);
+                box-shadow: 0 20px 40px rgba(0,0,0,0.4), 0 0 15px rgba(6,182,212,0.2);
+            }
+
+            .action-card-bg {
+                position: absolute;
+                inset: 0;
+                background-size: cover;
+                background-position: center;
+                transition: transform 0.8s ease;
+            }
+
+            .action-card:hover .action-card-bg {
+                transform: scale(1.1);
+            }
+
+            .action-card-overlay {
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(0deg, rgba(3,3,8,0.85) 0%, transparent 60%);
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-end;
+                padding: 20px;
+            }
+
+            .action-card-type {
+                font-size: 0.6rem;
+                letter-spacing: 0.2em;
+                color: var(--nexus-purple);
+                font-weight: 800;
+                text-transform: uppercase;
+                margin-bottom: 4px;
+            }
+
+            .action-card-name {
+                font-size: 1.1rem;
+                font-weight: 800;
+                color: #fff;
+            }
+
+            /* Intel Panes */
+            .intel-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 30px;
+                margin-top: 40px;
+            }
+
+            .intel-pane {
+                min-height: 220px;
+                padding: 25px;
+                border: 1px solid rgba(255,255,255,0.06);
+                background: rgba(255,255,255,0.02);
+                border-radius: 24px;
+                backdrop-filter: blur(20px);
+            }
+
+            .intel-pane-title {
+                font-size: 0.7rem;
+                letter-spacing: 0.2em;
+                color: rgba(255,255,255,0.3);
+                font-weight: 800;
+                margin-bottom: 20px;
+            }
+
+            .news-placeholder {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                height: 100%;
+                opacity: 0.4;
+            }
+
+            .news-placeholder .ico { font-size: 2rem; margin-bottom: 10px; }
+            .news-placeholder p { font-size: 0.8rem; letter-spacing: 0.1em; color: var(--nexus-purple); margin: 0 0 10px; }
+            .news-placeholder .tag { font-size: 0.6rem; padding: 4px 10px; border: 1px solid; border-radius: 4px; }
+
+            .launcher-chip {
+                padding: 10px 20px;
+                background: rgba(255,255,255,0.05);
+                border: 1px solid rgba(255,255,255,0.1);
+                border-radius: 30px;
+                color: #fff;
+                font-family: 'Outfit';
+                font-weight: 600;
+                font-size: 0.85rem;
+                cursor: pointer;
+                transition: all 0.3s;
+                display: inline-flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .launcher-chip:hover {
+                background: var(--nexus-cyan);
+                color: #000;
+                transform: translateY(-2px);
+            }
+
+            .hub-launcher-section { margin-top: 60px; }
+            .hub-launcher-row { display: flex; gap: 15px; flex-wrap: wrap; }
+
+            @media (max-width: 900px) {
+                .intel-grid { grid-template-columns: 1fr; }
             }
 
             .btn-text {
@@ -1186,17 +1831,23 @@
     </section>
 
     <!-- 🏗️ MASTER HUB (Revealed after successful login - Dark Compatible) -->
-    <main id="master-hub-container" class="hidden hub-dark-theme" style="opacity: 0; transition: opacity 2s;">
+    <main id="master-hub-container" class="hub-dark-theme" style="transition: opacity 1s;">
         
-        <!-- 🚀 HUB NAV (Right-Aligned Profile with AI Avatar) -->
-        <header id="universal-hud" style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; padding: 30px 5%; display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(40px); border-bottom: 1px solid var(--crystal-border);">
-            <div style="display: flex; align-items: center; gap: 15px; cursor: pointer;" onclick="location.href='index.html'">
-                <img src="assets/logo.png" style="width: 40px; height: auto;" alt="Nexus Logo">
-                <div class="nexus-gradient-text" style="font-family: 'Outfit'; font-weight: 800; font-size: 1.5rem; letter-spacing: 2px;">PLAYNEXUS</div>
-            </div>
+        <header id="universal-hud" class="site-header site-header--hub">
+            <a href="index.html" class="site-header__brand">
+                <img src="assets/logo.png" width="40" height="40" alt="">
+                <span>PLAY<span class="accent">NEXUS</span></span>
+            </a>
 
+            <nav id="hub-nav-tabs" aria-label="Hub sections">
+                <button type="button" class="hub-tab hub-tab-active" data-hub-tab="home">Home</button>
+                <button type="button" class="hub-tab" data-hub-tab="games">Games</button>
+                <button type="button" class="hub-tab" data-hub-tab="apps">Apps</button>
+                <button type="button" class="hub-tab" data-hub-tab="community">Community</button>
+                <button type="button" class="hub-tab" data-hub-tab="about">About</button>
+            </nav>
 
-            <div id="profile-manager" style="display: flex; align-items: center; gap: 20px;">
+            <div id="profile-manager">
                 <div style="text-align: right;">
                     <div style="font-weight: 800; color: #fff; font-size: 1rem;" id="display-username">Explorer</div>
                     <div style="display: flex; justify-content: flex-end; gap: 14px; font-size: 0.7rem; letter-spacing: 2px;">
@@ -1204,60 +1855,223 @@
                         <button type="button" style="background:none;border:none;color:var(--nexus-cyan);cursor:pointer;font:inherit;padding:0;" onclick="signOut()">SIGN OUT <span style="font-size: 0.9rem;">⏻</span></button>
                     </div>
                 </div>
-                <div style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--nexus-cyan); overflow: hidden; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;">
+                <div class="user-avatar-container" style="width: 50px; height: 50px; border-radius: 50%; border: 2px solid var(--nexus-cyan); overflow: hidden; background: rgba(255,255,255,0.05); display: flex; align-items: center; justify-content: center;">
                     <img id="user-avatar" src="" alt="User" style="width: 100%; height: 100%; object-fit: cover;">
                 </div>
             </div>
         </header>
 
-        <!-- 🏢 CONTENT EXPLORER (4 Sections) -->
-        <div style="padding-top: 160px; padding-bottom: 100px;">
-            <!-- 🌟 RECENTLY OPENED (Featured Continue) - Hidden until apps are available -->
-            <!-- <section class="hub-row" style="margin-bottom: 60px;">
-                <h2 class="row-title" style="color: #fff; opacity: 0.5; font-size: 0.85rem; letter-spacing: 4px; margin-bottom: 25px;">RECENTLY ACCESSED</h2>
-                <div class="hub-carousel" style="gap: 30px;">
-                    <div class="featured-item-hero" style="min-width: 580px; height: 300px; background: linear-gradient(90deg, rgba(7,11,20,0.95) 0%, rgba(7,11,20,0.4) 60%, transparent 100%), url('assets/tictactoe-cover.svg') center/cover; padding: 50px; position: relative; overflow: hidden; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;" onclick="location.href='games/tic-tac-toe.html'">
+        <!-- 🏢 CONTENT EXPLORER -->
+        <div style="padding-top: 140px; padding-bottom: 100px;">
+            <!-- 🏠 HUB HOME: PS5 CINEMATIC DASHBOARD -->
+            <section id="hub-panel-home">
+                <!-- 👤 PS5 Style User Profile Row (Responsive & Animated) -->
+                <section class="resume-row" id="profile-hub-row" style="margin-bottom: 40px;">
+                    <div class="profile-row">
+                        <div style="width: 100px; height: 100px; border-radius: 50%; border: 3px solid var(--nexus-cyan); overflow: hidden; box-shadow: 0 0 30px rgba(3, 218, 198, 0.3); flex-shrink: 0;">
+                            <img id="profile-hub-avatar" src="" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 10px;">
+                                <h2 style="font-family: 'Outfit'; font-size: 2.2rem; font-weight: 800; margin: 0; text-shadow: 0 0 20px rgba(255,255,255,0.1);" id="profile-hub-username">Explorer</h2>
+                                <span class="level-badge" id="player-level" style="background: linear-gradient(135deg, rgba(6,182,212,0.2), rgba(187,134,252,0.2)); border: 1px solid rgba(187,134,252,0.5); font-size: 0.8rem; padding: 4px 10px; border-radius: 12px; font-weight: 800;">LVL 42</span>
+                            </div>
+                            <p style="color: rgba(255,255,255,0.4); font-size: 0.95rem; margin: 0; letter-spacing: 1.5px; text-transform: uppercase;">Nexus Grandmaster · Verified Explorer</p>
+                            
+                            <!-- Level Progress -->
+                            <div style="margin-top: 15px; width: 100%; max-width: 350px;">
+                                <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: rgba(255,255,255,0.4); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px;">
+                                    <span>Progress to LVL 43</span>
+                                    <span style="color: var(--nexus-cyan); font-weight: 800;">85%</span>
+                                </div>
+                                <div style="height: 6px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden;">
+                                    <div style="height: 100%; width: 85%; background: linear-gradient(90deg, var(--nexus-purple), var(--nexus-cyan)); box-shadow: 0 0 12px var(--nexus-cyan);"></div>
+                                </div>
+                            </div>
+                        </div>
 
-                        <span class="badge" style="background: rgba(255,255,255,0.9); color: #000; padding: 6px 14px; border-radius: 6px; font-weight: 900; font-size: 0.7rem; position: absolute; top: 40px; left: 50px;">CONTINUE PLAYING</span>
-                        <div class="info" style="margin-top: 70px;">
-                            <h3 style="font-size: 2.2rem; margin-bottom: 10px;">Tic-Tac-Toe Crystal</h3>
-                            <p style="font-size: 1rem; color: #999;">Last session: 4 minutes ago</p>
-                            <button class="nexus-btn-luxe" style="margin-top: 30px; width: auto; min-width: 160px; padding: 14px 25px; font-size: 0.8rem; background: #fff; color: #000; border-radius: 8px; box-shadow: 0 10px 20px rgba(255,255,255,0.1);" onclick="event.stopPropagation(); location.href='games/games.html'">
-                                <span style="font-size: 1rem; vertical-align: middle; margin-right: 8px;">▶</span> LAUNCH CENTER
-                            </button>
+                        <!-- 🏆 Interactive Trophy / Medal Section -->
+                        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; flex-shrink: 0; padding: 15px; background: rgba(251,191,36,0.05); border: 1px solid rgba(251,191,36,0.2); border-radius: 20px; transition: background 0.3s;" onmouseover="this.style.background='rgba(251,191,36,0.1)';" onmouseout="this.style.background='rgba(251,191,36,0.05)';">
+                            <div class="trophy-cup" title="Click to view achievements!" onclick="if(typeof Toast !== 'undefined') Toast.success('Achievements unlocked! You are ranked among the Nexus Elite.', 4000)">🏆</div>
+                            <span style="font-size: 0.6rem; color: rgba(251,191,36,0.8); text-transform: uppercase; letter-spacing: 2px; font-weight: 800;">Grand Champion</span>
                         </div>
                     </div>
-                </div>
-            </section> -->
+                </section>
+                <!-- 🌌 Dynamic Atmosphere Engine -->
+                <div id="hub-atmosphere"></div>
 
-            <section class="hub-row">
-                <h2 class="row-title nexus-gradient-text">🎮 NEXUS SYSTEM APPS</h2>
-                <div class="system-categories-grid">
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
-                        <div class="sys-category-overlay">
-                            <span class="badge badge-soon">COMING SOON</span>
-                        </div>
+                <div class="hub-hero-container">
+                    <div class="action-rail-header">
+                        <h1 class="action-rail-title">READY TO STRIKE</h1>
+                        <p class="action-rail-subtitle">Continue your progress or explore the Nexus library.</p>
                     </div>
 
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
-                        <div class="sys-category-overlay">
-                            <span class="badge badge-soon">COMING SOON</span>
-                        </div>
+                    <!-- 🕹️ PS5-Style Action Rail -->
+                    <div class="action-rail" id="recent-activity-rail">
+                        <!-- Populated by enhanced fetchRecentActivity -->
+                        <div class="action-card skeleton"></div>
+                        <div class="action-card skeleton"></div>
+                        <div class="action-card skeleton"></div>
                     </div>
 
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
-                        <div class="sys-category-overlay">
-                            <span class="badge badge-soon">COMING SOON</span>
+                    <!-- 📊 Intel Widgets -->
+                    <div class="intel-grid">
+                        <div class="intel-pane glass-surface">
+                            <h2 class="intel-pane-title" style="font-size: 0.7rem; color: rgba(255,255,255,0.3); font-weight: 800; letter-spacing: 0.2em; margin-bottom: 20px;">GLOBAL RANKINGS</h2>
+                            <ul class="leaderboard-list-hub" id="hub-leaderboard" style="list-style:none; padding:0; margin:0;">
+                                <!-- Populated by JS -->
+                                <li style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05); color:rgba(255,255,255,0.4); font-size:0.8rem;">Connecting to Nexus Network...</li>
+                            </ul>
                         </div>
-                    </div>
-
-                    <div class="sys-category-card" style="background-image: url('https://images.unsplash.com/photo-1525547719571-a2d4ac8945e2?auto=format&fit=crop&w=800&q=80'); pointer-events: none; opacity: 0.7; cursor: default;">
-                        <div class="sys-category-overlay">
-                            <span class="badge badge-soon">COMING SOON</span>
+                        
+                        <div class="intel-pane glass-surface shimmer-effect" style="position: relative; overflow: hidden;">
+                            <!-- Creative Addition: Pulse Radar Animation -->
+                            <div style="position: absolute; width: 200px; height: 200px; border-radius: 50%; border: 1px solid rgba(187,134,252,0.1); top: 50%; left: 50%; transform: translate(-50%, -50%); animation: radarPulse 3s infinite linear; pointer-events: none;"></div>
+                            <div style="position: absolute; width: 150px; height: 150px; border-radius: 50%; border: 1px solid rgba(187,134,252,0.2); top: 50%; left: 50%; transform: translate(-50%, -50%); animation: radarPulse 3s infinite linear 1s; pointer-events: none;"></div>
+                            
+                            <h2 class="intel-pane-title" style="font-size: 0.7rem; color: rgba(255,255,255,0.3); font-weight: 800; letter-spacing: 0.2em; margin-bottom: 20px; position: relative;">NEXUS TRANSMISSIONS</h2>
+                            <div class="news-placeholder" style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 120px; text-align: center; position: relative;">
+                                <span class="ico" style="font-size:2rem; margin-bottom:12px; filter: drop-shadow(0 0 10px rgba(187,134,252,0.8));">📡</span>
+                                <p style="margin:0; font-weight:800; color:var(--nexus-purple); font-size:0.75rem; letter-spacing:0.1em; text-shadow: 0 0 10px rgba(187,134,252,0.3);">ENCRYPTED NEWS FEED</p>
+                                <span style="font-size: 0.6rem; color: #fff; background: rgba(187,134,252,0.2); border: 1px solid rgba(187,134,252,0.4); padding: 4px 10px; border-radius: 20px; margin-top:12px; box-shadow: 0 0 10px rgba(187,134,252,0.2); text-transform: uppercase; font-weight: 800;">DECRYPTING...</span>
+                            </div>
                         </div>
+                        <style>
+                            @keyframes radarPulse {
+                                0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+                                50% { opacity: 0.5; }
+                                100% { transform: translate(-50%, -50%) scale(2); opacity: 0; }
+                            }
+                        </style>
                     </div>
                 </div>
             </section>
+
+            <div id="hub-panel-games" class="hidden">
+                <section class="hub-row" style="margin-bottom: 40px;">
+                    <h2 class="row-title nexus-gradient-text">🕹️ PLAY CENTER</h2>
+                    <p style="color: rgba(255,255,255,0.55); font-family: 'Outfit', sans-serif; max-width: 520px; line-height: 1.5; margin-bottom: 28px;">Launch the full library or jump straight into Tic-Tac-Toe Crystal.</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center;">
+                        <button type="button" class="nexus-btn-luxe" style="width: auto; padding: 14px 28px; font-size: 0.85rem; border-radius: 12px;" onclick="location.href='games/games.html'">Open game library</button>
+                    </div>
+                </section>
+                <section class="hub-row">
+                    <h2 class="row-title" style="color: #fff; font-size: 0.85rem; letter-spacing: 4px; opacity: 0.75; margin-bottom: 20px;">FEATURED</h2>
+                    <div class="hub-carousel" style="gap: 30px;">
+                        <!-- Tic-Tac-Toe Featured Card (Hardened Click) -->
+                        <div class="featured-item-hero" style="min-width: min(100%, 580px); height: 300px; background: linear-gradient(90deg, rgba(7,11,20,0.95) 0%, rgba(7,11,20,0.4) 60%, transparent 100%), url('assets/tictactoe-cover.png') center/cover; padding: 50px; position: relative; overflow: hidden; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                            <span class="badge" style="background: rgba(6, 182, 212, 0.95); color: #000; padding: 6px 14px; border-radius: 6px; font-weight: 900; font-size: 0.7rem; position: absolute; top: 40px; left: 50px;">PLAYABLE</span>
+                            <div class="info" style="margin-top: 70px;">
+                                <h3 style="font-size: 2.2rem; margin-bottom: 10px; color: #fff;">Tic-Tac-Toe Crystal</h3>
+                                <p style="font-size: 1rem; color: #999;">Vs Nexus Agent AI or local two-player.</p>
+                                <div style="display: flex; gap: 12px; margin-top: 30px;">
+                                    <button type="button" class="nexus-btn-luxe" style="width: auto; padding: 12px 20px; font-size: 0.75rem; background: #fff; color: #000; border-radius: 8px;" onclick="location.href='games/tic-tac-toe.html?mode=single'">
+                                        <span style="font-size: 0.9rem; vertical-align: middle; margin-right: 6px;">🤖</span> VS AI
+                                    </button>
+                                    <button type="button" class="nexus-btn-luxe" style="width: auto; padding: 12px 20px; font-size: 0.75rem; background: rgba(255,255,255,0.1); color: #fff; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);" onclick="location.href='games/tic-tac-toe.html?mode=local'">
+                                        <span style="font-size: 0.9rem; vertical-align: middle; margin-right: 6px;">👥</span> LOCAL
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="hub-panel-apps" class="hidden">
+                <section class="hub-row" style="margin-bottom: 28px;">
+                    <h2 class="row-title nexus-gradient-text">⚡ NEXUS APPS</h2>
+                    <p style="color: rgba(255,255,255,0.55); font-family: 'Outfit', sans-serif; max-width: 640px; line-height: 1.55;">
+                        Lightweight utilities that run mostly in your browser—friendly to Render and Supabase free tiers. Wire each to its own route or micro-page as you ship.
+                    </p>
+                </section>
+                <section class="hub-row">
+                    <div class="hub-app-grid">
+                        <div class="hub-lift-card">
+                            <span class="hub-soon">SOON</span>
+                            <span class="hub-card-ico" aria-hidden="true">📰</span>
+                            <h3>News digest</h3>
+                            <p>Curated headlines and reading list—stay informed without leaving the hub.</p>
+                        </div>
+                        <div class="hub-lift-card">
+                            <span class="hub-soon">SOON</span>
+                            <span class="hub-card-ico" aria-hidden="true">🎬</span>
+                            <h3>Video toolkit</h3>
+                            <p>Client-side helpers for clips and downloads where policy allows—no heavy server transcode on day one.</p>
+                        </div>
+                        <div class="hub-lift-card">
+                            <span class="hub-soon">SOON</span>
+                            <span class="hub-card-ico" aria-hidden="true">💼</span>
+                            <h3>Resume &amp; LinkedIn</h3>
+                            <p>Paste a profile or upload a PDF for quick validation and improvement hints.</p>
+                        </div>
+                        <div class="hub-lift-card">
+                            <span class="hub-soon">SOON</span>
+                            <span class="hub-card-ico" aria-hidden="true">✨</span>
+                            <h3>More labs</h3>
+                            <p>Drop new app cards here as you grow the monorepo—keep each feature behind its own static page until the API needs it.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="hub-panel-community" class="hidden">
+                <section class="hub-row" style="margin-bottom: 32px;">
+                    <h2 class="row-title nexus-gradient-text">🌐 COMMUNITY</h2>
+                    <p style="color: rgba(255,255,255,0.55); font-family: 'Outfit', sans-serif; max-width: 560px; line-height: 1.55;">
+                        Forums, showcases, and feedback loops live here. The hub tab keeps discovery one click away from games and apps.
+                    </p>
+                    <button type="button" class="nexus-btn-luxe" style="width: auto; margin-top: 12px; padding: 14px 28px; font-size: 0.85rem; border-radius: 12px;" onclick="location.href='community/community.html'">
+                        Open community space
+                    </button>
+                </section>
+                <section class="hub-row">
+                    <div class="hub-app-grid">
+                        <div class="hub-lift-card">
+                            <span class="hub-soon">PLANNED</span>
+                            <span class="hub-card-ico" aria-hidden="true">💬</span>
+                            <h3>Discussions</h3>
+                            <p>Threaded topics tied to your auth session when you are ready to connect Supabase realtime or a forum backend.</p>
+                        </div>
+                        <div class="hub-lift-card">
+                            <span class="hub-soon">PLANNED</span>
+                            <span class="hub-card-ico" aria-hidden="true">🏆</span>
+                            <h3>Showcase</h3>
+                            <p>Highlight builds, high scores, and community creations from games on the platform.</p>
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <div id="hub-panel-about" class="hidden">
+                <section class="hub-row" style="margin-bottom: 28px;">
+                    <h2 class="row-title nexus-gradient-text">✦ ABOUT PLAYNEXUS</h2>
+                    <p style="color: rgba(255,255,255,0.55); font-family: 'Outfit', sans-serif; max-width: 640px; line-height: 1.6;">
+                        This hub is built for a small, fast footprint on <strong style="color: rgba(6,182,212,0.9);">Render</strong> with
+                        <strong style="color: rgba(187,134,252,0.95);">Supabase</strong> PostgreSQL. You get Games, Apps, and Community in one authenticated session—expand each area at your own pace.
+                    </p>
+                </section>
+                <section class="hub-row">
+                    <div class="hub-app-grid">
+                        <div class="hub-lift-card">
+                            <span class="hub-card-ico" aria-hidden="true">🚀</span>
+                            <h3>Mission</h3>
+                            <p>One portal for play, utilities, and community—without bloating the free tier.</p>
+                        </div>
+                        <div class="hub-lift-card">
+                            <span class="hub-card-ico" aria-hidden="true">🧩</span>
+                            <h3>Stack</h3>
+                            <p>FastAPI backend, static HTML/CSS/JS, Flyway SQL. See <code>README.md</code> in the repo.</p>
+                        </div>
+                        <div class="hub-lift-card">
+                            <span class="hub-card-ico" aria-hidden="true">📄</span>
+                            <h3>Full write-up</h3>
+                            <p>The public About page is shareable with anyone—perfect for READMEs and portfolios.</p>
+                            <button type="button" class="nexus-btn-luxe" style="width: auto; margin-top: 16px; padding: 10px 22px; font-size: 0.78rem; border-radius: 10px;" onclick="location.href='about/about.html'">Open About page</button>
+                        </div>
+                    </div>
+                </section>
+            </div>
         </div>
 
     </main>
@@ -1318,7 +2132,7 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+    <script src="js/site-chrome.js"></script>
     <script src="js/toast.js"></script>
     <script src="js/cinematic-startup.js"></script>
     <script src="js/main.js"></script>
@@ -1563,10 +2377,63 @@
             confirmInput.addEventListener('blur', validateConfirmField);
         }
 
+        function initHubTabs() {
+            const tabRoot = document.getElementById('hub-nav-tabs');
+            if (!tabRoot) return;
+            tabRoot.querySelectorAll('[data-hub-tab]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    var tab = btn.getAttribute('data-hub-tab');
+                    if (tab) setHubTab(tab);
+                });
+            });
+            window.addEventListener('hashchange', syncHubTabFromHash);
+        }
+
+        function setHubTab(tab, options) {
+            options = options || {};
+            var skipHash = options.skipHash === true;
+            var allowed = { home: 1, games: 1, apps: 1, community: 1, about: 1 };
+            var active = allowed[tab] ? tab : 'home';
+            var panels = {
+                home: document.getElementById('hub-panel-home'),
+                games: document.getElementById('hub-panel-games'),
+                apps: document.getElementById('hub-panel-apps'),
+                community: document.getElementById('hub-panel-community'),
+                about: document.getElementById('hub-panel-about')
+            };
+            if (!panels.home) return;
+            Object.keys(panels).forEach(function (key) {
+                if (panels[key]) {
+                    panels[key].classList.toggle('hidden', key !== active);
+                }
+            });
+            var tabs = document.querySelectorAll('#hub-nav-tabs [data-hub-tab]');
+            tabs.forEach(function (b) {
+                var isActive = b.getAttribute('data-hub-tab') === active;
+                b.classList.toggle('hub-tab-active', isActive);
+            });
+            if (!skipHash) {
+                var nextHash = '#' + active;
+                if (window.location.hash !== nextHash) {
+                    window.location.hash = active;
+                }
+            }
+        }
+
+        function syncHubTabFromHash() {
+            var raw = (window.location.hash || '#home').replace(/^#/, '').toLowerCase();
+            var allowed = { home: 1, games: 1, apps: 1, community: 1, about: 1 };
+            var tab = allowed[raw] ? raw : 'home';
+            setHubTab(tab, { skipHash: true });
+        }
+
+        window.setHubTab = setHubTab;
+
         // Call setup on page load
         document.addEventListener('DOMContentLoaded', () => {
             setupRealtimeValidation();
             setupPasswordToggle();
+            initHubTabs();
         });
 
         function getAvatarUrl(username) {
@@ -1623,6 +2490,9 @@
             const displayUser = document.getElementById('display-username');
             const profilePic = document.getElementById('user-avatar');
 
+            // 🔱 Pinned Alignment Lock
+            document.body.classList.add('hub-mode');
+
             if (displayUser) {
                 displayUser.innerText = username;
             }
@@ -1638,15 +2508,16 @@
             }
 
             if (authPortalSection) {
+                authPortalSection.style.setProperty('display', 'none', 'important');
                 authPortalSection.style.opacity = '0';
                 authPortalSection.classList.add('hidden');
                 authPortalSection.setAttribute('aria-hidden', 'true');
                 authPortalSection.style.pointerEvents = 'none';
-                authPortalSection.style.display = 'none'; // Ensure it's fully gone
             }
 
             if (hub) {
                 hub.classList.remove('hidden');
+                hub.style.setProperty('display', 'block', 'important');
                 hub.style.opacity = '1';
                 // Reset card for next session
                 if (authPortalCard) {
@@ -1662,10 +2533,20 @@
             if (window.PlayNexus && window.PlayNexus.startPhysics) {
                 window.PlayNexus.startPhysics();
             }
+
+            // Sync activities for Quick Resume
+            if (typeof fetchRecentActivity === 'function') {
+                fetchRecentActivity();
+            }
+
+            syncHubTabFromHash();
         }
 
         function showAuthPortal(immediate = true) {
             const hub = document.getElementById('master-hub-container');
+
+            // 🔱 Release Pinned Alignment
+            document.body.classList.remove('hub-mode');
 
             if (window.PlayNexus && window.PlayNexus.stopPhysics) {
                 window.PlayNexus.stopPhysics();
@@ -1694,6 +2575,10 @@
                     authPortalCard.style.transform = 'scale(0.95)';
                 }
             }
+
+            // Ensure site-chrome-footer is truly hidden on auth page
+            const footer = document.querySelector('.site-footer');
+            if (footer) footer.style.display = 'none';
         }
 
         async function restorePersistedSession() {
@@ -1705,7 +2590,7 @@
 
             showHubForAuthenticatedUser(savedSession.username, {
                 avatarUrl: savedSession.avatar_url,
-                updateHistory: true
+                updateHistory: false
             });
 
             if (!API_BASE) {
@@ -1745,6 +2630,19 @@
          * Toggle between Login and Signup modes
          */
         function toggleAuthMode() {
+            const portalCard = document.getElementById('crystal-auth-portal');
+            
+            // Kinetic Transition Pulse
+            if (portalCard) {
+                portalCard.style.transform = 'scale(0.98)';
+                portalCard.style.opacity = '0.7';
+                
+                setTimeout(() => {
+                    portalCard.style.transform = 'scale(1)';
+                    portalCard.style.opacity = '1';
+                }, 150);
+            }
+
             isLoginMode = !isLoginMode;
             const usernameInput = document.getElementById('auth-username');
             const passwordInput = document.getElementById('auth-password');
@@ -1988,7 +2886,11 @@
                     }
                 } else {
                     // For signup, provide specific feedback
-                    if (data.detail) {
+                    if (response.status === 403 && typeof data.detail === 'string') {
+                        errorMsg = data.detail;
+                        setFieldStatus(usernameInput, '', '');
+                        setFieldStatus(passwordInput, '', '');
+                    } else if (data.detail) {
                         // Handle Pydantic validation errors (array format)
                         if (Array.isArray(data.detail)) {
                             // Find the first error related to username or password
@@ -2219,6 +3121,192 @@
             restorePersistedSession();
         });
 
+        /**
+         * Fetch and render recent user activity for the ACTION RAIL (Horizontal)
+         */
+        async function fetchRecentActivity() {
+            const sessionRaw = sessionStorage.getItem(AUTH_SESSION_KEY) || localStorage.getItem(AUTH_SESSION_KEY);
+            if (!sessionRaw) return;
+            const session = JSON.parse(sessionRaw);
+            const uid = session.user_id || session.id;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/me/activity?user_id=${uid}`);
+                const activities = await response.json();
+                
+                const rail = document.getElementById('recent-activity-rail');
+                const atmosphere = document.getElementById('hub-atmosphere');
+
+                if (!rail) return;
+
+                // 🛡️ Robust Check: Ensure activities is an array
+                if (!Array.isArray(activities) || activities.length === 0) {
+                    rail.innerHTML = `
+                        <div class="action-card" onclick="setHubTab('games')" style="opacity:0.6; filter:grayscale(1);">
+                            <div class="action-card-bg" style="background: linear-gradient(135deg, #1e293b, #0f172a);"></div>
+                            <div class="action-card-overlay">
+                                <div class="action-card-type">FIRST STRIKE</div>
+                                <div class="action-card-name">Start your first game</div>
+                            </div>
+                        </div>
+                    `;
+                    fetchGlobalLeaderboard(); 
+                    return;
+                }
+
+                rail.innerHTML = activities.slice(0, 5).map((act, index) => {
+                    let bgImg = 'assets/dashboard_bg.png';
+                    let accent = 'rgba(6,182,212,0.1)';
+                    if (act.activity_name.toLowerCase().includes('tic-tac-toe')) {
+                        bgImg = 'assets/tictactoe-cover.png';
+                        accent = 'rgba(187,134,252,0.15)';
+                    }
+
+                    // Set atmosphere to first item
+                    if (index === 0 && atmosphere) {
+                        atmosphere.style.background = `radial-gradient(circle at 50% 30%, ${accent} 0%, rgba(3,3,8,0) 70%), url('${bgImg}') center/cover`;
+                        atmosphere.style.opacity = '0.3';
+                    }
+
+                    let link = '#';
+                    if (act.activity_type === 'game') {
+                        link = `games/${act.activity_name.toLowerCase().replace(/ /g, '-')}.html`;
+                        if (act.activity_id) link += `?game_id=${act.activity_id}`;
+                    }
+
+                    return `
+                        <div class="action-card" onclick="location.href='${link}'" onmouseover="updateAtmosphere('${bgImg}', '${accent}')">
+                            <div class="action-card-bg" style="background-image: url('${bgImg}')"></div>
+                            <div class="action-card-overlay">
+                                <div class="action-card-category" style="font-size:0.6rem; letter-spacing:0.2em; color:var(--nexus-purple); font-weight:800; margin-bottom:4px; text-transform:uppercase;">${act.activity_type}</div>
+                                <div class="action-card-name">${act.activity_name}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                fetchGlobalLeaderboard(); // Sync leaderboard on the same loop
+            } catch (error) {
+                console.error('Failed to fetch activity:', error);
+            }
+        }
+
+        /**
+         * Dynamic background shift on hover
+         */
+        function updateAtmosphere(img, accent) {
+            const atmosphere = document.getElementById('hub-atmosphere');
+            if (atmosphere) {
+                atmosphere.style.background = `radial-gradient(circle at 50% 30%, ${accent} 0%, rgba(3,3,8,0) 70%), url('${img}') center/cover`;
+            }
+        }
+
+        async function fetchGlobalLeaderboard() {
+            try {
+                const response = await fetch(`${API_BASE}/api/games/leaderboard?limit=5`);
+                const data = await response.json();
+                const list = document.getElementById('hub-leaderboard');
+                if (!list) return;
+
+                // 🛡️ Robust Check: Ensure data is an array
+                if (!Array.isArray(data) || data.length === 0) {
+                    list.innerHTML = '<li style="color:rgba(255,255,255,0.2); font-size:0.75rem; padding:15px 0; text-align:center;">Synchronizing rankings...</li>';
+                    return;
+                }
+
+                list.innerHTML = data.map((entry, i) => `
+                    <li style="display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <span style="font-size:0.8rem; font-weight:900; color:rgba(255,255,255,0.2); width:15px;">${i+1}</span>
+                            <span style="font-size:0.85rem; font-weight:600; color:#fff;">${entry.username}</span>
+                        </div>
+                        <span style="font-size:0.75rem; font-weight:800; color:var(--nexus-cyan);">${entry.elo_rating} <small style="font-size:0.5rem; opacity:0.6;">ELO</small></span>
+                    </li>
+                `).join('');
+            } catch (e) {
+                console.warn("Leaderboard sync failed.");
+            }
+        }
+
+        // Sync on app start if already logged in handled by window load listener below
+
+        /**
+         * Fetch and render awards/trophies
+         */
+        async function fetchUserAwards() {
+            const session = JSON.parse(sessionStorage.getItem(AUTH_SESSION_KEY) || localStorage.getItem(AUTH_SESSION_KEY) || '{}');
+            const uid = session.user_id || session.id;
+            if (!uid) return;
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/me/awards?user_id=${uid}`);
+                const awards = await response.json();
+                
+                const rack = document.getElementById('trophy-rack');
+                const hubAvatar = document.getElementById('profile-hub-avatar');
+                const hubUser = document.getElementById('profile-hub-username');
+                const mainAvatar = document.getElementById('user-avatar');
+
+                if (hubAvatar) hubAvatar.src = mainAvatar ? mainAvatar.src : '';
+                if (hubUser) hubUser.innerText = session.username || 'Explorer';
+
+                if (rack) {
+                    rack.innerHTML = awards.map(a => `
+                        <div class="trophy-case" title="${a.award_name}: ${a.description}">
+                            ${a.award_ico}
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Failed to fetch awards:', error);
+            }
+        }
+
+        /**
+         * Enhanced enterHub to include award fetch
+         */
+        const originalFetchActivity = fetchRecentActivity;
+        fetchRecentActivity = async function() {
+            if (originalFetchActivity) await originalFetchActivity();
+            fetchUserAwards();
+        };
+
+        // If already logged in on refresh
+        window.addEventListener('load', () => {
+            const sessionRaw = sessionStorage.getItem(AUTH_SESSION_KEY) || localStorage.getItem(AUTH_SESSION_KEY);
+            if (sessionRaw) {
+                const session = JSON.parse(sessionRaw);
+                showHubForAuthenticatedUser(session.username, { avatarUrl: session.avatar_url, updateHistory: false });
+                fetchRecentActivity();
+            }
+        });
+
+        /**
+         * Select game mode and LAUNCH
+         */
+        function selectGameMode(mode) {
+            const baseUrl = 'games/tic-tac-toe.html';
+            window.location.href = `${baseUrl}?mode=${mode}`;
+        }
+
+        function closeGameModeModal() {
+            const modal = document.getElementById('tic-tac-toe-modal');
+            if (modal) modal.classList.add('hidden');
+        }
+        /**
+         * Simple toggle for the ambient tune visualizer
+         */
+        function toggleAmbientTune() {
+            const viz = document.getElementById('tune-viz');
+            const btn = document.getElementById('ambient-tune-btn');
+            if (viz.style.opacity === '0.3') {
+                viz.style.opacity = '1';
+                btn.innerText = '🔊';
+            } else {
+                viz.style.opacity = '0.3';
+                btn.innerText = '🔇';
+            }
+        }
     </script>
 </body>
 </html>

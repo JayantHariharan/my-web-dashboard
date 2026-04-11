@@ -1,6 +1,20 @@
 """
-Logging configuration for PlayNexus.
-Supports console output and optional file rotation.
+Logging configuration for the PlayNexus backend.
+
+Call :func:`setup_logging` once at process startup (already done by both
+``main.py`` and the ``create_app()`` factory so it is safe to call twice
+– the second call is a no-op because it clears and re-adds handlers).
+
+Handler summary
+---------------
+- **Console** (``stdout``): always active; level controlled by
+  ``settings.log_level`` (``INFO`` in production, ``DEBUG`` when
+  ``DEBUG=true``).
+- **Rotating file** (``src/logs/playnexus.log``): production-only
+  (``settings.debug = False``); rotates at 10 MB, keeps 5 archived copies.
+
+Supports structured output by keeping the format tag-friendly
+(``%(name)s`` is the dotted Python module path).
 """
 
 import logging
@@ -10,8 +24,21 @@ from logging.handlers import RotatingFileHandler
 from .config import settings
 
 
-def setup_logging():
-    """Configure application logging."""
+def setup_logging() -> logging.Logger:
+    """
+    Configure application-wide logging.
+
+    Attaches a ``StreamHandler`` (console) to the root logger in all
+    environments.  In **production** (``settings.debug = False``) an
+    additional ``RotatingFileHandler`` is added that writes to
+    ``src/logs/playnexus.log``.
+
+    The uvicorn access log is demoted to ``WARNING`` level in production
+    to reduce noise from health-check polls.
+
+    Returns:
+        The configured root :class:`logging.Logger` instance.
+    """
     logger = logging.getLogger()
     logger.setLevel(settings.log_level)
 
