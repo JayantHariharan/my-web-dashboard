@@ -8,6 +8,9 @@ on:
       - 'feature/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   deploy-and-test:
     name: ${{ github.ref_name == 'main' && 'Production Deploy' || 'Test Deploy' }}
