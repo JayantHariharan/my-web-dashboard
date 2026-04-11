@@ -35,6 +35,24 @@ setup_logging()
 logger = logging.getLogger(__name__)
 
 
+def _runtime_environment_label() -> str:
+    """
+    Derive a user-facing environment label from runtime env vars.
+
+    Prefers explicit deployment environment signals over the DEBUG flag so
+    hosted test/staging deployments are not mislabeled as production.
+    """
+    app_env = (os.environ.get("ENV") or os.environ.get("APP_ENV") or "").lower()
+
+    if app_env in {"prod", "production"}:
+        return "production"
+    if app_env in {"test", "staging"}:
+        return "test"
+    if app_env in {"dev", "development"}:
+        return "development"
+    return "development" if settings.debug else "production"
+
+
 def create_app(lifespan: Optional[Any] = None) -> FastAPI:
     """
     Create and configure the FastAPI application.
@@ -219,7 +237,7 @@ JWT / server-backed sessions are on the roadmap.
             "status": "healthy",
             "service": "PlayNexus API",
             "database": "connected",
-            "environment": "production" if not settings.debug else "development",
+            "environment": _runtime_environment_label(),
         }
 
     # Exception handlers
