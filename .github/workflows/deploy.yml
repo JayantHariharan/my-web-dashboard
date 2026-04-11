@@ -10,9 +10,9 @@ on:
 
 jobs:
   deploy-and-test:
-    name: ${{ contains(github.ref, 'refs/heads/main') && '🚀 Production' || '🧪 Staging/Test' }}
+    name: ${{ contains(github.ref, 'refs/heads/main') && 'Production' || 'Staging/Test' }}
     runs-on: ubuntu-latest
-    
+
     env:
       # Using ref_name for cleaner and more robust branching logic
       APP_ENV: ${{ github.ref_name == 'main' && 'production' || 'test' }}
@@ -21,32 +21,82 @@ jobs:
       RENDER_SERVICE_ID: ${{ github.ref_name == 'main' && secrets.RENDER_SERVICE_ID_PROD || secrets.RENDER_SERVICE_ID_TEST }}
 
     steps:
-      - name: 🛰️ Checkout Repository
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🛠️ Trigger Render Deployment
+      - name: Trigger Render Deployment
         run: |
+          set -euo pipefail
           echo "Triggering deploy for branch: ${{ github.ref_name }} to env: ${{ env.APP_ENV }}"
           echo "Target Service: ${{ env.RENDER_SERVICE_ID }}"
-          curl -s -X POST "https://api.render.com/v1/services/${{ env.RENDER_SERVICE_ID }}/deploys" \
-            -H "Authorization: Bearer ${{ env.RENDER_API_KEY }}" \
-            -H "Accept: application/json" > /dev/null
-          echo "✅ Deploy POST request sent via Render API."
 
-      - name: ⏳ Wait for Service (Optional Ping)
+          deploy_response="$(curl -fsS -X POST "https://api.render.com/v1/services/${{ env.RENDER_SERVICE_ID }}/deploys" \
+            -H "Authorization: Bearer ${{ env.RENDER_API_KEY }}" \
+            -H "Accept: application/json")"
+
+          deploy_id="$(echo "$deploy_response" | jq -r '.deploy.id // .id // empty')"
+          if [ -z "$deploy_id" ]; then
+            echo "::error::Render deploy was triggered, but no deploy id was returned."
+            echo "$deploy_response"
+            exit 1
+          fi
+
+          echo "RENDER_DEPLOY_ID=$deploy_id" >> "$GITHUB_ENV"
+          echo "Deploy request accepted. Deploy id: $deploy_id"
+
+      - name: Wait for Render Deployment
         run: |
-          echo "Checking health of ${SITE_URL}/health..."
-          # Quick check with 3 retries
-          for i in {1..3}; do
-            curl -sf "${SITE_URL}/health" && break || sleep 10
+          set -euo pipefail
+          echo "Waiting for Render deploy ${RENDER_DEPLOY_ID} to finish..."
+
+          for attempt in {1..60}; do
+            deploy_status_response="$(curl -fsS "https://api.render.com/v1/services/${{ env.RENDER_SERVICE_ID }}/deploys/${RENDER_DEPLOY_ID}" \
+              -H "Authorization: Bearer ${{ env.RENDER_API_KEY }}" \
+              -H "Accept: application/json")"
+
+            status="$(echo "$deploy_status_response" | jq -r '.deploy.status // .status // .deploy.state // .state // "unknown"' | tr '[:upper:]' '[:lower:]')"
+            echo "Attempt $attempt/60: deploy status is '$status'"
+
+            case "$status" in
+              live|deployed|success|build_success|update_success)
+                echo "Render deployment completed."
+                exit 0
+                ;;
+              build_failed|failed|error|canceled|cancelled|update_failed|pre_deploy_failed)
+                echo "::error::Render deployment failed with status '$status'."
+                echo "$deploy_status_response"
+                exit 1
+                ;;
+            esac
+
+            sleep 10
           done
 
-      - name: 📦 Verify Environment
+          echo "::error::Timed out waiting for Render deployment to finish."
+          exit 1
+
+      - name: Wait for Service Health
+        run: |
+          echo "Checking health of ${SITE_URL}/health..."
+
+          for i in {1..18}; do
+            if curl -fsS "${SITE_URL}/health"; then
+              exit 0
+            fi
+
+            echo "Health check attempt $i/18 failed. Retrying in 10 seconds..."
+            sleep 10
+          done
+
+          echo "::error::Service health check never became ready."
+          exit 1
+
+      - name: Verify Environment
         run: |
           node -v
           npm -v
 
-      - name: 🎬 Run Smoke Tests
+      - name: Run Smoke Tests
         run: |
           echo "Running automated smoke tests against: ${SITE_URL}"
           SITE_URL="${SITE_URL}" node tests/smoke.test.js

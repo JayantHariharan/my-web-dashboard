@@ -104,6 +104,13 @@ Shutdown sequence:
 - Local helper: `python scripts/migrate.py` (see `--help`).
 - Hosted: GitHub Action `.github/workflows/flyway-migrate.yml` runs Flyway against the production database on every merge to `main`.
 
+## Deployment workflow
+
+- GitHub Actions deploys from `.github/workflows/deploy.yml`.
+- The workflow triggers a Render deploy, captures the returned deploy id, and waits for Render to report that deploy as complete before continuing.
+- After Render finishes, the workflow polls `${SITE_URL}/health` until the service is ready, then runs the smoke test suite in `tests/smoke.test.js`.
+- If the Render deploy fails or does not become healthy in time, the workflow stops before later verification steps run.
+
 ## Git hooks (optional)
 
 Install from the repo root:
@@ -163,4 +170,4 @@ Session state today is **client-side** (`sessionStorage` / `localStorage`). `/ap
 
 ---
 
-*Last updated: 2026-04-11*
+*Last updated: 2026-04-12*
