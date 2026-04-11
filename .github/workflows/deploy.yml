@@ -41,10 +41,10 @@ jobs:
             curl -sf "${SITE_URL}/health" && break || sleep 10
           done
 
-      - name: 📦 Install Playwright
+      - name: 📦 Verify Environment
         run: |
-          npm install playwright
-          npx playwright install --with-deps chromium
+          node -v
+          npm -v
 
       - name: 🎬 Run Smoke Tests
         run: |
