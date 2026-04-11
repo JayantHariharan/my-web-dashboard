@@ -5,12 +5,29 @@ on:
     branches:
       - main
       - develop
-      - 'feature/**'
+  pull_request:
+    branches:
+      - main
+      - develop
   workflow_dispatch:
 
 jobs:
+  preview-guidance:
+    name: Render Preview Guidance
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Explain Render preview flow
+        run: |
+          echo "This pull request should use Render PR previews instead of the shared service deploy API."
+          echo "Render preview instances inherit the base service settings when created, including environment variables."
+          echo "For feature branches targeting develop, that means the preview should use the test/develop service configuration."
+          echo "Enable PR previews in the Render dashboard for the develop-linked service if they are not already enabled."
+
   deploy-and-test:
-    name: ${{ contains(github.ref, 'refs/heads/main') && 'Production' || 'Staging/Test' }}
+    name: ${{ github.ref_name == 'main' && 'Production Deploy' || 'Staging Deploy' }}
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
 
     env:
@@ -19,22 +36,12 @@ jobs:
       SITE_URL: ${{ github.ref_name == 'main' && 'https://playnexus-prod.onrender.com' || 'https://playnexus-test.onrender.com' }}
       RENDER_API_KEY: ${{ github.ref_name == 'main' && secrets.RENDER_API_KEY_PROD || secrets.RENDER_API_KEY_TEST }}
       RENDER_SERVICE_ID: ${{ github.ref_name == 'main' && secrets.RENDER_SERVICE_ID_PROD || secrets.RENDER_SERVICE_ID_TEST }}
-      DEPLOY_ENABLED: ${{ github.ref_name == 'main' || github.ref_name == 'develop' }}
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Explain Feature Branch Deploys
-        if: env.DEPLOY_ENABLED != 'true'
-        run: |
-          echo "Branch '${{ github.ref_name }}' is not the Render service's linked branch."
-          echo "Render deploys the latest commit from a service's linked branch by default."
-          echo "Render's docs recommend PR previews for feature branches instead of forcing those commits onto the shared service."
-          echo "Skipping shared-service deployment for this branch."
-
       - name: Trigger Render Deployment
-        if: env.DEPLOY_ENABLED == 'true'
         run: |
           set -euo pipefail
           echo "Triggering deploy for branch: ${{ github.ref_name }} to env: ${{ env.APP_ENV }}"
@@ -57,7 +64,6 @@ jobs:
           echo "Deploy request accepted. Deploy id: $deploy_id"
 
       - name: Wait for Render Deployment
-        if: env.DEPLOY_ENABLED == 'true'
         run: |
           set -euo pipefail
           echo "Waiting for Render deploy ${RENDER_DEPLOY_ID} to finish..."
@@ -89,7 +95,6 @@ jobs:
           exit 1
 
       - name: Wait for Service Health
-        if: env.DEPLOY_ENABLED == 'true'
         run: |
           echo "Checking health of ${SITE_URL}/health..."
 
@@ -111,7 +116,6 @@ jobs:
           npm -v
 
       - name: Run Smoke Tests
-        if: env.DEPLOY_ENABLED == 'true'
         run: |
           echo "Running automated smoke tests against: ${SITE_URL}"
           SITE_URL="${SITE_URL}" node tests/smoke.test.js
