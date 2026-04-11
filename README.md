@@ -108,8 +108,8 @@ Shutdown sequence:
 
 - GitHub Actions deploys from `.github/workflows/deploy.yml`.
 - Pushes to `main` deploy production; pushes to `develop` deploy the shared test environment.
-- Feature branches also deploy to the shared test environment by sending the current GitHub commit SHA to the Render deploy API.
-- Because `develop` and `feature/**` share the same test service, the most recent test deploy wins and can replace an earlier test deployment from another branch.
+- Feature-branch pushes do not deploy to the shared Render service. Render deploys from a service's linked branch, and its manual deploy API defaults to the latest commit on that linked branch.
+- For feature branches, use Render PR previews / service previews instead of trying to push feature-branch commits onto the shared test service.
 - The workflow triggers a Render deploy, captures the returned deploy id, and waits for Render to report that deploy as complete before continuing.
 - After Render finishes, the workflow polls `${SITE_URL}/health` until the service is ready, then runs the smoke test suite in `tests/smoke.test.js`.
 - If the Render deploy fails or does not become healthy in time, the workflow stops before later verification steps run.
